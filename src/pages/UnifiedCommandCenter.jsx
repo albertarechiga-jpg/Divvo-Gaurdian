@@ -546,6 +546,7 @@ function AIRoutePanel({ onRouteGenerated, onClose, prefill }) {
   const [loading, setLoading]         = useState(false);
   const [result, setResult]           = useState(null);
   const [step, setStep]               = useState(0);
+  const [corridorMeters, setCorridorMeters] = useState(800);
 
   const STEPS = ["Analyzing origin & destination...", "Calculating optimal highway route...", "Checking high-risk zones...", "Setting security corridor...", "Route ready"];
 
@@ -560,6 +561,7 @@ function AIRoutePanel({ onRouteGenerated, onClose, prefill }) {
     }
     const route = await generateAIRoute(origin, destination, carrier, cargoValue);
     setResult(route);
+    setCorridorMeters(route.corridor_meters || 800);
     setLoading(false);
   };
 
@@ -568,7 +570,7 @@ function AIRoutePanel({ onRouteGenerated, onClose, prefill }) {
     onRouteGenerated({
       name: result.route_name,
       waypoints: result.waypoints,
-      corridorMeters: result.corridor_meters,
+      corridorMeters,
       assignedDevice: "all",
       created_at: new Date().toISOString(),
     });
@@ -656,7 +658,6 @@ function AIRoutePanel({ onRouteGenerated, onClose, prefill }) {
               {[
                 { label: "Distance", value: result.estimated_distance_miles + " mi" },
                 { label: "Drive Time", value: result.estimated_drive_hours + " hrs" },
-                { label: "Corridor", value: (result.corridor_meters >= 1000 ? (result.corridor_meters/1000).toFixed(1) + "km" : result.corridor_meters + "m") + " wide" },
                 { label: "Risk Level", value: result.risk_level, color: riskColor },
               ].map(({ label, value, color }) => (
                 <div key={label} style={{ background: "#0a0f1a", border: "1px solid #1f2937", borderRadius: 8, padding: "8px 10px" }}>
@@ -664,6 +665,18 @@ function AIRoutePanel({ onRouteGenerated, onClose, prefill }) {
                   <div style={{ fontSize: 13, fontWeight: 700, color: color || "#f9fafb" }}>{value}</div>
                 </div>
               ))}
+            </div>
+
+            {/* Geofence / corridor width — adjustable */}
+            <div style={{ background: "#0a0f1a", border: "1px solid #1f2937", borderRadius: 8, padding: "8px 10px" }}>
+              <div style={{ fontSize: 9, color: "#6b7280", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>
+                Geofence Corridor — {corridorMeters >= 1000 ? (corridorMeters/1000).toFixed(1) + "km" : corridorMeters + "m"} each side
+              </div>
+              <input type="range" min="100" max="2000" step="100" value={corridorMeters} onChange={e => setCorridorMeters(Number(e.target.value))}
+                style={{ width: "100%", accentColor: "#2563eb" }}/>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#4b5563", marginTop: 2 }}>
+                <span>100m tight</span><span>1km normal</span><span>2km loose</span>
+              </div>
             </div>
 
             {result._geocodeError && (
@@ -1418,8 +1431,13 @@ export default function UnifiedCommandCenter({ onNav }) {
               </button>
             </div>
           </div>
-          <div style={{ flex: 1 }}>
-            <LiveMap devices={devices} onSelect={(id) => { handleSelectDevice(id); setMapFullscreen(false); }} selectedId={selectedDevice?.id} fullscreen={true} onFullscreen={() => setMapFullscreen(false)} savedRoutes={savedRoutes} onRouteSave={handleRouteSave} onRouteDelete={handleRouteDelete} routeDeviations={routeDeviations}/>
+          <div style={{ flex: 1, position: "relative" }}>
+            <LiveMap devices={devices} onSelect={handleSelectDevice} selectedId={selectedDevice?.id} fullscreen={true} onFullscreen={() => setMapFullscreen(false)} savedRoutes={savedRoutes} onRouteSave={handleRouteSave} onRouteDelete={handleRouteDelete} routeDeviations={routeDeviations}/>
+            {selectedDevice && (
+              <div style={{ position: "absolute", top: 12, right: 12, bottom: 12, width: 360, zIndex: 30 }}>
+                <AIResponsePanel device={selectedDevice} onDismiss={() => setSelectedDevice(null)} onNav={onNav}/>
+              </div>
+            )}
           </div>
         </div>
       )}
