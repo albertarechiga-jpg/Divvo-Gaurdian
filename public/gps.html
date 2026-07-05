@@ -56,9 +56,21 @@
 
   <div class="label" style="margin-bottom:6px;">Select Device</div>
   <select id="device-select" class="device-select">
-    <option value="device-1" data-color="#22c55e">Phone 1 — Green</option>
-    <option value="device-2" data-color="#3b82f6">Phone 2 — Blue</option>
-    <option value="device-3" data-color="#f59e0b">Phone 3 — Amber</option>
+    <optgroup label="Owlet">
+      <option value="DG-1028">DG-1028 — I-35 N near Laredo, TX</option>
+      <option value="DG-1041">DG-1041 — US-281 near Corpus Christi, TX</option>
+      <option value="DG-0994">DG-0994 — I-10 W near San Antonio, TX</option>
+    </optgroup>
+    <optgroup label="Meridian Freight">
+      <option value="MR-2031">MR-2031 — I-5 S near Tacoma, WA</option>
+      <option value="MR-2044">MR-2044 — I-84 near Portland, OR</option>
+      <option value="MR-1987">MR-1987 — US-101 near Olympia, WA</option>
+    </optgroup>
+    <optgroup label="Coastal Logistics">
+      <option value="CL-3041">CL-3041 — I-16 W near Savannah, GA</option>
+      <option value="CL-3059">CL-3059 — I-95 near Jacksonville, FL</option>
+      <option value="CL-3020">CL-3020 — US-17 near Charleston, SC</option>
+    </optgroup>
   </select>
 
   <button id="gps-btn" class="btn" onclick="toggleGPS()">📍 Start Broadcasting</button>

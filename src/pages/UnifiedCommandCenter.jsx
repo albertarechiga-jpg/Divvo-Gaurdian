@@ -1376,7 +1376,10 @@ export default function UnifiedCommandCenter({ onNav, company = "owlet" }) {
     fetchSavedRoutes().then(rows => { if (Array.isArray(rows)) setSavedRoutes(rows); });
   }, []);
 
-  // Poll Supabase for live phone GPS
+  // Poll Supabase for live phone GPS — restricted to this company's own devices,
+  // since gps_pings has no company column and device IDs from other companies
+  // (different prefix, e.g. MR-/CL- vs DG-) would otherwise still show up here.
+  const companyDeviceIds = new Set(DEVICES.map(d => d.id));
   useEffect(() => {
     const poll = async () => {
       try {
@@ -1387,6 +1390,7 @@ export default function UnifiedCommandCenter({ onNav, company = "owlet" }) {
         const seen = {};
         for (const p of pings) {
           const id = p.device_id || "device-1";
+          if (!companyDeviceIds.has(id)) continue;
           const age = (Date.now() - new Date(p.created_at).getTime()) / 1000;
           if (age < 300 && !seen[id]) { seen[id] = true; fresh.push({ ...p, deviceId: id }); }
         }
