@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
-const SB_URL = "https://vnywjwncanldpsffiwtn.supabase.co";
-const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZueXdqd25jYW5sZHBzZmZpd3RuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MjExMjAsImV4cCI6MjA5ODQ5NzEyMH0.J-5KjItWTEgolONGOHhLORJNh5K6rla19vJnASl2ay4";
+const SB_URL = import.meta.env.VITE_SUPABASE_URL;
+const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 async function loadSettings() {
   const res = await fetch(SB_URL + "/rest/v1/alert_settings?select=*&limit=1", {

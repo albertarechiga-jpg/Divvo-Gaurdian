@@ -1,4 +1,4 @@
-const RESEND_KEY = "REDACTED_RESEND_API_KEY";
+const RESEND_KEY = process.env.RESEND_API_KEY;
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");

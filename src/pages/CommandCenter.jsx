@@ -6,9 +6,9 @@ import { SeverityBadge } from "../components/Badges.jsx";
 import { dispatchAlert } from "../lib/notifications.js";
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const SB_URL = "https://vnywjwncanldpsffiwtn.supabase.co";
-const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZueXdqd25jYW5sZHBzZmZpd3RuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MjExMjAsImV4cCI6MjA5ODQ5NzEyMH0.J-5KjItWTEgolONGOHhLORJNh5K6rla19vJnASl2ay4";
-const MAPBOX_TOKEN = "REDACTED_MAPBOX_TOKEN";
+const SB_URL = import.meta.env.VITE_SUPABASE_URL;
+const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 const DEVICE_COLORS = { "device-1": "#22c55e", "device-2": "#3b82f6", "device-3": "#f59e0b" };
 const SPEED_THRESHOLD_MPH = 25;

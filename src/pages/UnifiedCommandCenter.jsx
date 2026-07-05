@@ -2,9 +2,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { dispatchAlert } from "../lib/notifications.js";
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const MAPBOX_TOKEN = "REDACTED_MAPBOX_TOKEN";
-const SB_URL = "https://vnywjwncanldpsffiwtn.supabase.co";
-const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZueXdqd25jYW5sZHBzZmZpd3RuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MjExMjAsImV4cCI6MjA5ODQ5NzEyMH0.J-5KjItWTEgolONGOHhLORJNh5K6rla19vJnASl2ay4";
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+const SB_URL = import.meta.env.VITE_SUPABASE_URL;
+const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const ICE = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }] };
 
 // ── Supabase route helpers ───────────────────────────────────────────────────

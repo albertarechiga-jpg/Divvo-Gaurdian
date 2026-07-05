@@ -1,5 +1,5 @@
-const TWILIO_SID   = "REDACTED_TWILIO_ACCOUNT_SID";
-const TWILIO_TOKEN = "REDACTED_TWILIO_AUTH_TOKEN";
+const TWILIO_SID   = process.env.TWILIO_ACCOUNT_SID;
+const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const WHATSAPP_FROM = "whatsapp:+14155238886"; // Twilio WhatsApp sandbox number
 
 export default async function handler(req, res) {
