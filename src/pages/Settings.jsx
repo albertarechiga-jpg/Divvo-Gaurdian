@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
+import { COMPANIES } from "../data/companyFleets.js";
 
 const SB_URL = import.meta.env.VITE_SUPABASE_URL;
 const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-async function loadSettings() {
-  const res = await fetch(SB_URL + "/rest/v1/alert_settings?select=*&limit=1", {
+async function loadSettings(companyId) {
+  const res = await fetch(SB_URL + `/rest/v1/alert_settings?select=*&company_id=eq.${companyId}&limit=1`, {
     headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY },
   });
   const rows = await res.json();
@@ -48,7 +49,8 @@ const Section = ({ title, children }) => (
   </div>
 );
 
-export default function SettingsPage() {
+export default function SettingsPage({ company = "owlet" }) {
+  const companyInfo = COMPANIES.find((c) => c.id === company) || COMPANIES[0];
   const [settings, setSettings]   = useState(null);
   const [settingsId, setSettingsId] = useState(null);
   const [loading, setLoading]     = useState(true);
@@ -59,23 +61,27 @@ export default function SettingsPage() {
   const [testLoading, setTestLoading] = useState(false);
 
   useEffect(() => {
-    loadSettings().then((s) => {
+    setLoading(true);
+    setSettings(null);
+    loadSettings(company).then((s) => {
       if (s) {
         setSettingsId(s.id);
         setSettings({
-          client_name:    s.client_name || "Owlet",
-          emails:         s.emails || ["albertarechiga@gmail.com"],
-          phones:         s.phones || ["+12105564917"],
+          client_name:    s.client_name || companyInfo.name,
+          emails:         Array.isArray(s.emails) ? s.emails : [],
+          phones:         Array.isArray(s.phones) ? s.phones : [],
           sms_critical:   s.sms_critical ?? true,
           sms_warning:    s.sms_warning ?? false,
           email_critical: s.email_critical ?? true,
           email_warning:  s.email_warning ?? true,
           browser_all:    s.browser_all ?? true,
         });
+      } else {
+        setSettingsId(null);
       }
       setLoading(false);
     });
-  }, []);
+  }, [company]);
 
   const showToast = (msg, color = "#22c55e") => {
     setToast({ msg, color });

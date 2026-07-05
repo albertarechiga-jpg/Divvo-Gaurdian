@@ -195,7 +195,7 @@ export default function App() {
         return <ReportsPage company={company} />;
 
       case "settings":
-        return <SettingsPage />;
+        return <SettingsPage company={company} />;
 
       default:
         return <UnifiedCommandCenter key={company} onNav={handleNav} company={company} />;

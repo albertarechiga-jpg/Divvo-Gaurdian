@@ -2,10 +2,10 @@ const SB_URL = import.meta.env.VITE_SUPABASE_URL;
 const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // ── Fetch alert settings from Supabase ────────────────────────────────────────
-export async function fetchAlertSettings() {
+export async function fetchAlertSettings(companyId = "owlet") {
   try {
     const res = await fetch(
-      SB_URL + "/rest/v1/alert_settings?select=*&limit=1",
+      SB_URL + `/rest/v1/alert_settings?select=*&company_id=eq.${companyId}&limit=1`,
       { headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } }
     );
     const rows = await res.json();
@@ -54,8 +54,8 @@ export async function sendEmail({ to, subject, alertType, deviceId, location, se
 }
 
 // ── Main alert dispatcher ─────────────────────────────────────────────────────
-export async function dispatchAlert({ alertType, deviceId, location, severity, details = [] }) {
-  const settings = await fetchAlertSettings();
+export async function dispatchAlert({ alertType, deviceId, location, severity, details = [], companyId = "owlet" }) {
+  const settings = await fetchAlertSettings(companyId);
   if (!settings) return;
 
   const isCritical = severity === "Critical";

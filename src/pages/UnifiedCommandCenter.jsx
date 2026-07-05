@@ -1093,7 +1093,7 @@ function formatMMSS(totalSeconds) {
   return `${m}:${String(r).padStart(2, "0")}`;
 }
 
-function AIResponsePanel({ device, onDismiss, onNav }) {
+function AIResponsePanel({ device, onDismiss, onNav, company = "owlet" }) {
   const [aiData, setAiData]   = useState(null);
   const [loading, setLoading] = useState(true);
   const [step, setStep]       = useState(0); // 0=analyzing, 1=ready
@@ -1138,13 +1138,14 @@ function AIResponsePanel({ device, onDismiss, onNav }) {
           location: device.location,
           severity: device.severity,
           details: [["Cargo", device.cargo], ["Carrier", device.carrier], ["Escalation", "Automatic — response window expired unacknowledged"]],
+          companyId: company,
         });
       }
       return;
     }
     const t = setTimeout(() => setSecondsLeft(s => (s == null ? s : s - 1)), 1000);
     return () => clearTimeout(t);
-  }, [secondsLeft, actionTaken, escalated, totalSeconds]);
+  }, [secondsLeft, actionTaken, escalated, totalSeconds, company]);
 
   if (!device) return null;
 
@@ -1291,7 +1292,7 @@ function AIResponsePanel({ device, onDismiss, onNav }) {
                 style={{ background: isCrit ? "#7f1d1d" : "#451a03", border: `1px solid ${borderColor}`, color: textColor, borderRadius: 8, padding: "9px 0", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                 Open Recovery Case
               </button>
-              <button onClick={() => { setActionTaken(true); dispatchAlert({ alertType: device.type, deviceId: device.id, location: device.location, severity: device.severity, details: [["Cargo", device.cargo], ["Carrier", device.carrier]] }); }}
+              <button onClick={() => { setActionTaken(true); dispatchAlert({ alertType: device.type, deviceId: device.id, location: device.location, severity: device.severity, details: [["Cargo", device.cargo], ["Carrier", device.carrier]], companyId: company }); }}
                 style={{ background: "#1e3a8a", border: "1px solid #2563eb", color: "#93c5fd", borderRadius: 8, padding: "9px 0", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                 Send Alert Notification
               </button>
@@ -1504,7 +1505,7 @@ export default function UnifiedCommandCenter({ onNav, company = "owlet" }) {
             <LiveMap devices={devices} onSelect={handleSelectDevice} selectedId={selectedDevice?.id} fullscreen={true} onFullscreen={() => setMapFullscreen(false)} savedRoutes={savedRoutes} onRouteSave={handleRouteSave} onRouteDelete={handleRouteDelete} routeDeviations={routeDeviations} shipmentRoutes={SHIPMENT_ROUTES} deviceShipmentContext={DEVICE_SHIPMENT_CONTEXT} mapCenter={companyInfo.mapCenter} mapZoom={companyInfo.mapZoom}/>
             {selectedDevice && (
               <div style={{ position: "absolute", top: 12, right: 12, bottom: 12, width: 360, zIndex: 30 }}>
-                <AIResponsePanel device={selectedDevice} onDismiss={() => setSelectedDevice(null)} onNav={onNav}/>
+                <AIResponsePanel device={selectedDevice} onDismiss={() => setSelectedDevice(null)} onNav={onNav} company={company}/>
               </div>
             )}
           </div>
@@ -1662,7 +1663,7 @@ export default function UnifiedCommandCenter({ onNav, company = "owlet" }) {
         {/* RIGHT — AI Response Panel */}
         {selectedDevice && (
           <div style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
-            <AIResponsePanel device={selectedDevice} onDismiss={() => setSelectedDevice(null)} onNav={onNav}/>
+            <AIResponsePanel device={selectedDevice} onDismiss={() => setSelectedDevice(null)} onNav={onNav} company={company}/>
           </div>
         )}
 
