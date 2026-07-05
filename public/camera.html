@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <title>Divvo Guardian — Device Camera</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #070d17; color: #f9fafb; font-family: ui-sans-serif, system-ui, sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+    .header { background: #060d18; border-bottom: 1px solid #1f2937; padding: 12px 16px; display: flex; align-items: center; gap: 10px; }
+    .logo-icon { width: 30px; height: 30px; background: #2563eb; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .logo-text { font-size: 14px; font-weight: 800; }
+    .logo-sub { font-size: 10px; color: #6b7280; }
+    .body { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .arm-screen { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 24px; text-align: center; }
+    .arm-btn { width: 100%; max-width: 320px; padding: 22px; border-radius: 16px; border: 2px solid #2563eb; background: #1e3a8a; color: #93c5fd; font-size: 18px; font-weight: 800; cursor: pointer; letter-spacing: 0.02em; }
+    .arm-sub { font-size: 12px; color: #6b7280; line-height: 1.6; max-width: 280px; }
+    .status-card { background: #0a0f1a; border: 1px solid #1f2937; border-radius: 12px; padding: 14px 16px; }
+    .status-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid #111827; font-size: 13px; }
+    .status-row:last-child { border-bottom: none; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot.green  { background: #22c55e; animation: pulse 1.5s infinite; }
+    .dot.gray   { background: #374151; }
+    .dot.amber  { background: #f59e0b; animation: pulse 1s infinite; }
+    .dot.red    { background: #ef4444; animation: pulse 1s infinite; }
+    .dot.blue   { background: #3b82f6; animation: pulse 1s infinite; }
+    .select { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #1f2937; background: #111827; color: #f9fafb; font-size: 13px; }
+    .label { font-size: 10px; font-weight: 700; color: #6b7280; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+    .preview { position: relative; background: #000; border-radius: 12px; overflow: hidden; aspect-ratio: 16/9; }
+    video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .rec-badge { position: absolute; top: 10px; left: 10px; background: rgba(127,29,29,0.9); border: 1px solid #ef4444; border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 700; color: #fca5a5; display: none; align-items: center; gap: 5px; }
+    .conn-badge { position: absolute; top: 10px; right: 10px; background: rgba(5,46,22,0.9); border: 1px solid #22c55e; border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 700; color: #86efac; display: none; }
+    .main-content { display: none; flex-direction: column; gap: 12px; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .badge { margin-left: auto; border-radius: 20px; padding: 3px 10px; font-size: 10px; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-text">Divvo Guardian</div>
+      <div class="logo-sub">Device Camera</div>
+    </div>
+    <div id="header-badge" class="badge" style="background:#111827;border:1px solid #374151;color:#6b7280;">OFFLINE</div>
+  </div>
+
+  <!-- ARM SCREEN — shown first, requires tap to start camera on iOS -->
+  <div id="arm-screen" class="body arm-screen">
+    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.5">
+      <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+    </svg>
+    <div>
+      <div style="font-size:20px;font-weight:800;margin-bottom:8px;">Arm This Device</div>
+      <div class="arm-sub">Tap the button below to activate this device as a Divvo Guardian camera. Once armed, the dashboard can connect at any time without touching this phone.</div>
+    </div>
+
+    <div style="width:100%;max-width:320px;">
+      <div class="label" style="margin-bottom:6px;">Camera Slot</div>
+      <select id="device-select-arm" class="select" style="margin-bottom:12px;">
+        <option value="device-1">Camera 1 — Left</option>
+        <option value="device-2">Camera 2 — Center</option>
+        <option value="device-3">Camera 3 — Right</option>
+      </select>
+      <div class="label" style="margin-bottom:6px;">Camera Facing</div>
+      <select id="camera-select-arm" class="select" style="margin-bottom:20px;">
+        <option value="environment">Back Camera (Recommended)</option>
+        <option value="user">Front Camera</option>
+      </select>
+      <button class="arm-btn" onclick="armDevice()">🎥 Arm Device</button>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT — shown after arm -->
+  <div id="main-content" class="body main-content">
+    <div class="status-card">
+      <div class="status-row">
+        <div class="dot green" id="dot-cam"></div>
+        <span id="txt-cam" style="color:#22c55e">Camera active</span>
+      </div>
+      <div class="status-row">
+        <div class="dot green" id="dot-listen"></div>
+        <span id="txt-listen" style="color:#22c55e">Listening for dashboard</span>
+      </div>
+      <div class="status-row">
+        <div class="dot gray" id="dot-conn"></div>
+        <span id="txt-conn" style="color:#6b7280">No dashboard connected</span>
+      </div>
+    </div>
+
+    <div class="preview">
+      <video id="local-video" autoplay muted playsinline></video>
+      <div id="rec-badge" class="rec-badge">
+        <span style="width:6px;height:6px;border-radius:50%;background:#ef4444;display:inline-block;"></span> STREAMING
+      </div>
+      <div id="conn-badge" class="conn-badge">● DASHBOARD CONNECTED</div>
+    </div>
+
+    <!-- Zoom Controls -->
+    <div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:12px;padding:14px 16px;">
+      <div class="label" style="margin-bottom:10px;">Zoom Control</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:11px;color:#6b7280;min-width:20px;">1x</span>
+        <input type="range" id="zoom-slider" min="1" max="4" step="0.1" value="1"
+          style="flex:1;accent-color:#2563eb;"
+          oninput="applyZoom(this.value)">
+        <span style="font-size:11px;color:#6b7280;min-width:30px;">4x</span>
+        <span id="zoom-label" style="font-size:12px;font-weight:700;color:#93c5fd;min-width:36px;">1.0x</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button onclick="setZoom(1)" style="flex:1;background:#111827;border:1px solid #1f2937;color:#9ca3af;border-radius:8px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;">1x</button>
+        <button onclick="setZoom(2)" style="flex:1;background:#111827;border:1px solid #1f2937;color:#9ca3af;border-radius:8px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;">2x</button>
+        <button onclick="setZoom(3)" style="flex:1;background:#111827;border:1px solid #1f2937;color:#9ca3af;border-radius:8px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;">3x</button>
+        <button onclick="setZoom(4)" style="flex:1;background:#111827;border:1px solid #1f2937;color:#9ca3af;border-radius:8px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;">4x</button>
+      </div>
+    </div>
+
+    <div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:10px;padding:12px 14px;font-size:11px;color:#6b7280;line-height:1.6;">
+      Keep this page open and your screen on. The dashboard will connect automatically. Device: <strong style="color:#93c5fd" id="device-label">Camera 1</strong>
+    </div>
+  </div>
+
+  <script>
+    const SB_URL = 'https://vnywjwncanldpsffiwtn.supabase.co';
+    const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZueXdqd25jYW5sZHBzZmZpd3RuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MjExMjAsImV4cCI6MjA5ODQ5NzEyMH0.J-5KjItWTEgolONGOHhLORJNh5K6rla19vJnASl2ay4';
+    const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
+
+    let localStream = null;
+    let pc = null;
+    let pollInterval = null;
+    let lastOfferId = null;
+    let deviceId = 'device-1';
+    let facing = 'environment';
+
+    function setStatus(id, color, text) {
+      document.getElementById('dot-' + id).className = 'dot ' + color;
+      const el = document.getElementById('txt-' + id);
+      el.textContent = text;
+      el.style.color = color === 'green' ? '#22c55e' : color === 'red' ? '#ef4444' : color === 'amber' ? '#f59e0b' : color === 'blue' ? '#93c5fd' : '#6b7280';
+    }
+
+    function setBadge(text, bg, border, color) {
+      const b = document.getElementById('header-badge');
+      b.textContent = text;
+      b.style.background = bg;
+      b.style.borderColor = border;
+      b.style.color = color;
+    }
+
+    async function sendSignal(type, payload) {
+      await fetch(SB_URL + '/rest/v1/webrtc_signals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, Prefer: 'return=minimal' },
+        body: JSON.stringify({ device_id: deviceId + '-cam', type, payload }),
+      });
+    }
+
+    async function handleOffer(row) {
+      if (row.id === lastOfferId) return;
+      lastOfferId = row.id;
+
+      if (pc) { pc.close(); pc = null; }
+
+      setStatus('conn', 'blue', 'Dashboard connecting — auto-accepting...');
+      setBadge('CONNECTING', '#1a1200', '#f59e0b', '#fcd34d');
+
+      pc = new RTCPeerConnection(ICE);
+      if (localStream) localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+      pc.onicecandidate = async (e) => {
+        if (e.candidate) await sendSignal('ice-camera', { candidate: e.candidate });
+      };
+
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'connected') {
+          setStatus('conn', 'green', 'Dashboard connected — streaming live');
+          setBadge('LIVE', '#052e16', '#22c55e', '#86efac');
+          document.getElementById('rec-badge').style.display = 'flex';
+          document.getElementById('conn-badge').style.display = 'block';
+        } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+          setStatus('conn', 'gray', 'Dashboard disconnected — waiting...');
+          setBadge('ARMED', '#052e16', '#22c55e', '#86efac');
+          document.getElementById('rec-badge').style.display = 'none';
+          document.getElementById('conn-badge').style.display = 'none';
+          pc = null;
+        }
+      };
+
+      await pc.setRemoteDescription(new RTCSessionDescription(row.payload.sdp));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      await sendSignal('answer', { sdp: answer });
+
+      // Collect ICE from dashboard
+      let iceCount = 0;
+      const iceInterval = setInterval(async () => {
+        if (++iceCount > 20) { clearInterval(iceInterval); return; }
+        try {
+          const res = await fetch(
+            SB_URL + '/rest/v1/webrtc_signals?device_id=eq.' + deviceId + '-viewer&type=eq.ice-viewer&order=created_at.desc&limit=1',
+            { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY } }
+          );
+          const rows = await res.json();
+          if (rows?.[0]?.payload?.candidate) {
+            try { await pc.addIceCandidate(new RTCIceCandidate(rows[0].payload.candidate)); } catch {}
+          }
+        } catch {}
+      }, 1000);
+    }
+
+    async function pollForOffer() {
+      try {
+        const res = await fetch(
+          SB_URL + '/rest/v1/webrtc_signals?device_id=eq.' + deviceId + '-viewer&type=eq.offer&order=created_at.desc&limit=1',
+          { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY } }
+        );
+        const rows = await res.json();
+        if (rows?.length) await handleOffer(rows[0]);
+      } catch {}
+    }
+
+    async function armDevice() {
+      deviceId = document.getElementById('device-select-arm').value;
+      facing = document.getElementById('camera-select-arm').value;
+
+      const labelMap = { 'device-1': 'Camera 1 — Left', 'device-2': 'Camera 2 — Center', 'device-3': 'Camera 3 — Right' };
+      document.getElementById('device-label').textContent = labelMap[deviceId];
+
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        });
+
+        document.getElementById('local-video').srcObject = localStream;
+        document.getElementById('local-video').play();
+
+        // Switch to main view
+        document.getElementById('arm-screen').style.display = 'none';
+        document.getElementById('main-content').style.display = 'flex';
+
+        setBadge('ARMED', '#052e16', '#22c55e', '#86efac');
+        setStatus('cam', 'green', 'Camera active — ' + (facing === 'environment' ? 'Back' : 'Front'));
+        setStatus('listen', 'green', 'Listening for dashboard');
+
+        // Keep screen awake
+        try { if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); } catch {}
+
+        // Start polling for dashboard connection requests
+        pollInterval = setInterval(pollForOffer, 1500);
+
+      } catch (err) {
+        alert('Camera error: ' + err.message + '\n\nPlease allow camera access and try again.');
+      }
+    }
+
+    async function applyZoom(val) {
+      document.getElementById('zoom-label').textContent = parseFloat(val).toFixed(1) + 'x';
+      document.getElementById('zoom-slider').value = val;
+      if (!localStream) return;
+      const track = localStream.getVideoTracks()[0];
+      if (!track) return;
+      try {
+        const caps = track.getCapabilities();
+        if (caps.zoom) {
+          const min = caps.zoom.min;
+          const max = caps.zoom.max;
+          const zoom = min + (val - 1) / 3 * (max - min);
+          await track.applyConstraints({ advanced: [{ zoom: Math.min(max, Math.max(min, zoom)) }] });
+        }
+      } catch (e) {
+        // Zoom not supported on this device — silently ignore
+        console.warn('Zoom not supported:', e.message);
+      }
+    }
+
+    function setZoom(val) {
+      document.getElementById('zoom-slider').value = val;
+      applyZoom(val);
+    }
+
+    window.addEventListener('beforeunload', () => {
+      if (localStream) localStream.getTracks().forEach(t => t.stop());
+      if (pc) pc.close();
+      if (pollInterval) clearInterval(pollInterval);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Divvo Guardian — Live GPS</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #070d17; color: #f9fafb; font-family: ui-sans-serif, system-ui, sans-serif; min-height: 100vh; padding: 20px 16px; }
+    .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+    .logo-icon { width: 34px; height: 34px; background: #2563eb; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .logo-text { font-size: 15px; font-weight: 800; }
+    .logo-sub { font-size: 11px; color: #6b7280; }
+    .card { background: #0a0f1a; border: 1px solid #1f2937; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+    .label { font-size: 10px; font-weight: 700; color: #6b7280; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+    .value { font-size: 18px; font-weight: 700; font-family: monospace; color: #f9fafb; }
+    .value.green { color: #22c55e; }
+    .value.small { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+    .btn { width: 100%; padding: 16px; border-radius: 12px; border: 2px solid #2563eb; background: #1e3a8a; color: #93c5fd; font-size: 15px; font-weight: 800; cursor: pointer; margin-bottom: 12px; }
+    .btn.active { background: #7f1d1d; border-color: #ef4444; color: #fca5a5; }
+    .btn.connecting { background: #1c1917; border-color: #374151; color: #6b7280; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; flex-shrink: 0; }
+    .dot.green { background: #22c55e; animation: pulse 1.5s infinite; }
+    .dot.gray { background: #374151; }
+    .dot.red { background: #ef4444; animation: pulse 1s infinite; }
+    .ticker { background: #030712; border: 1px solid #1f2937; border-radius: 8px; padding: 10px; max-height: 180px; overflow-y: auto; }
+    .ticker-item { font-size: 11px; font-family: monospace; padding: 4px 0; border-bottom: 1px solid #111827; }
+    .ticker-item:last-child { border-bottom: none; }
+    .ticker-item .time { color: #4b5563; margin-right: 6px; }
+    .error { background: #450a0a; border: 1px solid #ef4444; border-radius: 10px; padding: 12px; color: #fca5a5; font-size: 13px; margin-bottom: 12px; display: none; line-height: 1.5; }
+    .success { background: #052e16; border: 1px solid #22c55e; border-radius: 10px; padding: 12px; color: #86efac; font-size: 13px; margin-bottom: 12px; display: none; }
+    .alert-banner { background: #450a0a; border: 1px solid #ef4444; border-radius: 10px; padding: 12px; color: #fca5a5; font-size: 13px; margin-bottom: 12px; display: none; font-weight: 700; }
+    .device-select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #1f2937; background: #0a0f1a; color: #f9fafb; font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+    .speed-alert { color: #ef4444; }
+    select option { background: #0a0f1a; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  </style>
+</head>
+<body>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-text">Divvo Guardian</div>
+      <div class="logo-sub">Live GPS Tracker</div>
+    </div>
+  </div>
+
+  <div id="alert-banner" class="alert-banner">⚠ SPEED ALERT — Threshold exceeded</div>
+  <div id="error-box" class="error"></div>
+  <div id="success-box" class="success">✓ Broadcasting live to dashboard map</div>
+
+  <div class="label" style="margin-bottom:6px;">Select Device</div>
+  <select id="device-select" class="device-select">
+    <option value="device-1" data-color="#22c55e">Phone 1 — Green</option>
+    <option value="device-2" data-color="#3b82f6">Phone 2 — Blue</option>
+    <option value="device-3" data-color="#f59e0b">Phone 3 — Amber</option>
+  </select>
+
+  <button id="gps-btn" class="btn" onclick="toggleGPS()">📍 Start Broadcasting</button>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;margin-bottom:14px;">
+      <span class="dot gray" id="status-dot"></span>
+      <span id="status-text" style="font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">Waiting for GPS</span>
+    </div>
+    <div class="grid">
+      <div><div class="label">Latitude</div><div class="value green" id="lat">—</div></div>
+      <div><div class="label">Longitude</div><div class="value green" id="lon">—</div></div>
+      <div><div class="label">Speed</div><div class="value" id="speed">— mph</div></div>
+      <div><div class="label">Accuracy</div><div class="value" id="accuracy">—</div></div>
+      <div><div class="label">Altitude</div><div class="value" id="altitude">—</div></div>
+      <div><div class="label">Heading</div><div class="value" id="heading">—</div></div>
+    </div>
+    <div style="margin-top:12px;">
+      <div class="label">Last Broadcast</div>
+      <div class="value small" id="updated">—</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="label" style="margin-bottom:8px;">Speed Alert Threshold</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <input type="range" id="speed-threshold" min="5" max="100" value="25" style="flex:1;" oninput="document.getElementById('threshold-val').textContent=this.value+' mph'">
+      <span id="threshold-val" style="font-size:13px;color:#9ca3af;min-width:60px;">25 mph</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="label" style="margin-bottom:8px;">Broadcast Feed</div>
+    <div class="ticker" id="ticker">
+      <div class="ticker-item" style="color:#4b5563;">Waiting for GPS signal...</div>
+    </div>
+  </div>
+
+  <script>
+    const SB_URL = 'https://vnywjwncanldpsffiwtn.supabase.co';
+    const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZueXdqd25jYW5sZHBzZmZpd3RuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MjExMjAsImV4cCI6MjA5ODQ5NzEyMH0.J-5KjItWTEgolONGOHhLORJNh5K6rla19vJnASl2ay4';
+
+    let watchId = null;
+    let pingCount = 0;
+    let routeHistory = [];
+    const SPEED_ALERT_COOLDOWN = 30000;
+    let lastSpeedAlert = 0;
+
+    function getDeviceId() { return document.getElementById('device-select').value; }
+    function getDeviceName() { return document.getElementById('device-select').options[document.getElementById('device-select').selectedIndex].text.split(' — ')[0]; }
+    function getSpeedThreshold() { return parseFloat(document.getElementById('speed-threshold').value); }
+
+    async function sendToSupabase(coords) {
+      const mph = (coords.speed ?? 0) * 2.237;
+      const deviceId = getDeviceId();
+      const deviceName = getDeviceName();
+      try {
+        await fetch(SB_URL + '/rest/v1/gps_pings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SB_KEY,
+            'Authorization': 'Bearer ' + SB_KEY,
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({
+            lat: coords.latitude,
+            lon: coords.longitude,
+            speed: coords.speed ?? 0,
+            accuracy: coords.accuracy,
+            heading: coords.heading,
+            altitude: coords.altitude,
+            device_label: deviceName,
+            device_id: deviceId,
+            device_name: deviceName
+          })
+        });
+      } catch(e) { console.error('Send failed:', e); }
+    }
+
+    function toggleGPS() {
+      if (watchId !== null) { stopGPS(); } else { startGPS(); }
+    }
+
+    function startGPS() {
+      if (!navigator.geolocation) { showError('Geolocation not supported.'); return; }
+      document.getElementById('gps-btn').textContent = 'Connecting...';
+      document.getElementById('gps-btn').className = 'btn connecting';
+      document.getElementById('device-select').disabled = true;
+      watchId = navigator.geolocation.watchPosition(onSuccess, onError, {
+        enableHighAccuracy: true, timeout: 15000, maximumAge: 0
+      });
+    }
+
+    function stopGPS() {
+      if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+      document.getElementById('gps-btn').textContent = '📍 Start Broadcasting';
+      document.getElementById('gps-btn').className = 'btn';
+      document.getElementById('status-dot').className = 'dot gray';
+      document.getElementById('status-text').textContent = 'Disconnected';
+      document.getElementById('success-box').style.display = 'none';
+      document.getElementById('device-select').disabled = false;
+      routeHistory = [];
+    }
+
+    async function onSuccess(pos) {
+      pingCount++;
+      const c = pos.coords;
+      const now = new Date().toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      const mph = ((c.speed ?? 0) * 2.237);
+
+      // Route history
+      routeHistory.push({ lat: c.latitude, lon: c.longitude, time: now });
+      if (routeHistory.length > 100) routeHistory.shift();
+
+      // Update UI
+      document.getElementById('lat').textContent = c.latitude.toFixed(6) + '°';
+      document.getElementById('lon').textContent = c.longitude.toFixed(6) + '°';
+      document.getElementById('speed').textContent = mph.toFixed(1) + ' mph';
+      document.getElementById('speed').className = 'value' + (mph > getSpeedThreshold() ? ' speed-alert' : '');
+      document.getElementById('accuracy').textContent = '±' + c.accuracy.toFixed(0) + 'm';
+      document.getElementById('altitude').textContent = c.altitude ? c.altitude.toFixed(0) + 'm' : '—';
+      document.getElementById('heading').textContent = c.heading ? c.heading.toFixed(0) + '°' : '—';
+      document.getElementById('updated').textContent = now + ' · Ping #' + pingCount;
+      document.getElementById('status-dot').className = 'dot green';
+      document.getElementById('status-text').textContent = getDeviceName() + ' · Broadcasting · Ping #' + pingCount;
+      document.getElementById('gps-btn').textContent = '⬛ Stop Broadcasting';
+      document.getElementById('gps-btn').className = 'btn active';
+      document.getElementById('success-box').style.display = 'block';
+
+      // Speed alert
+      if (mph > getSpeedThreshold() && Date.now() - lastSpeedAlert > SPEED_ALERT_COOLDOWN) {
+        lastSpeedAlert = Date.now();
+        const banner = document.getElementById('alert-banner');
+        banner.textContent = '⚠ SPEED ALERT — ' + mph.toFixed(1) + ' mph exceeds ' + getSpeedThreshold() + ' mph threshold';
+        banner.style.display = 'block';
+        setTimeout(() => { banner.style.display = 'none'; }, 8000);
+      }
+
+      await sendToSupabase(c);
+
+      // Ticker
+      const ticker = document.getElementById('ticker');
+      const item = document.createElement('div');
+      item.className = 'ticker-item';
+      item.style.color = mph > getSpeedThreshold() ? '#ef4444' : '#22c55e';
+      item.innerHTML = '<span class="time">' + now + '</span>' + c.latitude.toFixed(4) + 'N ' + Math.abs(c.longitude).toFixed(4) + 'W · ' + mph.toFixed(1) + ' mph · ±' + c.accuracy.toFixed(0) + 'm';
+      ticker.insertBefore(item, ticker.firstChild);
+      hideError();
+    }
+
+    function onError(err) {
+      const msgs = {
+        1: 'Location permission denied. Tap the lock icon in your browser and allow location access.',
+        2: 'Position unavailable. Move near a window or go outside.',
+        3: 'Request timed out. Make sure location services are enabled.'
+      };
+      showError(msgs[err.code] || 'Unknown GPS error.');
+      stopGPS();
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('error-box');
+      el.textContent = '⚠ ' + msg;
+      el.style.display = 'block';
+    }
+    function hideError() { document.getElementById('error-box').style.display = 'none'; }
+  </script>
+</body>
+</html>

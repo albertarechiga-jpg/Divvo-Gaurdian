@@ -1,0 +1,98 @@
+const SB_URL = "https://vnywjwncanldpsffiwtn.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZueXdqd25jYW5sZHBzZmZpd3RuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MjExMjAsImV4cCI6MjA5ODQ5NzEyMH0.J-5KjItWTEgolONGOHhLORJNh5K6rla19vJnASl2ay4";
+
+// ── Fetch alert settings from Supabase ────────────────────────────────────────
+export async function fetchAlertSettings() {
+  try {
+    const res = await fetch(
+      SB_URL + "/rest/v1/alert_settings?select=*&limit=1",
+      { headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } }
+    );
+    const rows = await res.json();
+    return rows?.[0] ?? null;
+  } catch { return null; }
+}
+
+// ── Browser push notification ─────────────────────────────────────────────────
+export async function sendBrowserNotification(title, body, severity) {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "default") {
+    await Notification.requestPermission();
+  }
+  if (Notification.permission === "granted") {
+    const icon = severity === "Critical" ? "🚨" : severity === "Warning" ? "⚠️" : "📡";
+    new Notification(`${icon} Divvo Guardian — ${title}`, {
+      body,
+      icon: "/favicon.svg",
+      badge: "/favicon.svg",
+      tag: "divvo-alert",
+      requireInteraction: severity === "Critical",
+    });
+  }
+}
+
+// ── Send SMS via Vercel function ──────────────────────────────────────────────
+export async function sendSMS(phones, message) {
+  try {
+    await fetch("/api/send-sms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to: phones, message }),
+    });
+  } catch (e) { console.error("SMS failed:", e); }
+}
+
+// ── Send email via Vercel function ────────────────────────────────────────────
+export async function sendEmail({ to, subject, alertType, deviceId, location, severity, details }) {
+  try {
+    await fetch("/api/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to, subject, alertType, deviceId, location, severity, details }),
+    });
+  } catch (e) { console.error("Email failed:", e); }
+}
+
+// ── Main alert dispatcher ─────────────────────────────────────────────────────
+export async function dispatchAlert({ alertType, deviceId, location, severity, details = [] }) {
+  const settings = await fetchAlertSettings();
+  if (!settings) return;
+
+  const isCritical = severity === "Critical";
+  const isWarning  = severity === "Warning";
+
+  const subject = `[${severity}] Divvo Guardian — ${alertType} · ${deviceId}`;
+  const smsBody = `🚨 DIVVO GUARDIAN ${severity.toUpperCase()} ALERT\n${alertType}\nDevice: ${deviceId}\nLocation: ${location}\nView: divvo-guardian.vercel.app`;
+
+  // Browser notification — always if enabled
+  if (settings.browser_all) {
+    await sendBrowserNotification(alertType, `${deviceId} · ${location}`, severity);
+  }
+
+  // SMS — Critical always, Warning only if enabled
+  const shouldSMS = (isCritical && settings.sms_critical) || (isWarning && settings.sms_warning);
+  if (shouldSMS && settings.phones?.length) {
+    await sendSMS(settings.phones, smsBody);
+  }
+
+  // Email — Critical and Warning based on settings
+  const shouldEmail = (isCritical && settings.email_critical) || (isWarning && settings.email_warning);
+  if (shouldEmail && settings.emails?.length) {
+    await sendEmail({
+      to: settings.emails,
+      subject,
+      alertType,
+      deviceId,
+      location,
+      severity,
+      details: [
+        ["Alert Type",  alertType],
+        ["Device ID",   deviceId],
+        ["Location",    location],
+        ["Severity",    severity],
+        ["Time",        new Date().toLocaleString("en-US")],
+        ...details,
+      ],
+    });
+  }
+}
