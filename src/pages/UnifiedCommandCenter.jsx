@@ -1100,11 +1100,28 @@ function LiveMap({ devices, onSelect, selectedId, fullscreen, onFullscreen, save
 }
 
 // ── AI Response Panel ─────────────────────────────────────────────────────────
+function parseResponseWindowSeconds(text) {
+  const match = text?.match(/(\d+)\s*minute/i);
+  return match ? parseInt(match[1], 10) * 60 : null;
+}
+
+function formatMMSS(totalSeconds) {
+  const s = Math.max(0, totalSeconds);
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${String(r).padStart(2, "0")}`;
+}
+
 function AIResponsePanel({ device, onDismiss, onNav }) {
   const [aiData, setAiData]   = useState(null);
   const [loading, setLoading] = useState(true);
   const [step, setStep]       = useState(0); // 0=analyzing, 1=ready
   const [confirmed, setConfirmed] = useState([]);
+  const [totalSeconds, setTotalSeconds] = useState(null);
+  const [secondsLeft, setSecondsLeft]   = useState(null);
+  const [actionTaken, setActionTaken]   = useState(false);
+  const [escalated, setEscalated]       = useState(false);
+  const [confirmDismiss, setConfirmDismiss] = useState(false);
 
   useEffect(() => {
     if (!device) return;
@@ -1112,12 +1129,41 @@ function AIResponsePanel({ device, onDismiss, onNav }) {
     setAiData(null);
     setStep(0);
     setConfirmed([]);
+    setTotalSeconds(null);
+    setSecondsLeft(null);
+    setActionTaken(false);
+    setEscalated(false);
+    setConfirmDismiss(false);
     generateAIResponse(device).then(data => {
       setAiData(data);
       setLoading(false);
       setStep(1);
+      if (device.severity === "Critical") {
+        const secs = parseResponseWindowSeconds(data.estimated_response_window);
+        if (secs) { setTotalSeconds(secs); setSecondsLeft(secs); }
+      }
     });
   }, [device?.id]);
+
+  // Live countdown — ticks down once a second while a critical alert is unacknowledged
+  useEffect(() => {
+    if (secondsLeft == null) return;
+    if (secondsLeft <= 0) {
+      if (!actionTaken && !escalated) {
+        setEscalated(true);
+        dispatchAlert({
+          alertType: `${device.type} — ESCALATED (no operator action within ${Math.round(totalSeconds / 60)} min)`,
+          deviceId: device.id,
+          location: device.location,
+          severity: device.severity,
+          details: [["Cargo", device.cargo], ["Carrier", device.carrier], ["Escalation", "Automatic — response window expired unacknowledged"]],
+        });
+      }
+      return;
+    }
+    const t = setTimeout(() => setSecondsLeft(s => (s == null ? s : s - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [secondsLeft, actionTaken, escalated, totalSeconds]);
 
   if (!device) return null;
 
@@ -1125,22 +1171,45 @@ function AIResponsePanel({ device, onDismiss, onNav }) {
   const borderColor = isCrit ? "#ef4444" : "#f59e0b";
   const bgColor     = isCrit ? "#450a0a" : "#1a1200";
   const textColor   = isCrit ? "#fca5a5" : "#fcd34d";
+  const urgencyPct  = (totalSeconds && secondsLeft != null) ? secondsLeft / totalSeconds : 1;
+  const urgent      = isCrit && secondsLeft != null && secondsLeft > 0 && urgencyPct <= 0.2;
 
-  const confirmAction = (i) => setConfirmed(prev => prev.includes(i) ? prev : [...prev, i]);
+  const confirmAction = (i) => setConfirmed(prev => {
+    if (prev.includes(i)) return prev;
+    const next = [...prev, i];
+    if (aiData?.operator_must_do && next.length >= aiData.operator_must_do.length) setActionTaken(true);
+    return next;
+  });
+
+  const handleDismissClick = () => {
+    if (isCrit && !actionTaken && !escalated && secondsLeft > 0) {
+      setConfirmDismiss(true);
+    } else {
+      onDismiss();
+    }
+  };
 
   return (
-    <div style={{ background: "#070d17", border: `1px solid ${borderColor}`, borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column", height: "100%" }}>
+    <div style={{ background: "#070d17", border: `1px solid ${borderColor}`, borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column", height: "100%", boxShadow: urgent ? `0 0 28px ${borderColor}66` : "none", transition: "box-shadow 0.3s" }}>
       {/* Header */}
       <div style={{ background: bgColor, borderBottom: `1px solid ${borderColor}44`, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: borderColor, display: "inline-block", animation: "pulse 1s infinite" }}/>
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: borderColor, display: "inline-block", animation: `pulse ${urgent ? 0.5 : 1}s infinite` }}/>
           <span style={{ fontSize: 11, fontWeight: 800, color: textColor, letterSpacing: "0.08em" }}>
             {loading ? "AI ANALYZING..." : `AI RESPONSE — ${aiData?.threat_level}`}
           </span>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: "#f9fafb" }}>{device.id}</span>
-          <button onClick={onDismiss} style={{ background: "none", border: "none", color: "#6b7280", cursor: "pointer", fontSize: 16 }}>×</button>
+          {confirmDismiss ? (
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <span style={{ fontSize: 9, color: "#fca5a5", whiteSpace: "nowrap" }}>Dismiss without action?</span>
+              <button onClick={onDismiss} style={{ background: "#7f1d1d", border: "1px solid #ef4444", color: "#fecaca", borderRadius: 5, padding: "2px 8px", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Yes</button>
+              <button onClick={() => setConfirmDismiss(false)} style={{ background: "none", border: "1px solid #374151", color: "#9ca3af", borderRadius: 5, padding: "2px 8px", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Cancel</button>
+            </div>
+          ) : (
+            <button onClick={handleDismissClick} style={{ background: "none", border: "none", color: "#6b7280", cursor: "pointer", fontSize: 16 }}>×</button>
+          )}
         </div>
       </div>
 
@@ -1169,11 +1238,26 @@ function AIResponsePanel({ device, onDismiss, onNav }) {
         {!loading && aiData && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
+            {/* Escalation banner */}
+            {escalated && (
+              <div style={{ background: "#7f1d1d", border: "1px solid #ef4444", borderRadius: 10, padding: "10px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 16, flexShrink: 0 }}>🚨</span>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#fecaca" }}>ESCALATED — RESPONSE WINDOW EXPIRED</div>
+                  <div style={{ fontSize: 11, color: "#fca5a5" }}>No operator action taken in time. SMS/email escalation sent automatically.</div>
+                </div>
+              </div>
+            )}
+
             {/* Situation */}
             <div style={{ background: bgColor, border: `1px solid ${borderColor}44`, borderRadius: 10, padding: "10px 12px" }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: borderColor, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Situation Assessment</div>
               <p style={{ fontSize: 12, color: "#e5e7eb", lineHeight: 1.6, margin: 0 }}>{aiData.situation}</p>
-              {aiData.estimated_response_window && (
+              {isCrit && secondsLeft != null ? (
+                <div style={{ marginTop: 8, fontSize: 13, fontWeight: 800, color: urgent ? "#fca5a5" : borderColor, fontVariantNumeric: "tabular-nums", animation: urgent ? "pulse 0.5s infinite" : "none" }}>
+                  ⏱ {escalated ? "Window expired" : `${formatMMSS(secondsLeft)} remaining`}
+                </div>
+              ) : aiData.estimated_response_window && (
                 <div style={{ marginTop: 8, fontSize: 11, fontWeight: 700, color: borderColor }}>⏱ {aiData.estimated_response_window}</div>
               )}
             </div>
@@ -1222,11 +1306,11 @@ function AIResponsePanel({ device, onDismiss, onNav }) {
 
             {/* Action buttons */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              <button onClick={() => window.dispatchEvent(new CustomEvent("divvo-nav", { detail: { page: "recovery-case", deviceId: device.id } }))}
+              <button onClick={() => { setActionTaken(true); window.dispatchEvent(new CustomEvent("divvo-nav", { detail: { page: "recovery-case", deviceId: device.id } })); }}
                 style={{ background: isCrit ? "#7f1d1d" : "#451a03", border: `1px solid ${borderColor}`, color: textColor, borderRadius: 8, padding: "9px 0", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                 Open Recovery Case
               </button>
-              <button onClick={() => dispatchAlert({ alertType: device.type, deviceId: device.id, location: device.location, severity: device.severity, details: [["Cargo", device.cargo], ["Carrier", device.carrier]] })}
+              <button onClick={() => { setActionTaken(true); dispatchAlert({ alertType: device.type, deviceId: device.id, location: device.location, severity: device.severity, details: [["Cargo", device.cargo], ["Carrier", device.carrier]] }); }}
                 style={{ background: "#1e3a8a", border: "1px solid #2563eb", color: "#93c5fd", borderRadius: 8, padding: "9px 0", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                 Send Alert Notification
               </button>
