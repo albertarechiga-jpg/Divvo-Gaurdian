@@ -1,7 +1,12 @@
+import { SHIPMENTS } from "../data/shipments.js";
+import { COMPANIES } from "../data/companyFleets.js";
 import { fmtCurrencyCompact } from "../lib/utils.js";
 import { RiskBadge } from "../components/Badges.jsx";
 
-export default function RecoveryPage({ incidents, onViewIncident }) {
+export default function RecoveryPage({ incidents: allIncidents, company = "owlet", onViewIncident }) {
+  const companyInfo = COMPANIES.find((c) => c.id === company) || COMPANIES[0];
+  const companyShipmentIds = new Set(SHIPMENTS.filter((s) => s.customer === companyInfo.name).map((s) => s.id));
+  const incidents = allIncidents.filter((i) => companyShipmentIds.has(i.shipmentId));
   const active = incidents.filter((i) => i.stage < 7);
   const resolved = incidents.filter((i) => i.stage === 7);
 
@@ -72,7 +77,7 @@ export default function RecoveryPage({ incidents, onViewIncident }) {
 
         {incidents.length === 0 && (
           <div className="bg-white rounded-xl border border-gray-200 py-16 text-center">
-            <p className="text-sm font-semibold text-gray-400">No recovery cases yet</p>
+            <p className="text-sm font-semibold text-gray-400">No recovery cases for {companyInfo.name} yet</p>
             <p className="text-xs text-gray-300 mt-1">Cases are created from alerts or manually from shipment detail pages</p>
           </div>
         )}

@@ -186,7 +186,7 @@ export default function App() {
         );
 
       case "recovery":
-        return <RecoveryPage incidents={incidents} onViewIncident={handleViewIncident} />;
+        return <RecoveryPage incidents={incidents} company={company} onViewIncident={handleViewIncident} />;
 
       case "camera":
         return <CameraView />;
