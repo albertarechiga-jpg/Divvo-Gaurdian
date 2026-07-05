@@ -1,6 +1,6 @@
 const TWILIO_SID   = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN;
-const WHATSAPP_FROM = "whatsapp:+14155238886"; // Twilio WhatsApp sandbox number
+const SMS_FROM     = process.env.TWILIO_SMS_FROM;
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -21,9 +21,6 @@ export default async function handler(req, res) {
       const credentials = `${TWILIO_SID}:${TWILIO_TOKEN}`;
       const encoded = Buffer.from(credentials).toString("base64");
 
-      // Send via WhatsApp sandbox
-      const toWhatsApp = "whatsapp:" + phone;
-
       const response = await fetch(
         `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`,
         {
@@ -33,8 +30,8 @@ export default async function handler(req, res) {
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: new URLSearchParams({
-            To:   toWhatsApp,
-            From: WHATSAPP_FROM,
+            To:   phone,
+            From: SMS_FROM,
             Body: message,
           }),
         }
