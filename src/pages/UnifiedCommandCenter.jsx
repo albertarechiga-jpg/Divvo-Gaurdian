@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { dispatchAlert } from "../lib/notifications.js";
+import { COMPANIES, COMPANY_DEVICES, COMPANY_SHIPMENT_ROUTES, COMPANY_DEVICE_CONTEXT } from "../data/companyFleets.js";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -88,34 +89,7 @@ function distanceFromRoute(lat, lon, waypoints) {
   return min;
 }
 
-// ── Live devices & shipments ──────────────────────────────────────────────────
-const DEVICES = [
-  { id: "DG-1028", trailerId: "TRL-4482", lat: 27.5306, lon: -99.4803, severity: "Critical", type: "Lock Tamper Detected",           location: "I-35 N near Laredo, TX",          battery: 74, lte: "Strong",   camera: "Online",   door: "Closed",  lock: "Tampered", vibration: "Elevated", checkin: "10:14 AM", carrier: "Maersk Line",    cargo: "$840,000" },
-  { id: "DG-1041", trailerId: "TRL-3391", lat: 27.8006, lon: -97.3964, severity: "Critical", type: "Door Opened Outside Geofence",    location: "US-281 near Corpus Christi, TX",   battery: 61, lte: "Moderate", camera: "Online",   door: "Open",    lock: "Unlocked", vibration: "Elevated", checkin: "10:09 AM", carrier: "Hapag-Lloyd",    cargo: "$1,200,000" },
-  { id: "DG-0994", trailerId: "TRL-8820", lat: 29.4241, lon: -98.4936, severity: "Warning",  type: "Battery Below 18%",               location: "I-10 W near San Antonio, TX",      battery: 17, lte: "Strong",   camera: "Online",   door: "Closed",  lock: "Secure",   vibration: "Normal",   checkin: "09:52 AM", carrier: "COSCO Shipping", cargo: "$560,000" },
-  { id: "DG-1102", trailerId: "TRL-5567", lat: 29.5736, lon: -98.6947, severity: "Warning",  type: "GPS Signal Degraded",             location: "FM-2252 near Helotes, TX",         battery: 88, lte: "Weak",    camera: "Degraded", door: "Closed",  lock: "Secure",   vibration: "Normal",   checkin: "09:38 AM", carrier: "Evergreen",      cargo: "$320,000" },
-  { id: "DG-1055", trailerId: "TRL-2210", lat: 29.3787, lon: -98.5531, severity: "Secure",   type: "All Systems Normal",              location: "I-410 Loop, San Antonio TX",       battery: 92, lte: "Strong",   camera: "Online",   door: "Closed",  lock: "Secure",   vibration: "Normal",   checkin: "10:18 AM", carrier: "Maersk Line",    cargo: "$420,000" },
-  { id: "DG-1076", trailerId: "TRL-7714", lat: 29.7282, lon: -95.2713, severity: "Secure",   type: "All Systems Normal",              location: "Port of Houston — Bay 14",         battery: 78, lte: "Strong",   camera: "Online",   door: "Closed",  lock: "Secure",   vibration: "Normal",   checkin: "10:15 AM", carrier: "COSCO Shipping", cargo: "$980,000" },
-  { id: "DG-1088", trailerId: "TRL-3305", lat: 29.7030, lon: -98.0810, severity: "Secure",   type: "All Systems Normal",              location: "I-35 S near New Braunfels TX",     battery: 85, lte: "Strong",   camera: "Online",   door: "Closed",  lock: "Secure",   vibration: "Normal",   checkin: "10:12 AM", carrier: "Hapag-Lloyd",    cargo: "$650,000" },
-  { id: "DG-1099", trailerId: "TRL-9921", lat: 29.5688, lon: -97.9641, severity: "Secure",   type: "All Systems Normal",              location: "IH-10 E near Seguin TX",          battery: 69, lte: "Strong",   camera: "Online",   door: "Closed",  lock: "Secure",   vibration: "Normal",   checkin: "10:08 AM", carrier: "Evergreen",      cargo: "$290,000" },
-];
-
-const SHIPMENT_ROUTES = [
-  { id: "OWL-SAV-1003", severity: "Critical", from: [-81.0998, 32.0835], to: [-84.3880, 33.7490], label: "Savannah → Atlanta", cargo: "$3.1M", carrier: "Hapag-Lloyd",    origin: "Savannah, GA",   destination: "Atlanta, GA" },
-  { id: "OWL-HOU-1001", severity: "High",     from: [-95.3698, 29.7604], to: [-118.2437, 34.0522], label: "Houston → LA",       cargo: "$2.4M", carrier: "Maersk Line",    origin: "Houston, TX",    destination: "Los Angeles, CA" },
-];
-
-// Device shipment context for routing
-const DEVICE_SHIPMENT_CONTEXT = {
-  "DG-1028": { origin: "Laredo, TX",          destination: "San Antonio, TX", carrier: "Maersk Line",    cargo: "$840,000" },
-  "DG-1041": { origin: "Corpus Christi, TX",  destination: "Houston, TX",     carrier: "Hapag-Lloyd",    cargo: "$1,200,000" },
-  "DG-0994": { origin: "San Antonio, TX",     destination: "Dallas, TX",      carrier: "COSCO Shipping", cargo: "$560,000" },
-  "DG-1102": { origin: "Helotes, TX",         destination: "San Antonio, TX", carrier: "Evergreen",      cargo: "$320,000" },
-  "DG-1055": { origin: "San Antonio, TX",     destination: "Austin, TX",      carrier: "Maersk Line",    cargo: "$420,000" },
-  "DG-1076": { origin: "Houston, TX",         destination: "New Orleans, LA", carrier: "COSCO Shipping", cargo: "$980,000" },
-  "DG-1088": { origin: "New Braunfels, TX",   destination: "San Antonio, TX", carrier: "Hapag-Lloyd",    cargo: "$650,000" },
-  "DG-1099": { origin: "Seguin, TX",          destination: "Houston, TX",     carrier: "Evergreen",      cargo: "$290,000" },
-};
+// Live devices & shipments are company-scoped — see src/data/companyFleets.js
 
 // ── AI Response Generator ─────────────────────────────────────────────────────
 async function generateAIResponse(device) {
@@ -826,7 +800,7 @@ function RouteManagerPanel({ savedRoutes, waypointCount, onSave, onUndo, onClear
 }
 
 // ── Mapbox Map ────────────────────────────────────────────────────────────────
-function LiveMap({ devices, onSelect, selectedId, fullscreen, onFullscreen, savedRoutes, onRouteSave, onRouteDelete, routeDeviations }) {
+function LiveMap({ devices, onSelect, selectedId, fullscreen, onFullscreen, savedRoutes, onRouteSave, onRouteDelete, routeDeviations, shipmentRoutes, deviceShipmentContext, mapCenter, mapZoom }) {
   const mapContainer      = useRef(null);
   const map               = useRef(null);
   const mapInitStarted    = useRef(false);
@@ -870,14 +844,14 @@ function LiveMap({ devices, onSelect, selectedId, fullscreen, onFullscreen, save
       map.current = new window.mapboxgl.Map({
         container: mapContainer.current,
         style: "mapbox://styles/mapbox/dark-v11",
-        center: [-98.8, 28.8],
-        zoom: fullscreen ? 6.2 : 5.8,
+        center: mapCenter,
+        zoom: fullscreen ? mapZoom + 0.4 : mapZoom,
       });
       map.current.addControl(new window.mapboxgl.NavigationControl({ showCompass: false }), "top-right");
       map.current.on("load", () => {
         setLoaded(true);
         // Add shipment routes
-        SHIPMENT_ROUTES.forEach(route => {
+        shipmentRoutes.forEach(route => {
           const color = route.severity === "Critical" ? "#ef4444" : "#f97316";
           map.current.addSource("route-" + route.id, { type: "geojson", data: { type: "Feature", geometry: { type: "LineString", coordinates: [route.from, route.to] } } });
           map.current.addLayer({ id: "route-" + route.id, type: "line", source: "route-" + route.id, paint: { "line-color": color, "line-width": 2, "line-dasharray": [3, 3], "line-opacity": 0.6 } });
@@ -934,7 +908,7 @@ function LiveMap({ devices, onSelect, selectedId, fullscreen, onFullscreen, save
           onSelect(device.id);
           // For secure (green) devices, open AI route panel directly
           if (device.severity === "Secure") {
-            const ctx = DEVICE_SHIPMENT_CONTEXT[device.id];
+            const ctx = deviceShipmentContext[device.id];
             if (ctx) {
               window.dispatchEvent(new CustomEvent("open-ai-route-panel", { detail: ctx }));
             }
@@ -951,7 +925,7 @@ function LiveMap({ devices, onSelect, selectedId, fullscreen, onFullscreen, save
         el.addEventListener("mouseleave", () => markersRef.current[device.id].getPopup().remove());
       }
     });
-  }, [loaded, devices, selectedId]);
+  }, [loaded, devices, selectedId, deviceShipmentContext]);
 
   // Draw saved routes on map
   useEffect(() => {
@@ -1344,13 +1318,12 @@ function AIResponsePanel({ device, onDismiss, onNav }) {
 }
 
 // ── Alert Row ─────────────────────────────────────────────────────────────────
-function AlertRow({ device, selected, onClick, onRoute }) {
+function AlertRow({ device, selected, onClick, onRoute, ctx }) {
   const isCrit = device.severity === "Critical";
   const isWarn = device.severity === "Warning";
   if (!isCrit && !isWarn) return null;
   const col = isCrit ? "#ef4444" : "#f59e0b";
   const bg  = selected ? (isCrit ? "#1a0505" : "#1a1200") : "#0a0f1a";
-  const ctx = DEVICE_SHIPMENT_CONTEXT[device.id];
 
   return (
     <div style={{ background: bg, border: `1px solid ${selected ? col : "#1f2937"}`, borderRadius: 8, marginBottom: 6, overflow: "hidden", transition: "border-color 0.15s" }}>
@@ -1381,7 +1354,12 @@ function AlertRow({ device, selected, onClick, onRoute }) {
 }
 
 // ── Main Unified Command Center ───────────────────────────────────────────────
-export default function UnifiedCommandCenter({ onNav }) {
+export default function UnifiedCommandCenter({ onNav, company = "owlet" }) {
+  const companyInfo = COMPANIES.find(c => c.id === company) || COMPANIES[0];
+  const DEVICES = COMPANY_DEVICES[company] || COMPANY_DEVICES.owlet;
+  const SHIPMENT_ROUTES = COMPANY_SHIPMENT_ROUTES[company] || COMPANY_SHIPMENT_ROUTES.owlet;
+  const DEVICE_SHIPMENT_CONTEXT = COMPANY_DEVICE_CONTEXT[company] || COMPANY_DEVICE_CONTEXT.owlet;
+
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [mapFullscreen, setMapFullscreen]   = useState(false);
   const [devices, setDevices]               = useState(DEVICES);
@@ -1497,7 +1475,7 @@ export default function UnifiedCommandCenter({ onNav }) {
       {deletionTarget && (
         <RouteDeletionModal
           route={deletionTarget}
-          operator="J. Torres"
+          operator="Alberto Arechiga"
           onConfirm={confirmRouteDelete}
           onCancel={() => setDeletionTarget(null)}
         />
@@ -1510,7 +1488,7 @@ export default function UnifiedCommandCenter({ onNav }) {
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", animation: "pulse 2s infinite", display: "inline-block" }}/>
               <span style={{ fontSize: 13, fontWeight: 700 }}>Divvo Guardian — Full Fleet View</span>
-              <span style={{ fontSize: 11, color: "#6b7280" }}>{devices.length} devices · South Texas</span>
+              <span style={{ fontSize: 11, color: "#6b7280" }}>{devices.length} devices · {companyInfo.region}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <span style={{ color: "#ef4444", fontSize: 11 }}>● {criticalDevices.length} Critical</span>
@@ -1523,7 +1501,7 @@ export default function UnifiedCommandCenter({ onNav }) {
             </div>
           </div>
           <div style={{ flex: 1, position: "relative" }}>
-            <LiveMap devices={devices} onSelect={handleSelectDevice} selectedId={selectedDevice?.id} fullscreen={true} onFullscreen={() => setMapFullscreen(false)} savedRoutes={savedRoutes} onRouteSave={handleRouteSave} onRouteDelete={handleRouteDelete} routeDeviations={routeDeviations}/>
+            <LiveMap devices={devices} onSelect={handleSelectDevice} selectedId={selectedDevice?.id} fullscreen={true} onFullscreen={() => setMapFullscreen(false)} savedRoutes={savedRoutes} onRouteSave={handleRouteSave} onRouteDelete={handleRouteDelete} routeDeviations={routeDeviations} shipmentRoutes={SHIPMENT_ROUTES} deviceShipmentContext={DEVICE_SHIPMENT_CONTEXT} mapCenter={companyInfo.mapCenter} mapZoom={companyInfo.mapZoom}/>
             {selectedDevice && (
               <div style={{ position: "absolute", top: 12, right: 12, bottom: 12, width: 360, zIndex: 30 }}>
                 <AIResponsePanel device={selectedDevice} onDismiss={() => setSelectedDevice(null)} onNav={onNav}/>
@@ -1562,7 +1540,7 @@ export default function UnifiedCommandCenter({ onNav }) {
           {[
             { label: "Cargo Protected", value: "$" + (totalCargo/1000000).toFixed(1) + "M" },
             { label: "Active Devices", value: devices.length },
-            { label: "Owlet Pilot", value: "Active" },
+            { label: companyInfo.name + " Pilot", value: "Active" },
           ].map(kpi => (
             <div key={kpi.label} style={{ background: "#0a0f1a", border: "1px solid #1f2937", borderRadius: 8, padding: "5px 12px", textAlign: "center" }}>
               <div style={{ fontSize: 10, color: "#6b7280" }}>{kpi.label}</div>
@@ -1570,7 +1548,7 @@ export default function UnifiedCommandCenter({ onNav }) {
             </div>
           ))}
           <div style={{ width: 30, height: 30, background: "#1f2937", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 11, color: "#9ca3af", fontWeight: 700 }}>JT</span>
+            <span style={{ fontSize: 11, color: "#9ca3af", fontWeight: 700 }}>AA</span>
           </div>
         </div>
       </div>
@@ -1583,14 +1561,14 @@ export default function UnifiedCommandCenter({ onNav }) {
           <div style={{ padding: "8px 12px", background: "#060d18", borderBottom: "1px solid #1f2937", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#22c55e", animation: "pulse 2s infinite", display: "inline-block" }}/>
-              <span style={{ fontSize: 10, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.08em" }}>Live Fleet Map · South Texas</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.08em" }}>Live Fleet Map · {companyInfo.region}</span>
             </div>
             {liveGPS.length > 0 && (
               <span style={{ fontSize: 10, color: "#22c55e", fontWeight: 600 }}>● {liveGPS.length} phone GPS live</span>
             )}
           </div>
           <div style={{ flex: 1 }}>
-            <LiveMap devices={devices} onSelect={handleSelectDevice} selectedId={selectedDevice?.id} fullscreen={false} onFullscreen={() => setMapFullscreen(true)} savedRoutes={savedRoutes} onRouteSave={handleRouteSave} onRouteDelete={handleRouteDelete} routeDeviations={routeDeviations}/>
+            <LiveMap devices={devices} onSelect={handleSelectDevice} selectedId={selectedDevice?.id} fullscreen={false} onFullscreen={() => setMapFullscreen(true)} savedRoutes={savedRoutes} onRouteSave={handleRouteSave} onRouteDelete={handleRouteDelete} routeDeviations={routeDeviations} shipmentRoutes={SHIPMENT_ROUTES} deviceShipmentContext={DEVICE_SHIPMENT_CONTEXT} mapCenter={companyInfo.mapCenter} mapZoom={companyInfo.mapZoom}/>
           </div>
           {/* Live GPS ticker */}
           {liveGPS.length > 0 && (
@@ -1630,7 +1608,7 @@ export default function UnifiedCommandCenter({ onNav }) {
                   Critical — Immediate Action
                 </div>
                 {criticalDevices.map(d => (
-                  <AlertRow key={d.id} device={d} selected={selectedDevice?.id === d.id} onClick={() => handleSelectDevice(d.id)} onRoute={handleRouteShipment}/>
+                  <AlertRow key={d.id} device={d} selected={selectedDevice?.id === d.id} onClick={() => handleSelectDevice(d.id)} onRoute={handleRouteShipment} ctx={DEVICE_SHIPMENT_CONTEXT[d.id]}/>
                 ))}
               </div>
             )}
@@ -1642,7 +1620,7 @@ export default function UnifiedCommandCenter({ onNav }) {
                   Warning — Monitor
                 </div>
                 {warningDevices.map(d => (
-                  <AlertRow key={d.id} device={d} selected={selectedDevice?.id === d.id} onClick={() => handleSelectDevice(d.id)} onRoute={handleRouteShipment}/>
+                  <AlertRow key={d.id} device={d} selected={selectedDevice?.id === d.id} onClick={() => handleSelectDevice(d.id)} onRoute={handleRouteShipment} ctx={DEVICE_SHIPMENT_CONTEXT[d.id]}/>
                 ))}
               </div>
             )}

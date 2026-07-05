@@ -5,7 +5,7 @@ const CASE_DATA = {
     caseId: "DG-RC-2026-001", device: "DG-1028", trailerId: "TRL-4482",
     cargoValue: "$840,000", location: "I-35 N near Laredo, TX",
     lat: "27.5061N", lon: "99.5075W", severity: "Critical",
-    carrier: "Maersk Line", customer: "Owlet", analyst: "J. Torres",
+    carrier: "Maersk Line", customer: "Owlet", analyst: "Alberto Arechiga",
     insurance: "AGCS-OWL-2024-884421",
     timeline: [
       { id: 1, time: "10:14 AM", icon: "🔒", text: "Lock tamper detected", type: "critical", auto: true },
@@ -36,7 +36,7 @@ const CASE_DATA = {
     caseId: "DG-RC-2026-003", device: "DG-0994", trailerId: "TRL-8820",
     cargoValue: "$560,000", location: "I-10 W near San Antonio, TX",
     lat: "29.4241N", lon: "98.4936W", severity: "Warning",
-    carrier: "COSCO Shipping", customer: "Owlet", analyst: "J. Torres",
+    carrier: "COSCO Shipping", customer: "Owlet", analyst: "Alberto Arechiga",
     insurance: "AGCS-OWL-2024-884421",
     timeline: [
       { id: 1, time: "09:52 AM", icon: "🔋", text: "Battery dropped below 18% threshold", type: "alert", auto: true },

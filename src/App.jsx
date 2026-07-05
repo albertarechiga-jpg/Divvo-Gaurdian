@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { SHIPMENTS } from "./data/shipments.js";
 import { INITIAL_ALERTS } from "./data/alerts.js";
 import { INITIAL_INCIDENTS } from "./data/incidents.js";
+import { COMPANIES } from "./data/companyFleets.js";
 import { runTheftDetectionScan, createIncidentFromAlert } from "./lib/detectionEngine.js";
 import Sidebar from "./components/Sidebar.jsx";
 
@@ -60,6 +61,7 @@ export default function App() {
   const [selectedShipment, setSelectedShipment]   = useState(null);
   const [selectedIncident, setSelectedIncident]   = useState(null);
   const [selectedDevice, setSelectedDevice]       = useState("DG-1028");
+  const [company, setCompany]                     = useState(COMPANIES[0].id);
 
   const [alerts,    setAlerts]    = useState(INITIAL_ALERTS);
   const [incidents, setIncidents] = useState(INITIAL_INCIDENTS);
@@ -158,7 +160,7 @@ export default function App() {
         return <FleetDashboard onNav={handleNav} />;
 
       case "unified-command":
-        return <UnifiedCommandCenter onNav={handleNav} />;
+        return <UnifiedCommandCenter key={company} onNav={handleNav} company={company} />;
 
       case "command":
         return <CommandCenter incidents={incidents} onNav={handleNav} />;
@@ -210,7 +212,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
-      <Sidebar active={activeNav} onNav={handleNav} openAlerts={openAlerts} />
+      <Sidebar active={activeNav} onNav={handleNav} openAlerts={openAlerts} companies={COMPANIES} selectedCompany={company} onCompanyChange={setCompany} />
       <main className="flex-1 overflow-auto min-w-0">
         {renderPage()}
       </main>

@@ -55,10 +55,10 @@ export const RECOVERY_MOCK = {
     chainOfCustody: [
       { time: "2026-06-19T08:14:00", actor: "Divvo Detection Engine", action: "Door Opened alert auto-generated", artifact: "ALT-001" },
       { time: "2026-06-19T08:18:00", actor: "Divvo Detection Engine", action: "Geofence breach alert auto-generated", artifact: "ALT-002" },
-      { time: "2026-06-19T08:30:00", actor: "Ops Analyst — J. Torres", action: "Incident case INC-2026-0041 created", artifact: "INC-2026-0041" },
-      { time: "2026-06-19T08:35:00", actor: "Ops Analyst — J. Torres", action: "GPS log evidence package exported and stored", artifact: "GPS-LOG-0041.zip" },
+      { time: "2026-06-19T08:30:00", actor: "Ops Analyst — Alberto Arechiga", action: "Incident case INC-2026-0041 created", artifact: "INC-2026-0041" },
+      { time: "2026-06-19T08:35:00", actor: "Ops Analyst — Alberto Arechiga", action: "GPS log evidence package exported and stored", artifact: "GPS-LOG-0041.zip" },
       { time: "2026-06-19T09:00:00", actor: "Sr. Analyst — P. Chandran", action: "Divvo senior review initiated, case escalated", artifact: "REVIEW-0041" },
-      { time: "2026-06-19T09:45:00", actor: "Ops Analyst — J. Torres", action: "Law enforcement report filed with BCSO", artifact: "BCSO-2026-04419" },
+      { time: "2026-06-19T09:45:00", actor: "Ops Analyst — Alberto Arechiga", action: "Law enforcement report filed with BCSO", artifact: "BCSO-2026-04419" },
       { time: "2026-06-19T10:00:00", actor: "Client Liaison — A. Kim", action: "Insurance claim filed with Allianz AGCS", artifact: "AGC-CLM-2026-30041" },
       { time: "2026-06-19T10:15:00", actor: "Sr. Analyst — P. Chandran", action: "Recovery Team Bravo assigned and deployed", artifact: "TEAM-BRAVO-DISPATCH" },
       { time: "2026-06-19T11:00:00", actor: "Investigator — M. Webb", action: "Law enforcement evidence packet generated", artifact: "LEP-0041.pdf" },
@@ -116,7 +116,7 @@ export const RECOVERY_MOCK = {
     },
     chainOfCustody: [
       { time: "2026-06-18T22:45:00", actor: "Divvo Detection Engine", action: "Route deviation alert auto-generated", artifact: "ALT-004" },
-      { time: "2026-06-18T23:00:00", actor: "Ops Analyst — J. Torres", action: "Incident case INC-2026-0038 created", artifact: "INC-2026-0038" },
+      { time: "2026-06-18T23:00:00", actor: "Ops Analyst — Alberto Arechiga", action: "Incident case INC-2026-0038 created", artifact: "INC-2026-0038" },
       { time: "2026-06-19T07:30:00", actor: "Sr. Analyst — P. Chandran", action: "Senior review initiated, investigation underway", artifact: "REVIEW-0038" },
     ],
   },
@@ -170,9 +170,9 @@ export const RECOVERY_MOCK = {
     },
     chainOfCustody: [
       { time: "2026-06-17T14:00:00", actor: "Divvo Detection Engine", action: "Tracker offline alert auto-generated", artifact: "ALT-006" },
-      { time: "2026-06-17T14:50:00", actor: "Ops Analyst — J. Torres", action: "Signal restored, carrier contacted for explanation", artifact: "CARRIER-CALL-0029" },
+      { time: "2026-06-17T14:50:00", actor: "Ops Analyst — Alberto Arechiga", action: "Signal restored, carrier contacted for explanation", artifact: "CARRIER-CALL-0029" },
       { time: "2026-06-17T16:00:00", actor: "Carrier — COSCO Dispatch", action: "Maintenance report submitted: antenna connector failure", artifact: "COSCO-MR-2026-0617" },
-      { time: "2026-06-17T16:30:00", actor: "Ops Analyst — J. Torres", action: "Case closed — no theft, no cargo loss", artifact: "CLOSE-0029" },
+      { time: "2026-06-17T16:30:00", actor: "Ops Analyst — Alberto Arechiga", action: "Case closed — no theft, no cargo loss", artifact: "CLOSE-0029" },
     ],
   },
 };

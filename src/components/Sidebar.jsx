@@ -68,7 +68,8 @@ const NAV_ICONS = {
   ),
 };
 
-export default function Sidebar({ active, onNav, openAlerts }) {
+export default function Sidebar({ active, onNav, openAlerts, companies, selectedCompany, onCompanyChange }) {
+  const current = companies?.find(c => c.id === selectedCompany) || companies?.[0];
   return (
     <aside className="w-60 h-screen bg-gray-950 flex flex-col flex-shrink-0 border-r border-gray-800/60 overflow-y-auto">
       {/* Brand */}
@@ -86,18 +87,29 @@ export default function Sidebar({ active, onNav, openAlerts }) {
         </div>
       </div>
 
-      {/* Client badge */}
+      {/* Client badge / company switcher */}
       <div className="mx-4 mb-4 bg-blue-950/60 border border-blue-800/40 rounded-lg px-3 py-2.5">
         <p className="text-blue-300 text-xs font-semibold tracking-widest uppercase mb-1">Active Client</p>
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 bg-white rounded flex items-center justify-center flex-shrink-0">
-            <span className="text-blue-700 text-xs font-black">O</span>
+            <span className="text-blue-700 text-xs font-black">{current?.name?.[0] || "?"}</span>
           </div>
-          <div>
-            <p className="text-white text-xs font-semibold leading-tight">Owlet</p>
-            <p className="text-blue-400 text-xs">Pilot Program</p>
+          <div className="min-w-0 flex-1 relative">
+            <select
+              value={selectedCompany}
+              onChange={(e) => onCompanyChange?.(e.target.value)}
+              className="w-full bg-transparent text-white text-xs font-semibold leading-tight appearance-none cursor-pointer outline-none pr-4"
+            >
+              {companies?.map((c) => (
+                <option key={c.id} value={c.id} className="bg-gray-900 text-white">{c.name}</option>
+              ))}
+            </select>
+            <svg className="w-3 h-3 text-blue-400 absolute right-0 top-0.5 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+            <p className="text-blue-400 text-xs">{current?.program}</p>
           </div>
-          <div className="ml-auto w-1.5 h-1.5 bg-emerald-400 rounded-full" />
+          <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full flex-shrink-0" />
         </div>
       </div>
 
@@ -154,10 +166,10 @@ export default function Sidebar({ active, onNav, openAlerts }) {
       <div className="p-4 border-t border-gray-800/60 mt-4">
         <div className="flex items-center gap-2.5 mb-3">
           <div className="w-7 h-7 bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-gray-300 text-xs font-semibold">JT</span>
+            <span className="text-gray-300 text-xs font-semibold">AA</span>
           </div>
           <div className="min-w-0">
-            <p className="text-gray-300 text-xs font-semibold truncate">J. Torres</p>
+            <p className="text-gray-300 text-xs font-semibold truncate">Alberto Arechiga</p>
             <p className="text-gray-500 text-xs">Divvo Ops Analyst</p>
           </div>
           <div className="ml-auto w-1.5 h-1.5 bg-emerald-400 rounded-full" />
