@@ -9,9 +9,9 @@ const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const ICE = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }] };
 
 // ── Supabase route helpers ───────────────────────────────────────────────────
-async function fetchSavedRoutes() {
+async function fetchSavedRoutes(companyId = "owlet") {
   try {
-    const res = await fetch(SB_URL + "/rest/v1/saved_routes?select=*&order=created_at.desc", { headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } });
+    const res = await fetch(SB_URL + `/rest/v1/saved_routes?select=*&company_id=eq.${companyId}&order=created_at.desc`, { headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } });
     return await res.json();
   } catch { return []; }
 }
@@ -544,8 +544,8 @@ function AIRoutePanel({ onRouteGenerated, onClose, prefill }) {
     onRouteGenerated({
       name: result.route_name,
       waypoints: result.waypoints,
-      corridorMeters,
-      assignedDevice: "all",
+      corridor_meters: corridorMeters,
+      assigned_device: "all",
       created_at: new Date().toISOString(),
     });
     onClose();
@@ -699,7 +699,7 @@ function AIRoutePanel({ onRouteGenerated, onClose, prefill }) {
 }
 
 // ── Route Manager Panel ──────────────────────────────────────────────────────
-function RouteManagerPanel({ savedRoutes, waypointCount, onSave, onUndo, onClear, onDelete, onClose }) {
+function RouteManagerPanel({ savedRoutes, waypointCount, onSave, onUndo, onClear, onDelete, onClose, devices }) {
   const [routeName, setRouteName] = useState("");
   const [corridorMeters, setCorridorMeters] = useState(500);
   const [assignedDevice, setAssignedDevice] = useState("all");
@@ -750,9 +750,9 @@ function RouteManagerPanel({ savedRoutes, waypointCount, onSave, onUndo, onClear
         <select value={assignedDevice} onChange={e => setAssignedDevice(e.target.value)}
           style={{ width: "100%", background: "#111827", border: "1px solid #1f2937", borderRadius: 7, padding: "7px 10px", color: "#f9fafb", fontSize: 12, outline: "none" }}>
           <option value="all">All Devices</option>
-          <option value="device-1">Phone 1 — Green</option>
-          <option value="device-2">Phone 2 — Blue</option>
-          <option value="device-3">Phone 3 — Amber</option>
+          {(devices || []).map(d => (
+            <option key={d.id} value={d.id}>{d.id} — {d.location}</option>
+          ))}
         </select>
       </div>
 
@@ -956,7 +956,7 @@ function LiveMap({ devices, onSelect, selectedId, fullscreen, onFullscreen, save
 
   const handleSaveRoute = (opts) => {
     if (waypoints.length < 2) return;
-    const route = { name: opts.name, waypoints, corridorMeters: opts.corridorMeters, assignedDevice: opts.assignedDevice, created_at: new Date().toISOString() };
+    const route = { name: opts.name, waypoints, corridor_meters: opts.corridorMeters, assigned_device: opts.assignedDevice, created_at: new Date().toISOString() };
     onRouteSave?.(route);
     clearWaypointMarkers();
     setWaypoints([]);
@@ -1052,6 +1052,7 @@ function LiveMap({ devices, onSelect, selectedId, fullscreen, onFullscreen, save
         <RouteManagerPanel
           savedRoutes={savedRoutes || []}
           waypointCount={waypoints.length}
+          devices={devices}
           onSave={handleSaveRoute}
           onUndo={() => {
             setWaypoints(prev => {
@@ -1373,7 +1374,7 @@ export default function UnifiedCommandCenter({ onNav, company = "owlet" }) {
 
   // Load saved routes on mount
   useEffect(() => {
-    fetchSavedRoutes().then(rows => { if (Array.isArray(rows)) setSavedRoutes(rows); });
+    fetchSavedRoutes(company).then(rows => { if (Array.isArray(rows)) setSavedRoutes(rows); });
   }, []);
 
   // Poll Supabase for live phone GPS — restricted to this company's own devices,
@@ -1421,8 +1422,9 @@ export default function UnifiedCommandCenter({ onNav, company = "owlet" }) {
   };
 
   const handleRouteSave = async (route) => {
-    await saveRouteToSB(route);
-    const newRoute = { ...route, id: Date.now() };
+    const tagged = { ...route, company_id: company };
+    await saveRouteToSB(tagged);
+    const newRoute = { ...tagged, id: Date.now() };
     setSavedRoutes(prev => [newRoute, ...prev]);
   };
 
