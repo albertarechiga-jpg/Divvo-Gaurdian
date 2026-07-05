@@ -1,12 +1,16 @@
 import { useState } from "react";
 import { SHIPMENTS } from "../data/shipments.js";
+import { COMPANIES } from "../data/companyFleets.js";
 import { fmtCurrencyCompact } from "../lib/utils.js";
 import { RiskBadge, StatusBadge } from "../components/Badges.jsx";
 
-export default function ShipmentsPage({ onViewShipment }) {
+export default function ShipmentsPage({ company = "owlet", onViewShipment }) {
   const [filter, setFilter] = useState("All");
+  const companyInfo = COMPANIES.find((c) => c.id === company) || COMPANIES[0];
+  const companyShipments = SHIPMENTS.filter((s) => s.customer === companyInfo.name);
+  const carrierCount = new Set(companyShipments.map((s) => s.carrier)).size;
   const statuses = ["All", "On Schedule", "In Transit", "Delayed", "Critical Alert"];
-  const shown = filter === "All" ? SHIPMENTS : SHIPMENTS.filter((s) => s.status === filter);
+  const shown = filter === "All" ? companyShipments : companyShipments.filter((s) => s.status === filter);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -16,10 +20,10 @@ export default function ShipmentsPage({ onViewShipment }) {
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-bold text-blue-600 uppercase tracking-widest">Divvo Guardian</span>
               <span className="text-gray-300">·</span>
-              <span className="text-xs text-gray-400">Owlet Portfolio</span>
+              <span className="text-xs text-gray-400">{companyInfo.name} Portfolio</span>
             </div>
             <h1 className="text-2xl font-bold text-gray-900">Shipments</h1>
-            <p className="text-gray-400 text-sm mt-0.5">Tracking {SHIPMENTS.length} active shipments across 4 carriers</p>
+            <p className="text-gray-400 text-sm mt-0.5">Tracking {companyShipments.length} active shipment{companyShipments.length === 1 ? "" : "s"} across {carrierCount} carrier{carrierCount === 1 ? "" : "s"}</p>
           </div>
           <button className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors">
             + Add Shipment
@@ -98,8 +102,12 @@ export default function ShipmentsPage({ onViewShipment }) {
                   <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                 </svg>
               </div>
-              <p className="text-sm font-semibold text-gray-400">No shipments match this filter</p>
-              <p className="text-xs text-gray-300 mt-1">Try selecting a different status above</p>
+              <p className="text-sm font-semibold text-gray-400">
+                {companyShipments.length === 0 ? `No shipments tracked for ${companyInfo.name} yet` : "No shipments match this filter"}
+              </p>
+              <p className="text-xs text-gray-300 mt-1">
+                {companyShipments.length === 0 ? "Check back once this pilot is active" : "Try selecting a different status above"}
+              </p>
             </div>
           )}
         </div>

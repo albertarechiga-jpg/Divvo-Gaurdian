@@ -65,7 +65,11 @@ export default function App() {
   const [scanning,  setScanning]  = useState(false);
   const [scanResults, setScanResults] = useState(null);
 
-  const openAlerts = alerts.filter((a) => a.status === "Open").length;
+  const companyInfo = COMPANIES.find((c) => c.id === company) || COMPANIES[0];
+  const companyShipments = SHIPMENTS.filter((s) => s.customer === companyInfo.name);
+  const companyShipmentIds = new Set(companyShipments.map((s) => s.id));
+
+  const openAlerts = alerts.filter((a) => a.status === "Open" && companyShipmentIds.has(a.shipmentId)).length;
 
   const handleNav = (p) => {
     setPage(p);
@@ -101,12 +105,12 @@ export default function App() {
     setScanning(true);
     setScanResults(null);
     setTimeout(() => {
-      const newAlerts = runTheftDetectionScan(SHIPMENTS, alerts);
+      const newAlerts = runTheftDetectionScan(companyShipments, alerts);
       setAlerts((prev) => [...prev, ...newAlerts]);
       setScanResults(newAlerts);
       setScanning(false);
     }, 1800);
-  }, [alerts]);
+  }, [alerts, companyShipments]);
 
   const handleConvertToIncident = useCallback((alert) => {
     const ship = SHIPMENTS.find((s) => s.id === alert.shipmentId);
@@ -166,12 +170,13 @@ export default function App() {
         );
 
       case "shipments":
-        return <ShipmentsPage onViewShipment={handleViewShipment} />;
+        return <ShipmentsPage company={company} onViewShipment={handleViewShipment} />;
 
       case "alerts":
         return (
           <AlertsPage
             alerts={alerts}
+            company={company}
             scanning={scanning}
             onScan={handleScan}
             onViewShipment={handleViewShipment}
