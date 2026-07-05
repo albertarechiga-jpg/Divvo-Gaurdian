@@ -61,11 +61,23 @@
     </div>
 
     <div style="width:100%;max-width:320px;">
-      <div class="label" style="margin-bottom:6px;">Camera Slot</div>
+      <div class="label" style="margin-bottom:6px;">Device</div>
       <select id="device-select-arm" class="select" style="margin-bottom:12px;">
-        <option value="device-1">Camera 1 — Left</option>
-        <option value="device-2">Camera 2 — Center</option>
-        <option value="device-3">Camera 3 — Right</option>
+        <optgroup label="Owlet">
+          <option value="DG-1028">DG-1028 — I-35 N near Laredo, TX</option>
+          <option value="DG-1041">DG-1041 — US-281 near Corpus Christi, TX</option>
+          <option value="DG-0994">DG-0994 — I-10 W near San Antonio, TX</option>
+        </optgroup>
+        <optgroup label="Meridian Freight">
+          <option value="MR-2031">MR-2031 — I-5 S near Tacoma, WA</option>
+          <option value="MR-2044">MR-2044 — I-84 near Portland, OR</option>
+          <option value="MR-1987">MR-1987 — US-101 near Olympia, WA</option>
+        </optgroup>
+        <optgroup label="Coastal Logistics">
+          <option value="CL-3041">CL-3041 — I-16 W near Savannah, GA</option>
+          <option value="CL-3059">CL-3059 — I-95 near Jacksonville, FL</option>
+          <option value="CL-3020">CL-3020 — US-17 near Charleston, SC</option>
+        </optgroup>
       </select>
       <div class="label" style="margin-bottom:6px;">Camera Facing</div>
       <select id="camera-select-arm" class="select" style="margin-bottom:20px;">
@@ -121,7 +133,7 @@
     </div>
 
     <div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:10px;padding:12px 14px;font-size:11px;color:#6b7280;line-height:1.6;">
-      Keep this page open and your screen on. The dashboard will connect automatically. Device: <strong style="color:#93c5fd" id="device-label">Camera 1</strong>
+      Keep this page open and your screen on. The dashboard will connect automatically. Device: <strong style="color:#93c5fd" id="device-label">DG-1028</strong>
     </div>
   </div>
 
@@ -134,7 +146,7 @@
     let pc = null;
     let pollInterval = null;
     let lastOfferId = null;
-    let deviceId = 'device-1';
+    let deviceId = 'DG-1028';
     let facing = 'environment';
 
     function setStatus(id, color, text) {
@@ -225,11 +237,11 @@
     }
 
     async function armDevice() {
-      deviceId = document.getElementById('device-select-arm').value;
+      const deviceSelect = document.getElementById('device-select-arm');
+      deviceId = deviceSelect.value;
       facing = document.getElementById('camera-select-arm').value;
 
-      const labelMap = { 'device-1': 'Camera 1 — Left', 'device-2': 'Camera 2 — Center', 'device-3': 'Camera 3 — Right' };
-      document.getElementById('device-label').textContent = labelMap[deviceId];
+      document.getElementById('device-label').textContent = deviceSelect.options[deviceSelect.selectedIndex].textContent;
 
       try {
         localStream = await navigator.mediaDevices.getUserMedia({

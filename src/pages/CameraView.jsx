@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { COMPANIES, COMPANY_DEVICES } from "../data/companyFleets.js";
 
 const SB_URL = import.meta.env.VITE_SUPABASE_URL;
 const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -10,11 +11,7 @@ const ICE_SERVERS = {
   ],
 };
 
-const CAMERAS = [
-  { id: "device-1", label: "Left Camera",   color: "#22c55e" },
-  { id: "device-2", label: "Center Camera", color: "#3b82f6" },
-  { id: "device-3", label: "Right Camera",  color: "#f59e0b" },
-];
+const SEVERITY_COLOR = { Critical: "#ef4444", Warning: "#f59e0b", Secure: "#22c55e" };
 
 async function sendSignal(deviceId, type, payload) {
   await fetch(SB_URL + "/rest/v1/webrtc_signals", {
@@ -331,7 +328,13 @@ function CameraFeed({ camera, onStatusChange }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-export default function CameraView() {
+export default function CameraView({ company = "owlet" }) {
+  const companyInfo = COMPANIES.find((c) => c.id === company) || COMPANIES[0];
+  const CAMERAS = (COMPANY_DEVICES[company] || COMPANY_DEVICES.owlet).slice(0, 3).map((d) => ({
+    id: d.id,
+    label: d.location,
+    color: SEVERITY_COLOR[d.severity] || "#22c55e",
+  }));
   const [liveFeeds, setLiveFeeds] = useState([]);
   const [toast, setToast]         = useState(null);
 
@@ -370,7 +373,7 @@ export default function CameraView() {
 
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">Live Camera Feeds</h1>
+          <h1 className="text-xl font-bold text-white">Live Camera Feeds — {companyInfo.name}</h1>
           <p className="text-gray-500 text-sm mt-0.5">WebRTC peer-to-peer · No cloud storage · End-to-end encrypted</p>
         </div>
         <a href="/camera.html" target="_blank" rel="noreferrer"
@@ -383,7 +386,7 @@ export default function CameraView() {
         <p className="text-xs font-bold text-blue-300 mb-2">How to connect:</p>
         <ol className="text-xs text-blue-400 space-y-1 list-decimal list-inside">
           <li>Open <strong>divvo-guardian.vercel.app/camera.html</strong> on your phone</li>
-          <li>Select camera slot and tap <strong>Arm Device</strong></li>
+          <li>Select the matching device (e.g. {CAMERAS[0]?.id}) and tap <strong>Arm Device</strong></li>
           <li>Come back here and click <strong>Connect</strong> — feed appears automatically</li>
         </ol>
       </div>

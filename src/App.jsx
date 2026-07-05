@@ -189,7 +189,7 @@ export default function App() {
         return <RecoveryPage incidents={incidents} company={company} onViewIncident={handleViewIncident} />;
 
       case "camera":
-        return <CameraView />;
+        return <CameraView key={company} company={company} />;
 
       case "reports":
         return <ReportsPage company={company} />;
