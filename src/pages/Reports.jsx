@@ -1,3 +1,4 @@
+import { COMPANIES } from "../data/companyFleets.js";
 import { fmtCurrencyCompact } from "../lib/utils.js";
 import { Badge, RiskBadge } from "../components/Badges.jsx";
 
@@ -30,7 +31,10 @@ const DOCS = [
   { title: "Insurance Claims Package — Allianz AGCS", desc: "Supporting documentation for claim AGC-CLM-2026-30041 — estimated payout $2.8M", date: "Jun 19, 2026", type: "PDF" },
 ];
 
-export default function ReportsPage() {
+export default function ReportsPage({ company = "owlet" }) {
+  const companyInfo = COMPANIES.find((c) => c.id === company) || COMPANIES[0];
+  const hasReportData = company === "owlet"; // report content below is static Owlet pilot data, not yet computed per company
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-200 px-8 py-6">
@@ -39,10 +43,10 @@ export default function ReportsPage() {
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-bold text-blue-600 uppercase tracking-widest">Divvo Guardian</span>
               <span className="text-gray-300">·</span>
-              <span className="text-xs text-gray-400">Owlet Pilot Program</span>
+              <span className="text-xs text-gray-400">{companyInfo.name} Pilot Program</span>
             </div>
             <h1 className="text-2xl font-bold text-gray-900">Reports &amp; Analytics</h1>
-            <p className="text-gray-400 text-sm mt-0.5">Operational intelligence for the Owlet supply chain — June 2026</p>
+            <p className="text-gray-400 text-sm mt-0.5">Operational intelligence for the {companyInfo.name} supply chain — June 2026</p>
           </div>
           <button className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors">
             Generate Report
@@ -50,6 +54,16 @@ export default function ReportsPage() {
         </div>
       </div>
 
+      {!hasReportData && (
+        <div className="p-8">
+          <div className="bg-white rounded-2xl border border-gray-200 py-16 text-center">
+            <p className="text-sm font-semibold text-gray-400">No reports available for {companyInfo.name} yet</p>
+            <p className="text-xs text-gray-300 mt-1">Reports generate once this pilot has shipment and alert history</p>
+          </div>
+        </div>
+      )}
+
+      {hasReportData && (
       <div className="p-8 space-y-8">
         {/* Top metrics */}
         <div>
@@ -185,6 +199,7 @@ export default function ReportsPage() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }
