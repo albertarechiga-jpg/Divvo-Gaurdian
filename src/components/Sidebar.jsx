@@ -2,7 +2,6 @@ const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard" },
   { id: "shipments", label: "Shipments" },
   { id: "alerts",    label: "Alerts" },
-  { id: "incidents", label: "Incidents" },
   { id: "recovery",  label: "Recovery" },
   { id: "camera",    label: "Cameras" },
   { id: "reports",   label: "Reports" },
@@ -10,16 +9,6 @@ const NAV_ITEMS = [
 ];
 
 const NAV_ICONS = {
-  "unified-command": (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
-      <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-    </svg>
-  ),
-  "fleet-dashboard": (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
-      <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
-    </svg>
-  ),
   dashboard: (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
       <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
@@ -36,12 +25,6 @@ const NAV_ICONS = {
     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
       <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-    </svg>
-  ),
-  incidents: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
-      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-      <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
     </svg>
   ),
   recovery: (
@@ -118,7 +101,7 @@ export default function Sidebar({ active, onNav, openAlerts, companies, selected
         <button
           onClick={() => onNav("unified-command")}
           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all mb-2 ${
-            active === "unified-command" || active === "command" || active === "fleet-dashboard"
+            active === "unified-command"
               ? "bg-red-600 text-white shadow-lg shadow-red-900/50"
               : "bg-red-950/40 border border-red-800/30 text-red-300 hover:bg-red-900/40 hover:text-red-100"
           }`}

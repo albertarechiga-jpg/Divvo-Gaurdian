@@ -7,14 +7,11 @@ import { runTheftDetectionScan, createIncidentFromAlert } from "./lib/detectionE
 import Sidebar from "./components/Sidebar.jsx";
 
 // Pages
-import CommandCenter          from "./pages/CommandCenter.jsx";
-import FleetDashboard         from "./pages/FleetDashboard.jsx";
 import UnifiedCommandCenter   from "./pages/UnifiedCommandCenter.jsx";
 import Dashboard       from "./pages/Dashboard.jsx";
 import ShipmentsPage   from "./pages/Shipments.jsx";
 import ShipmentDetail  from "./pages/ShipmentDetail.jsx";
 import AlertsPage      from "./pages/Alerts.jsx";
-import IncidentsPage   from "./pages/Incidents.jsx";
 import RecoveryPage    from "./pages/Recovery.jsx";
 import RecoveryDetail  from "./pages/RecoveryDetail.jsx";
 import RecoveryCase    from "./pages/RecoveryCase.jsx";
@@ -127,9 +124,7 @@ export default function App() {
   // Derive active sidebar item from page
   const activeNav =
     page === "shipment-detail" ? "shipments" :
-    page === "recovery-detail" ? "incidents" :
-    page === "fleet-dashboard" ? "unified-command" :
-    page === "command" ? "unified-command" :
+    page === "recovery-detail" ? "recovery" :
     page;
 
   const renderPage = () => {
@@ -139,7 +134,7 @@ export default function App() {
           shipmentId={selectedShipment}
           alerts={alerts}
           onBack={() => handleNav("shipments")}
-          onCreateIncident={() => handleNav("incidents")}
+          onCreateIncident={() => handleNav("recovery")}
         />
       );
 
@@ -148,22 +143,16 @@ export default function App() {
         <RecoveryDetail
           incidentId={selectedIncident}
           incidents={incidents}
-          onBack={() => handleNav("incidents")}
+          onBack={() => handleNav("recovery")}
         />
       );
 
     switch (page) {
       case "recovery-case":
-        return <RecoveryCase onBack={() => handleNav("command")} deviceId={selectedDevice} />;
-
-      case "fleet-dashboard":
-        return <FleetDashboard onNav={handleNav} />;
+        return <RecoveryCase onBack={() => handleNav("unified-command")} deviceId={selectedDevice} />;
 
       case "unified-command":
         return <UnifiedCommandCenter key={company} onNav={handleNav} company={company} />;
-
-      case "command":
-        return <CommandCenter incidents={incidents} onNav={handleNav} />;
 
       case "dashboard":
         return (
@@ -190,9 +179,6 @@ export default function App() {
           />
         );
 
-      case "incidents":
-        return <IncidentsPage incidents={incidents} onViewIncident={handleViewIncident} />;
-
       case "recovery":
         return <RecoveryPage incidents={incidents} onViewIncident={handleViewIncident} />;
 
@@ -206,7 +192,7 @@ export default function App() {
         return <SettingsPage />;
 
       default:
-        return <CommandCenter incidents={incidents} onNav={handleNav} />;
+        return <UnifiedCommandCenter key={company} onNav={handleNav} company={company} />;
     }
   };
 

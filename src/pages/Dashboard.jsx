@@ -90,7 +90,7 @@ export default function Dashboard({ alerts, incidents, onNav, onViewShipment }) 
             accent="bg-blue-900/60"
             icon={<svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>}
           />
-          <div className="bg-blue-600 rounded-2xl p-5 flex flex-col gap-3 cursor-pointer hover:bg-blue-500 transition-colors" onClick={() => onNav("incidents")}>
+          <div className="bg-blue-600 rounded-2xl p-5 flex flex-col gap-3 cursor-pointer hover:bg-blue-500 transition-colors" onClick={() => onNav("recovery")}>
             <p className="text-xs font-semibold text-blue-100 uppercase tracking-widest">Quick Action</p>
             <p className="text-lg font-bold text-white leading-tight">+ Create Incident</p>
             <p className="text-xs text-blue-200">Open a new recovery case</p>
@@ -220,7 +220,7 @@ export default function Dashboard({ alerts, incidents, onNav, onViewShipment }) 
               <h2 className="text-sm font-bold text-gray-900">Open Incidents</h2>
               <p className="text-xs text-gray-400 mt-0.5">Cases requiring action</p>
             </div>
-            <button onClick={() => onNav("incidents")} className="text-xs text-blue-600 hover:text-blue-700 font-semibold">All incidents →</button>
+            <button onClick={() => onNav("recovery")} className="text-xs text-blue-600 hover:text-blue-700 font-semibold">All incidents →</button>
           </div>
           <table className="w-full">
             <thead>
@@ -235,7 +235,7 @@ export default function Dashboard({ alerts, incidents, onNav, onViewShipment }) 
             </thead>
             <tbody className="divide-y divide-gray-50">
               {incidents.filter((i) => i.stage < 7).map((inc) => (
-                <tr key={inc.id} onClick={() => onNav("incidents")} className="hover:bg-blue-50/40 cursor-pointer transition-colors">
+                <tr key={inc.id} onClick={() => onNav("recovery")} className="hover:bg-blue-50/40 cursor-pointer transition-colors">
                   <td className="px-6 py-4">
                     <p className="font-mono text-xs font-bold text-gray-700">{inc.id}</p>
                     <p className="text-xs text-gray-400 mt-0.5 max-w-xs truncate">{inc.title}</p>
