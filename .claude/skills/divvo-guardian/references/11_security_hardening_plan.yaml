@@ -1,0 +1,142 @@
+security_hardening_plan:
+  title: "Supabase RLS Policy Plan + Device-Key Removal Fix"
+  version: "1.0"
+  date: "2026-07-05"
+  owner_role: cloud_architect
+  status: "planned_not_executed"
+
+  purpose: >
+    Define the target Row Level Security (RLS) posture for every Supabase table
+    the divvo-guardian dashboard uses, and the architecture fix that removes
+    the hardcoded Supabase anon key from the two static device-simulator pages
+    (public/gps.html, public/camera.html) so RLS policies can actually mean
+    something per-actor instead of "anyone holding the one shared key."
+
+  scope: >
+    Covers the 5 real Supabase tables in use (gps_pings, saved_routes,
+    alert_settings, webrtc_signals, audit_log) and the two Vercel serverless
+    proxy endpoints proposed to replace direct client-side Supabase calls
+    from the device simulators. Does not cover Supabase JWT secret rotation
+    (deferred — see 10_next_actions.yaml) or a full Supabase Auth / login
+    system for dashboard users (not in scope for the pilot).
+
+  context:
+    - "devices is NOT a real Supabase table today — it's a local mock JS array in UnifiedCommandCenter.jsx. No RLS work applies to it unless a real devices table is created (see optional_addition below)."
+    - "Every current client (dashboard React app + gps.html + camera.html) shares one Supabase anon key. RLS policies apply to that key as a whole — Postgres cannot distinguish 'the dashboard' from 'a device simulator' under the current architecture."
+    - "Precondition before writing any policy: confirm RLS is actually ENABLED on each table (ALTER TABLE ... ENABLE ROW LEVEL SECURITY). A written policy has no effect if RLS is off for that table."
+
+  assumptions:
+    - "Single-tenant pilot (Owlet) — no multi-customer row isolation required yet."
+    - "No Supabase Auth / login flow exists for dashboard users; the anon key represents 'any dashboard operator', not an individual identity."
+    - "Vercel project already has a place to add new server-only env vars (established during the earlier credential-rotation work)."
+
+  rls_policies:
+    gps_pings:
+      current_access: "gps.html INSERTs (no filter). Dashboard SELECTs (order=created_at.desc, no per-device filter). No UPDATE/DELETE anywhere in code."
+      recommended:
+        anon_role:
+          - "SELECT: allow (dashboard read path)"
+          - "INSERT: deny — move device writes behind the proxy (see proxy_fix), drop anon INSERT entirely"
+          - "UPDATE: deny — no code path needs it"
+          - "DELETE: deny — no code path needs it"
+      priority: 2
+
+    saved_routes:
+      current_access: "Dashboard-only: SELECT, POST (INSERT), DELETE by id. No device-simulator access. No UPDATE observed."
+      recommended:
+        anon_role:
+          - "SELECT: allow"
+          - "INSERT: allow"
+          - "DELETE: allow"
+          - "UPDATE: deny — no edit flow exists; add only if one is built"
+      priority: 3
+
+    alert_settings:
+      current_access: "Contains PII (phones, emails). SELECT (limit=1) from Settings.jsx and notifications.js. UPDATE by id from Settings.jsx. Singleton config row — no INSERT/DELETE anywhere."
+      recommended:
+        anon_role:
+          - "SELECT: allow"
+          - "UPDATE: allow"
+          - "INSERT: deny — no code path creates a new settings row"
+          - "DELETE: deny — no code path removes it"
+      priority: 1
+      note: "Highest priority to lock down — this is the one table with real PII and it is reachable today from the exact same key gps.html embeds."
+
+    webrtc_signals:
+      current_access: >
+        Bidirectional signaling. Dashboard (CameraView.jsx, FleetDashboard.jsx,
+        UnifiedCommandCenter.jsx) does INSERT (offer, ice-viewer) and SELECT
+        filtered by device_id+type (answer, ice-camera). camera.html does the
+        mirror: INSERT (answer, ice-camera) and SELECT filtered by
+        device_id+type (offer, ice-viewer). No UPDATE/DELETE anywhere.
+      recommended:
+        anon_role:
+          - "SELECT: allow"
+          - "INSERT: allow (dashboard side only, post-fix)"
+          - "UPDATE: deny"
+          - "DELETE: deny"
+      caveat: >
+        Under the current single-key architecture there is nothing stopping
+        the dashboard's key from reading/writing any device's signaling rows,
+        not just the one it's viewing — scoping by device_id is enforced only
+        by client-side query filters, not by the database. Real per-device
+        isolation requires the optional devices registry table below.
+      priority: 2
+
+    audit_log:
+      current_access: "Write-only today — logAuditEvent() in UnifiedCommandCenter.jsx INSERTs only. Nothing reads it back yet."
+      recommended:
+        anon_role:
+          - "INSERT: allow"
+          - "SELECT: deny — do not grant until an audit viewer is actually built; an anon-readable operator action log is its own minor info leak in the meantime"
+          - "UPDATE: deny — never grant, audit logs must stay append-only"
+          - "DELETE: deny — never grant, audit logs must stay append-only"
+      priority: 3
+
+  proxy_fix:
+    problem: >
+      public/gps.html and public/camera.html embed the Supabase URL and anon
+      key directly in client-visible HTML/JS. Anyone who views source can
+      read the key. This is also what makes anon-role RLS meaningless today,
+      since the same key is used by trusted (dashboard) and untrusted-ish
+      (open device simulator page) contexts.
+    fix:
+      - "Add api/gps-ping.js and api/webrtc-signal.js as new Vercel serverless functions."
+      - "These hold a NEW SUPABASE_SERVICE_ROLE_KEY as a server-only env var (never VITE_-prefixed, never shipped to a browser)."
+      - "They proxy the exact same inserts/selects gps.html and camera.html perform today, server-side, using the service-role key (which bypasses RLS by design)."
+      - "gps.html and camera.html change their fetch() calls from SB_URL + '/rest/v1/...' to same-origin '/api/gps-ping' and '/api/webrtc-signal' — no Supabase URL or key embedded in the HTML at all after this."
+      - "Result: anon-role RLS policies above become purely 'what the dashboard can do' — clean separation between the trusted operator surface and the device-write surface."
+    residual_gap: >
+      Moving the key server-side stops key theft but does not stop someone
+      from POSTing fake pings for a device_id they guessed, since today's
+      only 'auth' is knowing that string. Treated as a smaller, pre-existing
+      risk that isn't made worse by this fix — see optional_addition for the
+      real closure of this gap.
+    optional_addition:
+      devices_table: >
+        A real devices table (one row per physical device, holding its own
+        secret/token, and customer/tenant if multi-tenancy is ever needed)
+        would let the proxy validate device_id + a per-device secret before
+        writing, instead of trusting device_id alone. Nice-to-have, not a
+        blocker for the key-exposure fix itself.
+
+  risks:
+    - "Locking down alert_settings/gps_pings anon policies before the proxy ships would break gps.html's current direct-insert flow — sequencing matters (see 10_next_actions.yaml execution order)."
+    - "Forgetting to confirm RLS is enabled before writing policies gives a false sense of security."
+    - "Service-role key is maximally privileged (bypasses RLS entirely) — it must only ever live in Vercel serverless env vars, never in any VITE_-prefixed var or client bundle."
+
+  tradeoffs:
+    positive:
+      - "Anon key exposure no longer grants direct table access beyond what a dashboard operator should have."
+      - "PII table (alert_settings) stops being reachable from an openly-embedded key."
+      - "Clean separation of trust boundaries: dashboard (anon + RLS) vs device writes (service-role proxy)."
+    negative:
+      - "Two new serverless functions to maintain."
+      - "Device-level spoofing (guessable device_id) isn't fully closed unless the optional devices table is also built."
+
+  open_questions:
+    - "Is per-device write authentication (the devices table) worth building now, or acceptable to defer given this is a single-customer pilot?"
+    - "Should webrtc_signals / gps_pings get a retention/cleanup policy? Rows appear to accumulate indefinitely — separate from RLS but noticed during this review."
+
+  decision_needed: "Approve the per-table policy list above and the proxy-based fix before implementation begins."
+  next_action: "See 10_next_actions.yaml for the agreed execution order."

@@ -1,4 +1,16 @@
 next_actions:
+  tomorrow_execution_order:
+    plan_reference: "11_security_hardening_plan.yaml"
+    order:
+      - step: 1
+        task: "Write and apply RLS policies, starting with alert_settings (contains PII, highest priority — see rls_policies in 11_security_hardening_plan.yaml)"
+      - step: 2
+        task: "Build the proxy functions (api/gps-ping.js, api/webrtc-signal.js) so gps.html/camera.html stop embedding the Supabase anon key, then repoint those two pages at the new endpoints"
+      - step: 3
+        task: "Rotate the Supabase JWT secret last, after RLS and the proxy are in place (deferred from the credential-rotation pass earlier)"
+      - step: 4
+        task: "Nice-to-have: create a real devices table with per-device secrets for stronger device-write auth (see optional_addition in 11_security_hardening_plan.yaml)"
+
   immediate:
     - define physical product architecture
     - choose prototype strategy
