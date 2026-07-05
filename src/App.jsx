@@ -159,6 +159,7 @@ export default function App() {
           <Dashboard
             alerts={alerts}
             incidents={incidents}
+            company={company}
             onNav={handleNav}
             onViewShipment={handleViewShipment}
           />

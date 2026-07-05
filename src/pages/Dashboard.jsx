@@ -1,4 +1,5 @@
 import { SHIPMENTS } from "../data/shipments.js";
+import { COMPANIES } from "../data/companyFleets.js";
 import { fmtCurrency, fmtCurrencyCompact } from "../lib/utils.js";
 import { RiskBadge, StatusBadge } from "../components/Badges.jsx";
 
@@ -15,12 +16,18 @@ const KpiCard = ({ label, value, sub, accent, icon }) => (
   </div>
 );
 
-export default function Dashboard({ alerts, incidents, onNav, onViewShipment }) {
-  const totalValue = SHIPMENTS.reduce((s, sh) => s + sh.cargoValue, 0);
+export default function Dashboard({ alerts: allAlerts, incidents: allIncidents, company = "owlet", onNav, onViewShipment }) {
+  const companyInfo = COMPANIES.find(c => c.id === company) || COMPANIES[0];
+  const companyShipments = SHIPMENTS.filter((s) => s.customer === companyInfo.name);
+  const shipmentIds = new Set(companyShipments.map((s) => s.id));
+  const alerts = allAlerts.filter((a) => shipmentIds.has(a.shipmentId));
+  const incidents = allIncidents.filter((i) => shipmentIds.has(i.shipmentId));
+
+  const totalValue = companyShipments.reduce((s, sh) => s + sh.cargoValue, 0);
   const activeRecoveries = incidents.filter((i) => i.stage < 7).length;
   const openAlerts = alerts.filter((a) => a.status === "Open").length;
   const criticalAlerts = alerts.filter((a) => a.severity === "Critical" && a.status === "Open").length;
-  const highRisk = SHIPMENTS.filter((s) => s.riskLevel === "High" || s.riskLevel === "Critical").length;
+  const highRisk = companyShipments.filter((s) => s.riskLevel === "High" || s.riskLevel === "Critical").length;
   const resolvedCases = incidents.filter((i) => i.stage === 7).length;
 
   const recentActivity = [
@@ -44,7 +51,7 @@ export default function Dashboard({ alerts, incidents, onNav, onViewShipment }) 
           <div>
             <div className="flex items-center gap-3 mb-3">
               <span className="text-xs font-bold text-blue-400 uppercase tracking-widest bg-blue-950/60 border border-blue-800/40 px-3 py-1 rounded-full">
-                Owlet · Pilot Program
+                {companyInfo.name} · {companyInfo.program}
               </span>
               <span className="text-xs text-gray-600">·</span>
               <span className="text-xs text-gray-500">
@@ -56,7 +63,7 @@ export default function Dashboard({ alerts, incidents, onNav, onViewShipment }) 
               <span className="text-blue-400">&amp; Recovery Platform</span>
             </h1>
             <p className="text-gray-400 text-sm mt-2 max-w-xl leading-relaxed">
-              Divvo Guardian monitors high-value shipments in real time — detecting threats, creating incident cases, and coordinating recovery operations for Owlet's national supply chain.
+              Divvo Guardian monitors high-value shipments in real time — detecting threats, creating incident cases, and coordinating recovery operations for {companyInfo.name}'s national supply chain.
             </p>
           </div>
           <div className="text-right flex-shrink-0">
@@ -65,16 +72,16 @@ export default function Dashboard({ alerts, incidents, onNav, onViewShipment }) 
               <p className="text-emerald-400 text-xs font-semibold">Systems Operational</p>
             </div>
             <p className="text-gray-500 text-xs">Detection engine active</p>
-            <p className="text-gray-500 text-xs">7 rules · 4 shipments tracked</p>
+            <p className="text-gray-500 text-xs">7 rules · {companyShipments.length} shipment{companyShipments.length === 1 ? "" : "s"} tracked</p>
           </div>
         </div>
 
         <div className="grid grid-cols-6 gap-3">
-          <KpiCard label="Cargo Value Protected" value={fmtCurrencyCompact(totalValue)} sub="Across 4 active lanes"
+          <KpiCard label="Cargo Value Protected" value={fmtCurrencyCompact(totalValue)} sub={`Across ${companyShipments.length} active lane${companyShipments.length === 1 ? "" : "s"}`}
             accent="bg-blue-900/60"
             icon={<svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>}
           />
-          <KpiCard label="Active Shipments" value={SHIPMENTS.length} sub="All carriers monitored"
+          <KpiCard label="Active Shipments" value={companyShipments.length} sub="All carriers monitored"
             accent="bg-gray-800"
             icon={<svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>}
           />
@@ -125,7 +132,7 @@ export default function Dashboard({ alerts, incidents, onNav, onViewShipment }) 
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <div>
               <h2 className="text-sm font-bold text-gray-900">Executive Summary</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Divvo Guardian — Owlet Pilot · June 2026</p>
+              <p className="text-xs text-gray-400 mt-0.5">Divvo Guardian — {companyInfo.name} Pilot · June 2026</p>
             </div>
             <button onClick={() => onNav("reports")} className="text-xs text-blue-600 hover:text-blue-700 font-semibold">Full Report →</button>
           </div>
@@ -134,7 +141,7 @@ export default function Dashboard({ alerts, incidents, onNav, onViewShipment }) 
               { label: "Theft Prevention Rate", value: "94%", detail: "3 of 4 critical events detected before cargo loss", color: "text-emerald-600" },
               { label: "Estimated Losses Avoided", value: "$2.8M", detail: "Based on cargo value of cases under active recovery", color: "text-blue-600" },
               { label: "Avg. Alert-to-Case Time", value: "16 min", detail: "From first alert trigger to incident case creation", color: "text-gray-900" },
-              { label: "Detection Engine Coverage", value: "100%", detail: "All 4 Owlet shipments actively scanned — 7 rule types", color: "text-gray-900" },
+              { label: "Detection Engine Coverage", value: "100%", detail: `All ${companyShipments.length} ${companyInfo.name} shipment${companyShipments.length === 1 ? "" : "s"} actively scanned — 7 rule types`, color: "text-gray-900" },
             ].map((s) => (
               <div key={s.label} className="px-6 py-5">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">{s.label}</p>
@@ -151,7 +158,7 @@ export default function Dashboard({ alerts, incidents, onNav, onViewShipment }) 
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-bold text-gray-900">Active Shipments</h2>
-                <p className="text-xs text-gray-400 mt-0.5">{SHIPMENTS.length} shipments · Owlet portfolio</p>
+                <p className="text-xs text-gray-400 mt-0.5">{companyShipments.length} shipments · {companyInfo.name} portfolio</p>
               </div>
               <button onClick={() => onNav("shipments")} className="text-xs text-blue-600 hover:text-blue-700 font-semibold">View all →</button>
             </div>
@@ -166,7 +173,7 @@ export default function Dashboard({ alerts, incidents, onNav, onViewShipment }) 
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {SHIPMENTS.map((s) => (
+                {companyShipments.map((s) => (
                   <tr key={s.id} onClick={() => onViewShipment(s.id)} className="hover:bg-blue-50/40 cursor-pointer transition-colors group">
                     <td className="px-6 py-4">
                       <p className="font-mono text-xs font-bold text-blue-700 group-hover:text-blue-800">{s.id}</p>
@@ -183,6 +190,13 @@ export default function Dashboard({ alerts, incidents, onNav, onViewShipment }) 
                     </td>
                   </tr>
                 ))}
+                {companyShipments.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center">
+                      <p className="text-sm font-medium text-gray-400">No shipments tracked for {companyInfo.name} yet</p>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
