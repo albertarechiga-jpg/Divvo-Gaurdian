@@ -1,0 +1,22 @@
+next_actions:
+  immediate:
+    - define physical product architecture
+    - choose prototype strategy
+    - create mechanical enclosure specification
+    - create power budget
+    - define electronics block diagram
+    - define dashboard MVP feature list
+    - define first pilot customer use case
+
+  next_files_to_create:
+    - "11_physical_product_architecture.yaml"
+    - "12_mechanical_enclosure_requirements.yaml"
+    - "13_power_budget_template.yaml"
+    - "14_electronics_block_diagram_spec.yaml"
+    - "15_firmware_architecture_spec.yaml"
+    - "16_dashboard_mvp_spec.yaml"
+    - "17_pilot_program_requirements.yaml"
+
+  first_claude_prompt_after_upload:
+    text: |
+      You are now working inside the Divvo Guardian project. Read all uploaded DIVVO OS Foundation YAML files first. Treat them as the source of truth. Then produce a Phase 1 engineering action plan that identifies the first 10 deliverables needed to turn Divvo Guardian into a real B2B prototype for fleet customers. Use the engineering_review_format from output_standards.yaml.

@@ -1,0 +1,66 @@
+product_requirements:
+  version: "1.0"
+
+primary_requirements:
+  security:
+    - detect unauthorized access attempts
+    - detect movement events
+    - detect tampering
+    - record alert history
+    - support remote monitoring
+  location:
+    - provide GPS/GNSS trailer location
+    - support geofencing
+    - report location at configurable intervals
+  connectivity:
+    - support cellular communication
+    - support local BLE commissioning
+    - support OTA firmware updates
+  power:
+    - operate from internal battery
+    - support solar-assisted charging
+    - minimize standby power draw
+    - report battery health
+  software:
+    - mobile app for install, setup, and alerts
+    - web dashboard for fleet teams
+    - role-based access control
+    - device status monitoring
+  installation:
+    - support field installation
+    - minimize specialized tools
+    - provide clear mounting procedure
+    - avoid interfering with trailer door operation
+  reliability:
+    - operate outdoors year-round
+    - tolerate vibration and shock
+    - tolerate rain, dust, mud, snow, UV, and road salt
+    - recover automatically from firmware or network faults
+
+non_functional_requirements:
+  manufacturability:
+    - design for scalable production
+    - avoid exotic materials unless justified
+    - prefer available components
+  serviceability:
+    - battery replacement or service strategy required
+    - field diagnostics required
+    - component access plan required
+  scalability:
+    - cloud architecture must support large fleets
+    - device provisioning must support high-volume deployment
+  security:
+    - encrypted communications required
+    - secure device identity required
+    - firmware update security required
+    - audit logging required
+
+open_questions:
+  - exact lock mechanism architecture
+  - target enclosure dimensions
+  - selected LTE/GNSS module
+  - battery capacity target
+  - solar panel size and mounting location
+  - production material choice
+  - target installation time
+  - first pilot customer profile

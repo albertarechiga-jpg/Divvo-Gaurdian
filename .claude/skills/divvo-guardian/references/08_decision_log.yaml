@@ -1,0 +1,41 @@
+decision_log:
+  version: "1.0"
+  instructions:
+    - Add every major design decision here.
+    - Include date, decision, reason, tradeoffs, and impact.
+    - Do not erase old decisions; mark them superseded when changed.
+
+decisions:
+  - id: "D-0001"
+    date: "2026-07-02"
+    decision: "Divvo will prioritize B2B fleet customers instead of Kickstarter-first launch."
+    reason: "Enterprise fleets directly benefit from theft reduction, visibility, ROI, and operational accountability."
+    tradeoffs:
+      positive:
+        - clearer customer value
+        - stronger enterprise sales story
+        - better fit for hardware + SaaS model
+      negative:
+        - requires higher reliability
+        - requires stronger documentation
+        - requires more serious pilot validation
+    status: "approved"
+
+  - id: "D-0002"
+    date: "2026-07-02"
+    decision: "Use structured YAML foundation files as Claude Project Knowledge."
+    reason: "YAML is more consistent and maintainable than loose prompt files."
+    tradeoffs:
+      positive:
+        - easier to update
+        - clearer roles and constraints
+        - better source-of-truth behavior
+      negative:
+        - less narrative detail than Markdown
+    status: "approved"
+
+  - id: "D-0003"
+    date: "2026-07-02"
+    decision: "ChatGPT acts as systems architect/reviewer; Claude acts as engineering execution engine."
+    reason: "Prevents both AIs from duplicating work and creates a productive workflow."
+    status: "approved"

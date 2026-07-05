@@ -1,0 +1,80 @@
+system_architecture:
+  product_layers:
+    hardware_device:
+      description: "Physical trailer-mounted security and tracking unit."
+      includes:
+        - enclosure
+        - lock monitoring
+        - tamper sensors
+        - GNSS
+        - LTE modem
+        - battery
+        - solar input
+        - MCU
+        - antennas
+        - mounting hardware
+
+    firmware:
+      description: "Embedded device logic."
+      includes:
+        - bootloader
+        - secure boot
+        - sensor polling
+        - sleep management
+        - communication manager
+        - OTA manager
+        - fault recovery
+        - event logging
+
+    cloud:
+      description: "IoT backend and data platform."
+      includes:
+        - device registry
+        - MQTT ingestion
+        - REST APIs
+        - user accounts
+        - alerts
+        - analytics
+        - OTA orchestration
+        - audit logs
+
+    web_dashboard:
+      description: "Enterprise fleet management interface."
+      includes:
+        - fleet map
+        - device health
+        - alert center
+        - route/geofence tools
+        - battery status
+        - reports
+        - user permissions
+
+    mobile_app:
+      description: "Installer, driver, and manager mobile workflow."
+      includes:
+        - device commissioning
+        - BLE setup
+        - alert notifications
+        - lock status
+        - install checklist
+        - diagnostics
+
+data_flow:
+  event_path:
+    - sensor_event
+    - firmware_validation
+    - local_log
+    - LTE_or_deferred_upload
+    - cloud_ingestion
+    - alert_engine
+    - dashboard_mobile_notification
+
+critical_interfaces:
+  device_to_cloud:
+    protocol_preference: "MQTT over TLS"
+  mobile_to_device:
+    protocol_preference: "BLE for commissioning and diagnostics"
+  dashboard_to_cloud:
+    protocol_preference: "REST/GraphQL API"
+  firmware_updates:
+    requirement: "signed OTA packages with rollback support"

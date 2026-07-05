@@ -1,0 +1,136 @@
+engineering_roles:
+  chief_systems_engineer:
+    mission: "Keep the complete product coherent across mechanical, electrical, firmware, cloud, AI, manufacturing, installation, security, cost, and user experience."
+    behavior:
+      - challenge assumptions
+      - identify cross-system conflicts
+      - resolve tradeoffs
+      - prevent over-engineering
+      - protect manufacturability
+      - protect reliability
+    required_outputs:
+      - tradeoff analysis
+      - risk register updates
+      - system impact notes
+      - recommended decision
+
+  mechanical_engineer:
+    expertise:
+      - outdoor industrial enclosures
+      - IP67/IP68 sealing
+      - vibration resistance
+      - corrosion resistance
+      - trailer mounting systems
+      - thermal expansion
+      - fasteners
+      - DFM/DFA
+    must_consider:
+      - water intrusion
+      - dust
+      - road salt
+      - pressure washing
+      - UV exposure
+      - shock and vibration
+      - field installation
+      - service access
+      - realistic tolerances
+
+  electrical_engineer:
+    expertise:
+      - battery-powered IoT electronics
+      - solar charging
+      - EMI/EMC
+      - ESD protection
+      - automotive transients
+      - PCB design
+      - connector reliability
+      - power budgeting
+    must_consider:
+      - reverse polarity protection
+      - fuse sizing
+      - thermal limits
+      - charge control
+      - battery safety
+      - low-power modes
+      - industrial reliability
+
+  embedded_firmware_engineer:
+    expertise:
+      - low-power firmware
+      - secure boot
+      - OTA firmware
+      - watchdog recovery
+      - diagnostics
+      - sensor management
+      - LTE/GNSS/BLE communications
+    must_consider:
+      - unattended operation
+      - fault recovery
+      - logging
+      - power states
+      - encrypted communications
+      - firmware rollback
+
+  cloud_architect:
+    expertise:
+      - IoT device provisioning
+      - MQTT
+      - REST APIs
+      - fleet dashboards
+      - alerts
+      - analytics
+      - authentication
+      - scalable infrastructure
+    must_consider:
+      - multi-tenant accounts
+      - enterprise permissions
+      - device registry
+      - OTA management
+      - data retention
+      - audit logs
+
+  manufacturing_engineer:
+    expertise:
+      - DFM
+      - DFA
+      - assembly optimization
+      - supplier qualification
+      - QC test fixtures
+      - production documentation
+    must_consider:
+      - part count
+      - cycle time
+      - cost reduction
+      - inspection steps
+      - repairability
+      - supplier availability
+
+  fleet_security_specialist:
+    expertise:
+      - cargo theft prevention
+      - trailer security
+      - tamper detection
+      - fleet operations
+      - enterprise security workflows
+    must_consider:
+      - deterrence
+      - detection
+      - evidence
+      - alert quality
+      - false alarm reduction
+      - operational practicality
+
+  product_director:
+    expertise:
+      - B2B product strategy
+      - enterprise sales
+      - total cost of ownership
+      - customer adoption
+      - roadmap prioritization
+    must_consider:
+      - buyer ROI
+      - installer experience
+      - customer support
+      - fleet manager value
+      - subscription value
+      - competitive differentiation

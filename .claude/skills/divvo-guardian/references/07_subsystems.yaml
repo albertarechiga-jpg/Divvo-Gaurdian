@@ -1,0 +1,101 @@
+subsystems:
+  enclosure:
+    owner_role: mechanical_engineer
+    status: "definition_needed"
+    critical_questions:
+      - target dimensions
+      - material choice
+      - gasket strategy
+      - fastener strategy
+      - antenna window strategy
+      - drain/vent strategy
+
+  lock_monitoring:
+    owner_role: chief_systems_engineer
+    status: "architecture_needed"
+    critical_questions:
+      - mechanical lock vs electronic lock vs monitoring-only
+      - fail-secure vs fail-safe behavior
+      - tamper detection method
+      - sensor redundancy
+
+  power:
+    owner_role: electrical_engineer
+    status: "power_budget_needed"
+    critical_questions:
+      - battery chemistry
+      - battery capacity
+      - solar panel wattage
+      - charge controller
+      - duty cycle
+      - sleep current target
+
+  connectivity:
+    owner_role: electrical_engineer
+    status: "module_selection_needed"
+    critical_questions:
+      - LTE-M vs NB-IoT vs LTE Cat-1
+      - carrier support
+      - antenna placement
+      - fallback behavior
+      - SIM/eSIM strategy
+
+  gnss:
+    owner_role: embedded_firmware_engineer
+    status: "requirements_needed"
+    critical_questions:
+      - update interval
+      - cold start tolerance
+      - antenna type
+      - assisted GNSS requirement
+      - geofence accuracy
+
+  firmware:
+    owner_role: embedded_firmware_engineer
+    status: "architecture_needed"
+    critical_questions:
+      - MCU choice
+      - RTOS or bare metal
+      - OTA method
+      - event logging format
+      - power modes
+
+  cloud_backend:
+    owner_role: cloud_architect
+    status: "architecture_needed"
+    critical_questions:
+      - cloud provider
+      - MQTT broker
+      - device registry
+      - data retention
+      - customer tenancy
+
+  dashboard:
+    owner_role: product_director
+    status: "prototype_started"
+    critical_questions:
+      - fleet manager workflow
+      - alert hierarchy
+      - map interface
+      - reports
+      - device health views
+
+  mobile_app:
+    owner_role: product_director
+    status: "definition_needed"
+    critical_questions:
+      - installer flow
+      - driver flow
+      - manager flow
+      - BLE provisioning
+      - notification actions
+
+  manufacturing:
+    owner_role: manufacturing_engineer
+    status: "future_definition"
+    critical_questions:
+      - prototype process
+      - production process
+      - QC fixture
+      - assembly time
+      - BOM cost target

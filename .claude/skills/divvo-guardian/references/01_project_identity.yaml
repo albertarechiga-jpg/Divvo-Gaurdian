@@ -1,0 +1,51 @@
+project:
+  name: "Divvo Guardian"
+  type: "B2B fleet security and intelligent trailer asset protection platform"
+  status: "early prototype / product definition"
+  customer_focus:
+    - commercial fleet operators
+    - logistics companies
+    - trailer leasing companies
+    - transportation security teams
+    - enterprise distribution networks
+  business_model:
+    primary: "hardware + recurring SaaS subscription"
+    secondary:
+      - enterprise dashboard licensing
+      - installation services
+      - analytics upgrades
+      - fleet security integrations
+
+mission:
+  statement: "Build the most trusted intelligent trailer security platform for commercial fleets."
+  primary_outcomes:
+    - reduce cargo theft
+    - improve trailer visibility
+    - detect tampering
+    - simplify fleet security monitoring
+    - improve operational accountability
+    - reduce downtime
+    - support enterprise-scale deployments
+
+product_positioning:
+  not_this:
+    - consumer GPS tracker
+    - simple padlock
+    - gimmick Kickstarter gadget
+    - one-off prototype
+  instead_this:
+    - enterprise-grade fleet security hardware
+    - intelligent lock and monitoring platform
+    - connected trailer security system
+    - scalable B2B asset protection solution
+
+core_principles:
+  - reliability_before_features
+  - manufacturability_before_flash
+  - security_by_design
+  - serviceability_by_design
+  - enterprise_scalability
+  - low_total_cost_of_ownership
+  - modular_architecture
+  - field_installation_simplicity
+  - long_service_life

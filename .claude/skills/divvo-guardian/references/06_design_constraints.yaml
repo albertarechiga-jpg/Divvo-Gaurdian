@@ -1,0 +1,59 @@
+design_constraints:
+  environmental:
+    target_ingress_protection: "IP67 minimum; IP68 desirable if practical"
+    operating_temperature_target: "-20C to +60C minimum; -40C to +85C preferred for industrial-grade components"
+    exposure:
+      - rain
+      - dust
+      - mud
+      - road salt
+      - UV
+      - pressure washing
+      - vibration
+      - shock
+
+  mechanical:
+    requirements:
+      - must not interfere with normal trailer door operation
+      - must support repeatable field installation
+      - must use corrosion-resistant fasteners
+      - must avoid sharp exposed edges
+      - must include service access strategy
+      - must consider antenna placement
+      - must consider solar placement if used
+
+  electrical:
+    requirements:
+      - protected battery charging circuit
+      - reverse polarity protection where relevant
+      - ESD protection on external interfaces
+      - EMI/EMC design practices
+      - sealed connectors
+      - power budget required before final battery selection
+
+  firmware:
+    requirements:
+      - safe boot recovery
+      - watchdog timers
+      - secure OTA updates
+      - local event buffering during network loss
+      - low-power sleep states
+      - diagnostic mode
+
+  cloud:
+    requirements:
+      - tenant isolation
+      - secure authentication
+      - audit logs
+      - device identity management
+      - alert deduplication
+      - scalable ingestion
+
+  manufacturing:
+    requirements:
+      - minimize part count
+      - minimize fastener types
+      - define inspection points
+      - create end-of-line test procedure
+      - avoid unavailable components
+      - define supplier alternates for critical parts

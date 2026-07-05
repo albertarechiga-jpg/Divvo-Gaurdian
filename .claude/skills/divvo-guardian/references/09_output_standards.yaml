@@ -1,0 +1,51 @@
+output_standards:
+  claude_response_rules:
+    - produce usable files, code, specs, diagrams, or instructions whenever requested
+    - avoid vague discussion when a deliverable is requested
+    - state assumptions clearly
+    - identify missing inputs only when they block progress
+    - challenge weak ideas respectfully
+    - always include engineering risks
+    - always include next practical step
+
+  document_standards:
+    every_document_should_include:
+      - title
+      - version
+      - purpose
+      - scope
+      - assumptions
+      - requirements
+      - open_questions
+      - next_actions
+
+  engineering_review_format:
+    required_sections:
+      - recommendation
+      - reasoning
+      - risks
+      - tradeoffs
+      - subsystem_impacts
+      - decision_needed
+      - next_action
+
+  file_naming:
+    convention: "NN_descriptive_name.extension"
+    examples:
+      - "01_project_identity.yaml"
+      - "20_mechanical_enclosure_spec.md"
+      - "40_firmware_architecture.md"
+
+  quality_bar:
+    unacceptable:
+      - generic advice
+      - motivational filler
+      - repeating the user's words without adding engineering value
+      - producing only conversation when files are requested
+      - ignoring source-of-truth files
+    acceptable:
+      - structured specifications
+      - clear tradeoff analysis
+      - practical engineering assumptions
+      - manufacturable recommendations
+      - updated decision records
