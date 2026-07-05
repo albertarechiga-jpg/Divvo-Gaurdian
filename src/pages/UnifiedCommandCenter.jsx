@@ -829,6 +829,7 @@ function RouteManagerPanel({ savedRoutes, waypointCount, onSave, onUndo, onClear
 function LiveMap({ devices, onSelect, selectedId, fullscreen, onFullscreen, savedRoutes, onRouteSave, onRouteDelete, routeDeviations }) {
   const mapContainer      = useRef(null);
   const map               = useRef(null);
+  const mapInitStarted    = useRef(false);
   const markersRef        = useRef({});
   const waypointMarkersRef = useRef([]);
   const [loaded, setLoaded]         = useState(false);
@@ -851,7 +852,13 @@ function LiveMap({ devices, onSelect, selectedId, fullscreen, onFullscreen, save
   }, []);
 
   useEffect(() => {
-    if (map.current || !mapContainer.current) return;
+    // Guards against React StrictMode's double-invoke: map.current isn't set until
+    // the async script.onload fires, so checking only map.current here would let a
+    // second invocation race past this check and create a second Mapbox instance —
+    // both wiring "load" handlers that add the same route sources to the same
+    // eventual map.current, causing "There is already a source with ID ..." errors.
+    if (mapInitStarted.current || !mapContainer.current) return;
+    mapInitStarted.current = true;
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = "https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css";
