@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { SHIPMENTS } from "../data/shipments.js";
-import { RECOVERY_MOCK } from "../data/recoveryMock.js";
+import { INVESTIGATOR_ROSTER } from "../data/recoveryMock.js";
 import { WORKFLOW_STAGES } from "../data/incidents.js";
 import { fmtCurrency, fmtDate } from "../lib/utils.js";
 import { RiskBadge } from "../components/Badges.jsx";
 import RouteMap from "../components/RouteMap.jsx";
+import CasePacketModal from "../components/CasePacketModal.jsx";
 
 // Parses "32.8407° N, 83.6324° W" -> [lng, lat]
 function parseCoords(str) {
@@ -28,39 +29,86 @@ const InfoRow = ({ label, value, danger }) => (
   </div>
 );
 
-export default function RecoveryDetail({ incidentId, incidents, onBack }) {
+export default function RecoveryDetail({ incidentId, incidents, alerts, recoveryDetail, onUpdateRecoveryDetail, onAdvanceStage, onBack }) {
   const inc = incidents.find((i) => i.id === incidentId);
-  if (!inc) return null;
+  if (!inc || !recoveryDetail) return null;
   const s = SHIPMENTS.find((x) => x.id === inc.shipmentId);
-  const mock = RECOVERY_MOCK[inc.id] || RECOVERY_MOCK["INC-2026-0041"];
-  const lastGPSCoord = parseCoords(mock.lastGPS.coords);
+  const incAlerts = alerts.filter((a) => a.shipmentId === inc.shipmentId);
+  const lastGPSCoord = parseCoords(recoveryDetail.lastGPS.coords);
 
-  const [evidence, setEvidence] = useState(mock.evidence);
-  const [custodyLog, setCustodyLog] = useState(mock.chainOfCustody);
-  const [leNotes, setLeNotes] = useState(mock.lawEnforcement.notes);
-  const [insNotes, setInsNotes] = useState(mock.insurance.notes);
   const [editingLE, setEditingLE] = useState(false);
   const [editingIns, setEditingIns] = useState(false);
+  const [leNotes, setLeNotes] = useState(recoveryDetail.lawEnforcement.notes);
+  const [insNotes, setInsNotes] = useState(recoveryDetail.insurance.notes);
   const [actionToast, setActionToast] = useState(null);
+  const [showInvestigatorPicker, setShowInvestigatorPicker] = useState(false);
+  const [showPacket, setShowPacket] = useState(false);
 
-  const toggleEvidence = (id) =>
-    setEvidence((prev) => prev.map((e) => (e.id === id ? { ...e, done: !e.done } : e)));
+  const evidence = recoveryDetail.evidence;
+  const custodyLog = recoveryDetail.chainOfCustody;
+  const le = recoveryDetail.lawEnforcement;
+  const ins = recoveryDetail.insurance;
+  const doneCount = evidence.filter((e) => e.done).length;
 
-  const fireAction = (label, custodyText) => {
+  const showToast = (label) => {
     setActionToast(label);
-    if (custodyText) {
-      const now = new Date().toISOString();
-      setCustodyLog((prev) => [
-        ...prev,
-        { time: now, actor: "Ops User — Current Session", action: custodyText, artifact: "USER-ACTION" },
-      ]);
-    }
     setTimeout(() => setActionToast(null), 2800);
   };
 
-  const doneCount = evidence.filter((e) => e.done).length;
-  const le = mock.lawEnforcement;
-  const ins = mock.insurance;
+  const logCustody = (actionText, artifact = "USER-ACTION") => {
+    onUpdateRecoveryDetail(inc.id, {
+      chainOfCustody: [...custodyLog, { time: new Date().toISOString(), actor: "Ops User — Current Session", action: actionText, artifact }],
+    });
+  };
+
+  const handleAssignInvestigator = (roster) => {
+    onUpdateRecoveryDetail(inc.id, { investigator: roster.name, investigatorPhone: roster.phone, investigatorEmail: roster.email });
+    logCustody(`Investigator assigned: ${roster.name}`);
+    setShowInvestigatorPicker(false);
+    showToast(`Investigator assigned: ${roster.name}`);
+  };
+
+  const handleGeneratePacket = () => {
+    if (!le.packetGenerated) {
+      const now = new Date().toISOString();
+      onUpdateRecoveryDetail(inc.id, {
+        lawEnforcement: { ...le, packetGenerated: true, packetGeneratedAt: now },
+        chainOfCustody: [
+          ...custodyLog,
+          { time: now, actor: "Ops User — Current Session", action: "Law enforcement evidence packet generated and logged", artifact: `LEP-${inc.id}.pdf` },
+        ],
+      });
+      if (inc.stage < 5) onAdvanceStage(inc.id, 5, "Law Enforcement Package Prepared");
+      showToast("LE packet generated");
+    }
+    setShowPacket(true);
+  };
+
+  const handleMarkAssetLocated = () => {
+    onAdvanceStage(inc.id, 6, "Asset Located");
+    logCustody("Asset Located — stage advanced");
+    showToast("Asset Located");
+  };
+
+  const handleMarkRecoveryComplete = () => {
+    onAdvanceStage(inc.id, 7, "Recovery Complete");
+    logCustody("Recovery Complete — case closed");
+    showToast("Recovery Complete");
+  };
+
+  const toggleEvidence = (id) => {
+    onUpdateRecoveryDetail(inc.id, { evidence: evidence.map((e) => (e.id === id ? { ...e, done: !e.done } : e)) });
+  };
+
+  const saveLeNotes = () => {
+    onUpdateRecoveryDetail(inc.id, { lawEnforcement: { ...le, notes: leNotes } });
+    setEditingLE(false);
+  };
+
+  const saveInsNotes = () => {
+    onUpdateRecoveryDetail(inc.id, { insurance: { ...ins, notes: insNotes } });
+    setEditingIns(false);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -68,6 +116,16 @@ export default function RecoveryDetail({ incidentId, incidents, onBack }) {
         <div className="fixed top-5 right-5 z-50 bg-gray-900 text-white text-sm font-medium px-5 py-3 rounded-xl shadow-xl flex items-center gap-2">
           <span className="text-emerald-400">✓</span> {actionToast}
         </div>
+      )}
+
+      {showPacket && (
+        <CasePacketModal
+          onClose={() => setShowPacket(false)}
+          shipment={s}
+          incident={inc}
+          recoveryDetail={recoveryDetail}
+          alerts={incAlerts}
+        />
       )}
 
       {/* Header */}
@@ -80,26 +138,60 @@ export default function RecoveryDetail({ incidentId, incidents, onBack }) {
               <div className={`w-2 h-2 rounded-full animate-pulse ${inc.stage < 7 ? "bg-red-400" : "bg-emerald-400"}`} />
               <span className="font-mono text-sm font-semibold text-gray-100">{inc.id}</span>
               <span className="text-gray-500 text-sm">·</span>
-              <span className="text-gray-300 text-sm">{mock.incidentType}</span>
+              <span className="text-gray-300 text-sm">{recoveryDetail.incidentType}</span>
             </div>
             <RiskBadge level={inc.priority} />
           </div>
           <div className="flex items-center gap-2">
-            {[
-              { label: "Assign Investigator", custodyText: "Assign Investigator action triggered", cls: "bg-gray-800 hover:bg-gray-700 border border-gray-700" },
-              { label: "Contact Carrier", custodyText: "Contact Carrier action triggered — carrier notified", cls: "bg-gray-800 hover:bg-gray-700 border border-gray-700" },
-              { label: "Generate LE Packet", custodyText: "Law enforcement evidence packet generated and logged", cls: "bg-orange-600 hover:bg-orange-500" },
-              { label: "Mark Asset Located", custodyText: "Asset Located — stage advanced", cls: "bg-blue-600 hover:bg-blue-500" },
-              { label: "Mark Recovery Complete", custodyText: "Recovery Complete — case closed", cls: "bg-emerald-600 hover:bg-emerald-500" },
-            ].map((btn) => (
+            <div className="relative">
               <button
-                key={btn.label}
-                onClick={() => fireAction(btn.label, btn.custodyText)}
-                className={`text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${btn.cls}`}
+                onClick={() => setShowInvestigatorPicker((v) => !v)}
+                className="text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors bg-gray-800 hover:bg-gray-700 border border-gray-700"
               >
-                {btn.label}
+                Assign Investigator
               </button>
-            ))}
+              {showInvestigatorPicker && (
+                <div className="absolute right-0 mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-xl z-20 overflow-hidden">
+                  {INVESTIGATOR_ROSTER.map((r) => (
+                    <button
+                      key={r.name}
+                      onClick={() => handleAssignInvestigator(r)}
+                      className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      {r.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => { logCustody("Contact Carrier action triggered — carrier notified"); showToast("Carrier contacted"); }}
+              className="text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors bg-gray-800 hover:bg-gray-700 border border-gray-700"
+            >
+              Contact Carrier
+            </button>
+            <button
+              onClick={handleGeneratePacket}
+              className="text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors bg-orange-600 hover:bg-orange-500"
+            >
+              Generate LE Packet
+            </button>
+            {inc.stage < 6 && (
+              <button
+                onClick={handleMarkAssetLocated}
+                className="text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors bg-blue-600 hover:bg-blue-500"
+              >
+                Mark Asset Located
+              </button>
+            )}
+            {inc.stage < 7 && (
+              <button
+                onClick={handleMarkRecoveryComplete}
+                className="text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors bg-emerald-600 hover:bg-emerald-500"
+              >
+                Mark Recovery Complete
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -136,12 +228,12 @@ export default function RecoveryDetail({ incidentId, incidents, onBack }) {
             <SectionHeader label="Case Identity" />
             <InfoRow label="Case ID" value={inc.id} />
             <InfoRow label="Customer" value={s?.customer || "—"} />
-            <InfoRow label="Incident Type" value={mock.incidentType} />
+            <InfoRow label="Incident Type" value={recoveryDetail.incidentType} />
             <InfoRow label="Priority" value={inc.priority} danger={inc.priority === "Critical"} />
             <InfoRow label="Stage" value={`${inc.stage} — ${inc.stageLabel}`} />
             <InfoRow label="Created" value={fmtDate(inc.createdAt)} />
-            <InfoRow label="Investigator" value={mock.investigator} />
-            <InfoRow label="Investigator Email" value={mock.investigatorEmail} />
+            <InfoRow label="Investigator" value={recoveryDetail.investigator} />
+            <InfoRow label="Investigator Email" value={recoveryDetail.investigatorEmail} />
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -164,19 +256,19 @@ export default function RecoveryDetail({ incidentId, incidents, onBack }) {
             <SectionHeader label="Last Known GPS Location" />
             <div className="bg-gray-900 rounded-lg p-4 mb-4">
               <p className="text-xs text-gray-400 mb-1">Coordinates</p>
-              <p className="text-sm font-mono font-semibold text-emerald-400">{mock.lastGPS.coords}</p>
-              <p className="text-xs text-gray-300 mt-2 leading-relaxed">{mock.lastGPS.address}</p>
+              <p className="text-sm font-mono font-semibold text-emerald-400">{recoveryDetail.lastGPS.coords}</p>
+              <p className="text-xs text-gray-300 mt-2 leading-relaxed">{recoveryDetail.lastGPS.address}</p>
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-xs text-gray-500">Speed</p>
-                  <p className="text-xs text-gray-200 font-medium">{mock.lastGPS.speed}</p>
+                  <p className="text-xs text-gray-200 font-medium">{recoveryDetail.lastGPS.speed}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Heading</p>
-                  <p className="text-xs text-gray-200 font-medium">{mock.lastGPS.heading}</p>
+                  <p className="text-xs text-gray-200 font-medium">{recoveryDetail.lastGPS.heading}</p>
                 </div>
               </div>
-              <p className="text-xs text-gray-500 mt-3">Signal at {fmtDate(mock.lastGPS.timestamp)}</p>
+              <p className="text-xs text-gray-500 mt-3">Signal at {fmtDate(recoveryDetail.lastGPS.timestamp)}</p>
             </div>
             {lastGPSCoord ? (
               <div className="rounded-lg overflow-hidden">
@@ -197,23 +289,26 @@ export default function RecoveryDetail({ incidentId, incidents, onBack }) {
             <SectionHeader label="Recovery Team" />
             <div className="flex items-center gap-4 mb-4 pb-4 border-b border-gray-100">
               <div className="w-10 h-10 bg-blue-700 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-sm font-bold">{mock.teamLead[0] || "?"}</span>
+                <span className="text-white text-sm font-bold">{recoveryDetail.teamLead[0] || "?"}</span>
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-900">{mock.recoveryTeam}</p>
-                <p className="text-xs text-gray-500">Lead: {mock.teamLead}</p>
+                <p className="text-sm font-semibold text-gray-900">{recoveryDetail.recoveryTeam}</p>
+                <p className="text-xs text-gray-500">Lead: {recoveryDetail.teamLead}</p>
               </div>
-              {mock.teamDeployed
+              {recoveryDetail.teamDeployed
                 ? <span className="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-medium">Deployed</span>
                 : <span className="ml-auto text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-medium">Pending</span>}
             </div>
-            <InfoRow label="Team Phone" value={mock.teamPhone} />
-            <InfoRow label="Deployed At" value={mock.teamDeployed ? fmtDate(mock.teamDeployed) : "Not yet deployed"} />
-            <InfoRow label="Investigator" value={mock.investigator} />
-            <InfoRow label="Phone" value={mock.investigatorPhone} />
-            <InfoRow label="Email" value={mock.investigatorEmail} />
+            <InfoRow label="Team Phone" value={recoveryDetail.teamPhone} />
+            <InfoRow label="Deployed At" value={recoveryDetail.teamDeployed ? fmtDate(recoveryDetail.teamDeployed) : "Not yet deployed"} />
+            <InfoRow label="Investigator" value={recoveryDetail.investigator} />
+            <InfoRow label="Phone" value={recoveryDetail.investigatorPhone} />
+            <InfoRow label="Email" value={recoveryDetail.investigatorEmail} />
             <div className="mt-4 pt-4 border-t border-gray-100">
-              <button onClick={() => fireAction("Recovery team assignment updated", "Recovery team assignment action triggered")} className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2 px-4 rounded-lg transition-colors">
+              <button
+                onClick={() => { logCustody("Recovery team assignment action triggered"); showToast("Recovery team assignment updated"); }}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2 px-4 rounded-lg transition-colors"
+              >
                 Assign / Reassign Recovery Team
               </button>
             </div>
@@ -225,8 +320,9 @@ export default function RecoveryDetail({ incidentId, incidents, onBack }) {
               <span className="text-xs font-semibold text-gray-500 -mt-4">{doneCount}/{evidence.length} complete</span>
             </div>
             <div className="w-full bg-gray-100 rounded-full h-1.5 mb-4">
-              <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${Math.round((doneCount / evidence.length) * 100)}%` }} />
+              <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${evidence.length ? Math.round((doneCount / evidence.length) * 100) : 0}%` }} />
             </div>
+            {evidence.length === 0 && <p className="text-xs text-gray-400 mb-2">No evidence items yet.</p>}
             <div className="space-y-2">
               {evidence.map((e) => (
                 <label key={e.id} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${e.done ? "bg-emerald-50" : "hover:bg-gray-50"}`}>
@@ -261,7 +357,7 @@ export default function RecoveryDetail({ incidentId, incidents, onBack }) {
               {editingLE ? (
                 <div>
                   <textarea className="w-full text-xs text-gray-700 border border-gray-200 rounded-lg p-3 leading-relaxed resize-none focus:outline-none focus:border-blue-400" rows={5} value={leNotes} onChange={(e) => setLeNotes(e.target.value)} />
-                  <button onClick={() => setEditingLE(false)} className="mt-1 text-xs text-blue-600 hover:underline font-medium">Save</button>
+                  <button onClick={saveLeNotes} className="mt-1 text-xs text-blue-600 hover:underline font-medium">Save</button>
                 </div>
               ) : (
                 <div className="bg-gray-50 rounded-lg p-3 group relative">
@@ -271,8 +367,13 @@ export default function RecoveryDetail({ incidentId, incidents, onBack }) {
               )}
             </div>
             <div className="mt-3 flex gap-2">
-              <button onClick={() => fireAction("LE packet generated", "Law enforcement evidence packet generated and logged")} className="flex-1 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold py-2 px-3 rounded-lg transition-colors">Generate LE Packet</button>
-              <button onClick={() => fireAction("Law enforcement contacted", "Direct LE contact initiated")} className="flex-1 border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-medium py-2 px-3 rounded-lg transition-colors">Contact Agency</button>
+              <button onClick={handleGeneratePacket} className="flex-1 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold py-2 px-3 rounded-lg transition-colors">Generate LE Packet</button>
+              <button
+                onClick={() => { logCustody("Direct LE contact initiated"); showToast("Law enforcement contacted"); }}
+                className="flex-1 border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-medium py-2 px-3 rounded-lg transition-colors"
+              >
+                Contact Agency
+              </button>
             </div>
           </div>
 
@@ -296,7 +397,7 @@ export default function RecoveryDetail({ incidentId, incidents, onBack }) {
               {editingIns ? (
                 <div>
                   <textarea className="w-full text-xs text-gray-700 border border-gray-200 rounded-lg p-3 leading-relaxed resize-none focus:outline-none focus:border-blue-400" rows={5} value={insNotes} onChange={(e) => setInsNotes(e.target.value)} />
-                  <button onClick={() => setEditingIns(false)} className="mt-1 text-xs text-blue-600 hover:underline font-medium">Save</button>
+                  <button onClick={saveInsNotes} className="mt-1 text-xs text-blue-600 hover:underline font-medium">Save</button>
                 </div>
               ) : (
                 <div className="bg-gray-50 rounded-lg p-3 group relative">
@@ -306,7 +407,12 @@ export default function RecoveryDetail({ incidentId, incidents, onBack }) {
               )}
             </div>
             <div className="mt-3">
-              <button onClick={() => fireAction("Insurance adjuster contacted", "Insurance claim follow-up initiated")} className="w-full border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-medium py-2 px-3 rounded-lg transition-colors">Contact Adjuster</button>
+              <button
+                onClick={() => { logCustody("Insurance claim follow-up initiated"); showToast("Insurance adjuster contacted"); }}
+                className="w-full border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-medium py-2 px-3 rounded-lg transition-colors"
+              >
+                Contact Adjuster
+              </button>
             </div>
           </div>
         </div>

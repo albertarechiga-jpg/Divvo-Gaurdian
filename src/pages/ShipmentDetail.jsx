@@ -1,14 +1,17 @@
+import { useState } from "react";
 import { SHIPMENTS } from "../data/shipments.js";
 import { COMPANY_SHIPMENT_ROUTES } from "../data/companyFleets.js";
 import { fmtCurrency, fmtDate, ALERT_STATUS_STYLES } from "../lib/utils.js";
 import { Badge, RiskBadge, StatusBadge, SeverityBadge } from "../components/Badges.jsx";
 import RouteMap from "../components/RouteMap.jsx";
+import CasePacketModal from "../components/CasePacketModal.jsx";
 
 export default function ShipmentDetail({ shipmentId, alerts, companyInfo, onBack, onCreateIncident }) {
   const s = SHIPMENTS.find((x) => x.id === shipmentId);
   if (!s) return null;
   const shipAlerts = alerts.filter((a) => a.shipmentId === shipmentId);
   const routeCoords = (COMPANY_SHIPMENT_ROUTES[companyInfo?.id] || []).find((r) => r.id === shipmentId);
+  const [showCaseFile, setShowCaseFile] = useState(false);
 
   return (
     <div className="p-8 space-y-6">
@@ -23,14 +26,18 @@ export default function ShipmentDetail({ shipmentId, alerts, companyInfo, onBack
           <p className="text-gray-500 text-sm">{s.cargoType} · {s.customer} · {s.carrier}</p>
         </div>
         <div className="flex gap-2">
-          <button className="border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+          <button onClick={() => setShowCaseFile(true)} className="border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
             Export Case File
           </button>
-          <button onClick={onCreateIncident} className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+          <button onClick={() => onCreateIncident(shipmentId)} className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
             Create Incident
           </button>
         </div>
       </div>
+
+      {showCaseFile && (
+        <CasePacketModal onClose={() => setShowCaseFile(false)} shipment={s} alerts={shipAlerts} />
+      )}
 
       <div className="grid grid-cols-3 gap-5">
         <div className="col-span-1 bg-white rounded-xl border border-gray-200 p-5 space-y-4">

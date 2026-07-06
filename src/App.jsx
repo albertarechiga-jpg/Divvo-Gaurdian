@@ -2,8 +2,9 @@ import { useState, useCallback, useEffect } from "react";
 import { SHIPMENTS } from "./data/shipments.js";
 import { INITIAL_ALERTS } from "./data/alerts.js";
 import { INITIAL_INCIDENTS } from "./data/incidents.js";
+import { RECOVERY_MOCK, buildDefaultRecoveryDetail } from "./data/recoveryMock.js";
 import { fetchCompanies } from "./lib/companies.js";
-import { runTheftDetectionScan, createIncidentFromAlert } from "./lib/detectionEngine.js";
+import { runTheftDetectionScan, createIncidentFromAlert, createIncidentForShipment } from "./lib/detectionEngine.js";
 import Sidebar from "./components/Sidebar.jsx";
 
 // Pages
@@ -64,6 +65,7 @@ export default function App() {
 
   const [alerts,    setAlerts]    = useState(INITIAL_ALERTS);
   const [incidents, setIncidents] = useState(INITIAL_INCIDENTS);
+  const [recoveryDetails, setRecoveryDetails] = useState(() => ({ ...RECOVERY_MOCK }));
   const [scanning,  setScanning]  = useState(false);
   const [scanResults, setScanResults] = useState(null);
 
@@ -134,6 +136,7 @@ export default function App() {
     const ship = SHIPMENTS.find((s) => s.id === alert.shipmentId);
     const { incident, incidentId } = createIncidentFromAlert(alert, ship);
     setIncidents((prev) => [incident, ...prev]);
+    setRecoveryDetails((prev) => ({ ...prev, [incidentId]: buildDefaultRecoveryDetail(ship) }));
     setAlerts((prev) =>
       prev.map((a) => (a.id === alert.id ? { ...a, incidentId, status: "Under Review" } : a))
     );
@@ -141,6 +144,37 @@ export default function App() {
 
   const handleUpdateAlertStatus = useCallback((alertId, status) => {
     setAlerts((prev) => prev.map((a) => (a.id === alertId ? { ...a, status } : a)));
+  }, []);
+
+  const handleUpdateRecoveryDetail = useCallback((incidentId, patch) => {
+    setRecoveryDetails((prev) => ({ ...prev, [incidentId]: { ...prev[incidentId], ...patch } }));
+  }, []);
+
+  const handleAdvanceStage = useCallback((incidentId, stage, stageLabel) => {
+    setIncidents((prev) =>
+      prev.map((i) =>
+        i.id === incidentId
+          ? {
+              ...i,
+              stage,
+              stageLabel,
+              updates: [...i.updates, { time: new Date().toISOString(), text: `Stage advanced to "${stageLabel}"` }],
+            }
+          : i
+      )
+    );
+  }, []);
+
+  const handleCreateIncidentForShipment = useCallback((shipmentId) => {
+    const ship = SHIPMENTS.find((s) => s.id === shipmentId);
+    const { incident, incidentId } = createIncidentForShipment(ship, {
+      title: `Manual Case — ${ship?.id}`,
+      priority: ship?.riskLevel,
+      description: `Recovery case manually opened from shipment detail for ${ship?.id}.`,
+    });
+    setIncidents((prev) => [incident, ...prev]);
+    setRecoveryDetails((prev) => ({ ...prev, [incidentId]: buildDefaultRecoveryDetail(ship) }));
+    handleViewIncident(incidentId);
   }, []);
 
   // Derive active sidebar item from page
@@ -157,15 +191,20 @@ export default function App() {
           alerts={alerts}
           companyInfo={companyInfo}
           onBack={() => handleNav("shipments")}
-          onCreateIncident={() => handleNav("recovery")}
+          onCreateIncident={handleCreateIncidentForShipment}
         />
       );
 
     if (page === "recovery-detail" && selectedIncident)
       return (
         <RecoveryDetail
+          key={selectedIncident}
           incidentId={selectedIncident}
           incidents={incidents}
+          alerts={alerts}
+          recoveryDetail={recoveryDetails[selectedIncident]}
+          onUpdateRecoveryDetail={handleUpdateRecoveryDetail}
+          onAdvanceStage={handleAdvanceStage}
           onBack={() => handleNav("recovery")}
         />
       );

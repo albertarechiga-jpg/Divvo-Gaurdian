@@ -162,29 +162,41 @@ export function runTheftDetectionScan(shipments, existingAlerts) {
 
 // ── Create incident from alert ────────────────────────────────────────────────
 
-export function createIncidentFromAlert(alert, shipment) {
+export function createIncidentForShipment(shipment, { title, description, priority, updates } = {}) {
   const id = `INC-2026-${String(_incidentSeq++).padStart(4, "0")}`;
   const now = new Date().toISOString();
   return {
     incident: {
       id,
-      shipmentId: alert.shipmentId,
-      title: `${alert.type} — ${shipment?.id ?? alert.shipmentId}`,
+      shipmentId: shipment?.id,
+      title: title ?? `Manual Case — ${shipment?.id}`,
       stage: 2,
       stageLabel: "Case Created",
-      priority: alert.severity,
+      priority: priority ?? shipment?.riskLevel ?? "Medium",
       createdAt: now,
       assignedTo: "Unassigned",
       cargoValue: shipment?.cargoValue ?? 0,
-      description: `${alert.description}\n\nRecommended action: ${alert.recommendedAction}`,
-      updates: [
-        {
-          time: alert.timestamp,
-          text: `${alert.type} alert triggered (${alert.source === "scan" ? "Detection Engine" : "Manual"})`,
-        },
-        { time: now, text: `Incident case created from alert ${alert.id}` },
-      ],
+      description: description ?? `Manually opened recovery case for shipment ${shipment?.id}.`,
+      updates: updates ?? [{ time: now, text: `Incident case created manually for shipment ${shipment?.id}` }],
     },
     incidentId: id,
   };
+}
+
+export function createIncidentFromAlert(alert, shipment) {
+  const now = new Date().toISOString();
+  const result = createIncidentForShipment(shipment, {
+    title: `${alert.type} — ${shipment?.id ?? alert.shipmentId}`,
+    priority: alert.severity,
+    description: `${alert.description}\n\nRecommended action: ${alert.recommendedAction}`,
+    updates: [
+      {
+        time: alert.timestamp,
+        text: `${alert.type} alert triggered (${alert.source === "scan" ? "Detection Engine" : "Manual"})`,
+      },
+      { time: now, text: `Incident case created from alert ${alert.id}` },
+    ],
+  });
+  result.incident.shipmentId = shipment?.id ?? alert.shipmentId;
+  return result;
 }
