@@ -4,10 +4,10 @@ import { fmtCurrency, fmtCurrencyCompact } from "../lib/utils.js";
 import { RiskBadge, StatusBadge } from "../components/Badges.jsx";
 
 const KpiCard = ({ label, value, sub, accent, icon }) => (
-  <div className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col gap-3">
-    <div className="flex items-start justify-between">
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest leading-tight">{label}</p>
-      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ml-2 ${accent}`}>{icon}</div>
+  <div className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col gap-3 min-w-0">
+    <div className="flex items-start justify-between gap-2">
+      <p className="min-w-0 text-xs font-semibold text-gray-400 uppercase tracking-wide leading-tight">{label}</p>
+      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${accent}`}>{icon}</div>
     </div>
     <div>
       <p className="text-xl font-bold text-gray-900 leading-none">{value}</p>
@@ -77,7 +77,7 @@ export default function Dashboard({ alerts: allAlerts, incidents: allIncidents, 
         </div>
 
         <div className="grid grid-cols-6 gap-3">
-          <KpiCard label="Cargo Value Protected" value={fmtCurrencyCompact(totalValue)} sub={`Across ${companyShipments.length} active lane${companyShipments.length === 1 ? "" : "s"}`}
+          <KpiCard label="Cargo Protected" value={fmtCurrencyCompact(totalValue)} sub={`Across ${companyShipments.length} active lane${companyShipments.length === 1 ? "" : "s"}`}
             accent="bg-blue-900/60"
             icon={<svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>}
           />
@@ -85,7 +85,7 @@ export default function Dashboard({ alerts: allAlerts, incidents: allIncidents, 
             accent="bg-gray-800"
             icon={<svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>}
           />
-          <KpiCard label="High / Critical Risk" value={highRisk} sub="Need active attention"
+          <KpiCard label="High/Critical Risk" value={highRisk} sub="Need active attention"
             accent="bg-orange-900/50"
             icon={<svg className="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>}
           />
