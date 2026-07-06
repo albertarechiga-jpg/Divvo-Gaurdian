@@ -107,25 +107,29 @@ export default function Dashboard({ alerts: allAlerts, incidents: allIncidents, 
 
       <div className="p-8 space-y-6">
         {/* Critical alert banner */}
-        {criticalAlerts > 0 && (
-          <div className="bg-red-950/40 border border-red-800/50 rounded-2xl p-5">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-red-900/60 rounded-xl flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                  <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-                </svg>
+        {criticalAlerts > 0 && (() => {
+          const criticalAlert = alerts.find((a) => a.severity === "Critical" && a.status === "Open");
+          if (!criticalAlert) return null;
+          return (
+            <div className="bg-red-950/40 border border-red-800/50 rounded-2xl p-5">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-red-900/60 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-red-200">Critical: Suspected active cargo theft — {criticalAlert.shipmentId}</p>
+                  <p className="text-xs text-red-400 mt-0.5">{criticalAlert.description}</p>
+                </div>
+                <button onClick={() => onViewShipment(criticalAlert.shipmentId)} className="bg-red-600 hover:bg-red-500 text-white text-xs font-semibold px-4 py-2 rounded-lg flex-shrink-0 transition-colors">
+                  Open Case →
+                </button>
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-red-200">Critical: Suspected active cargo theft — OWL-SAV-1003</p>
-                <p className="text-xs text-red-400 mt-0.5">Container door breached · Seal tampered · Vehicle stopped 4h+ near Macon, GA · Recovery team deployed</p>
-              </div>
-              <button onClick={() => onViewShipment("OWL-SAV-1003")} className="bg-red-600 hover:bg-red-500 text-white text-xs font-semibold px-4 py-2 rounded-lg flex-shrink-0 transition-colors">
-                Open Case →
-              </button>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Executive Summary */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">

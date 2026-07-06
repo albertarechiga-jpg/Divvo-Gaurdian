@@ -76,7 +76,7 @@ export const DETECTION_RULES = [
     description: (s) =>
       `Container seal ${s.containerNumber} reported as BREACHED. Tampering detected at ${s.lastLocation}. Physical cargo integrity cannot be confirmed.`,
     recommendedAction: () =>
-      "CRITICAL: Seal breach is primary theft indicator. Stop shipment if possible. Dispatch field agent. Notify customer (Owlet) and carrier. Prepare law enforcement package.",
+      "CRITICAL: Seal breach is primary theft indicator. Stop shipment if possible. Dispatch field agent. Notify customer and carrier. Prepare law enforcement package.",
   },
   {
     id: "imu-physical-tamper",
@@ -119,8 +119,8 @@ export const evaluateIncomingThreatMetrics = (metrics) => {
 };
 
 // ── Counters (module-level, survive HMR in dev) ───────────────────────────────
-let _alertSeq = 7;
-let _incidentSeq = 42;
+let _alertSeq = 200;
+let _incidentSeq = 60;
 
 // ── Scan function ─────────────────────────────────────────────────────────────
 
