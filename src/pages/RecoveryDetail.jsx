@@ -14,8 +14,8 @@ const SectionHeader = ({ label }) => (
 
 const InfoRow = ({ label, value, danger }) => (
   <div className="flex items-start justify-between gap-4 py-2 border-b border-gray-50 last:border-0">
-    <span className="text-xs text-gray-400 flex-shrink-0 w-36">{label}</span>
-    <span className={`text-xs font-medium text-right leading-relaxed ${danger ? "text-red-600" : "text-gray-900"}`}>{value}</span>
+    <span className="text-xs text-gray-400 flex-shrink-0 w-28">{label}</span>
+    <span className={`min-w-0 flex-1 text-xs font-medium text-right leading-relaxed break-words ${danger ? "text-red-600" : "text-gray-900"}`}>{value}</span>
   </div>
 );
 
@@ -121,11 +121,11 @@ export default function RecoveryDetail({ incidentId, incidents, onBack }) {
 
       <div className="p-8 space-y-6">
         {/* Row 1 */}
-        <div className="grid grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <SectionHeader label="Case Identity" />
             <InfoRow label="Case ID" value={inc.id} />
-            <InfoRow label="Customer" value="Owlet" />
+            <InfoRow label="Customer" value={s?.customer || "—"} />
             <InfoRow label="Incident Type" value={mock.incidentType} />
             <InfoRow label="Priority" value={inc.priority} danger={inc.priority === "Critical"} />
             <InfoRow label="Stage" value={`${inc.stage} — ${inc.stageLabel}`} />
@@ -177,7 +177,7 @@ export default function RecoveryDetail({ incidentId, incidents, onBack }) {
         </div>
 
         {/* Row 2 */}
-        <div className="grid grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <SectionHeader label="Recovery Team" />
             <div className="flex items-center gap-4 mb-4 pb-4 border-b border-gray-100">
@@ -226,7 +226,7 @@ export default function RecoveryDetail({ incidentId, incidents, onBack }) {
         </div>
 
         {/* Row 3 */}
-        <div className="grid grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center justify-between mb-1">
               <SectionHeader label="Law Enforcement" />

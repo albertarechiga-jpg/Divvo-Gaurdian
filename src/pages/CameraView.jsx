@@ -330,7 +330,7 @@ function CameraFeed({ camera, onStatusChange }) {
 
 export default function CameraView({ company = "owlet" }) {
   const companyInfo = COMPANIES.find((c) => c.id === company) || COMPANIES[0];
-  const CAMERAS = (COMPANY_DEVICES[company] || COMPANY_DEVICES.owlet).slice(0, 3).map((d) => ({
+  const CAMERAS = (COMPANY_DEVICES[company] || []).slice(0, 3).map((d) => ({
     id: d.id,
     label: d.location,
     color: SEVERITY_COLOR[d.severity] || "#22c55e",
@@ -391,11 +391,18 @@ export default function CameraView({ company = "owlet" }) {
         </ol>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        {CAMERAS.map((cam) => (
-          <CameraFeed key={cam.id} camera={cam} onStatusChange={handleStatusChange} />
-        ))}
-      </div>
+      {CAMERAS.length > 0 ? (
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          {CAMERAS.map((cam) => (
+            <CameraFeed key={cam.id} camera={cam} onStatusChange={handleStatusChange} />
+          ))}
+        </div>
+      ) : (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl py-16 text-center mb-6">
+          <p className="text-sm font-semibold text-gray-400">No devices configured for {companyInfo.name} yet</p>
+          <p className="text-xs text-gray-600 mt-1">Cameras become available once fleet devices are deployed</p>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-4">
         {[

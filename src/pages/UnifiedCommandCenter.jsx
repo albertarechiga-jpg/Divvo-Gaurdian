@@ -1358,9 +1358,12 @@ function AlertRow({ device, selected, onClick, onRoute, ctx }) {
 // ── Main Unified Command Center ───────────────────────────────────────────────
 export default function UnifiedCommandCenter({ onNav, company = "owlet" }) {
   const companyInfo = COMPANIES.find(c => c.id === company) || COMPANIES[0];
-  const DEVICES = COMPANY_DEVICES[company] || COMPANY_DEVICES.owlet;
-  const SHIPMENT_ROUTES = COMPANY_SHIPMENT_ROUTES[company] || COMPANY_SHIPMENT_ROUTES.owlet;
-  const DEVICE_SHIPMENT_CONTEXT = COMPANY_DEVICE_CONTEXT[company] || COMPANY_DEVICE_CONTEXT.owlet;
+  // No fallback to Owlet's data here — a company with no fleet configured yet
+  // (e.g. freshly onboarded, no hardware deployed) should show genuinely empty,
+  // not silently borrow another company's devices.
+  const DEVICES = COMPANY_DEVICES[company] || [];
+  const SHIPMENT_ROUTES = COMPANY_SHIPMENT_ROUTES[company] || [];
+  const DEVICE_SHIPMENT_CONTEXT = COMPANY_DEVICE_CONTEXT[company] || {};
 
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [mapFullscreen, setMapFullscreen]   = useState(false);
