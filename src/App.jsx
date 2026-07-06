@@ -192,7 +192,7 @@ export default function App() {
         return <CameraView key={company} company={company} />;
 
       case "reports":
-        return <ReportsPage company={company} />;
+        return <ReportsPage company={company} alerts={alerts} incidents={incidents} />;
 
       case "settings":
         return <SettingsPage company={company} />;
