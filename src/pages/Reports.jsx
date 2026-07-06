@@ -1,5 +1,4 @@
 import { SHIPMENTS } from "../data/shipments.js";
-import { COMPANIES } from "../data/companyFleets.js";
 import { fmtCurrencyCompact } from "../lib/utils.js";
 import { Badge, RiskBadge } from "../components/Badges.jsx";
 
@@ -12,8 +11,7 @@ const LANE_STATUS_STYLES = {
 
 const RISK_RANK = { Critical: 4, High: 3, Medium: 2, Low: 1 };
 
-export default function ReportsPage({ company = "owlet", alerts: allAlerts = [], incidents: allIncidents = [] }) {
-  const companyInfo = COMPANIES.find((c) => c.id === company) || COMPANIES[0];
+export default function ReportsPage({ companyInfo, alerts: allAlerts = [], incidents: allIncidents = [] }) {
   const companyShipments = SHIPMENTS.filter((s) => s.customer === companyInfo.name);
   const shipmentIds = new Set(companyShipments.map((s) => s.id));
   const alerts = allAlerts.filter((a) => shipmentIds.has(a.shipmentId));

@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { COMPANIES } from "../data/companyFleets.js";
 
 const SB_URL = import.meta.env.VITE_SUPABASE_URL;
 const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -49,8 +48,8 @@ const Section = ({ title, children }) => (
   </div>
 );
 
-export default function SettingsPage({ company = "owlet" }) {
-  const companyInfo = COMPANIES.find((c) => c.id === company) || COMPANIES[0];
+export default function SettingsPage({ companyInfo }) {
+  const company = companyInfo.id;
   const [settings, setSettings]   = useState(null);
   const [settingsId, setSettingsId] = useState(null);
   const [loading, setLoading]     = useState(true);

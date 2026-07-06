@@ -1,11 +1,11 @@
 // ── Company registry ──────────────────────────────────────────────────────────
-// Each entry drives the "Active Client" switcher in the sidebar. mapCenter/mapZoom
-// re-center the live fleet map on that company's operating region.
-export const COMPANIES = [
-  { id: "owlet",    name: "Owlet",             program: "Pilot Program", region: "South Texas",      mapCenter: [-98.8, 28.8],  mapZoom: 5.8 },
-  { id: "meridian", name: "Meridian Freight",  program: "Pilot Program", region: "Pacific Northwest", mapCenter: [-122.6, 46.5], mapZoom: 5.8 },
-  { id: "coastal",  name: "Coastal Logistics", program: "Pilot Program", region: "Southeast Coast",   mapCenter: [-81.5, 32.0],  mapZoom: 5.8 },
-];
+// The registry itself (id/name/region/map center) now lives in Supabase's
+// `companies` table — see src/lib/companies.js — so new companies can be
+// created at runtime instead of requiring a code change. This file keeps only
+// the static demo fleet/shipment-route data for the companies that have real
+// mock hardware/lanes configured (owlet, meridian, coastal). A company with no
+// entry here simply gets an empty fleet (see the `|| []` fallbacks where these
+// are read) until real devices are onboarded.
 
 // ── Live devices & shipments, keyed by company id ────────────────────────────
 export const COMPANY_DEVICES = {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { dispatchAlert } from "../lib/notifications.js";
-import { COMPANIES, COMPANY_DEVICES, COMPANY_SHIPMENT_ROUTES, COMPANY_DEVICE_CONTEXT } from "../data/companyFleets.js";
+import { COMPANY_DEVICES, COMPANY_SHIPMENT_ROUTES, COMPANY_DEVICE_CONTEXT } from "../data/companyFleets.js";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -1356,8 +1356,8 @@ function AlertRow({ device, selected, onClick, onRoute, ctx }) {
 }
 
 // ── Main Unified Command Center ───────────────────────────────────────────────
-export default function UnifiedCommandCenter({ onNav, company = "owlet" }) {
-  const companyInfo = COMPANIES.find(c => c.id === company) || COMPANIES[0];
+export default function UnifiedCommandCenter({ onNav, companyInfo }) {
+  const company = companyInfo.id;
   // No fallback to Owlet's data here — a company with no fleet configured yet
   // (e.g. freshly onboarded, no hardware deployed) should show genuinely empty,
   // not silently borrow another company's devices.

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { COMPANIES, COMPANY_DEVICES } from "../data/companyFleets.js";
+import { COMPANY_DEVICES } from "../data/companyFleets.js";
 
 const SB_URL = import.meta.env.VITE_SUPABASE_URL;
 const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -328,8 +328,8 @@ function CameraFeed({ camera, onStatusChange }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-export default function CameraView({ company = "owlet" }) {
-  const companyInfo = COMPANIES.find((c) => c.id === company) || COMPANIES[0];
+export default function CameraView({ companyInfo }) {
+  const company = companyInfo.id;
   const CAMERAS = (COMPANY_DEVICES[company] || []).slice(0, 3).map((d) => ({
     id: d.id,
     label: d.location,

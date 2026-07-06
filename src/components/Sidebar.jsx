@@ -1,3 +1,6 @@
+import { useState } from "react";
+import AddCompanyModal from "./AddCompanyModal.jsx";
+
 const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard" },
   { id: "shipments", label: "Shipments" },
@@ -51,8 +54,18 @@ const NAV_ICONS = {
   ),
 };
 
-export default function Sidebar({ active, onNav, openAlerts, companies, selectedCompany, onCompanyChange }) {
+export default function Sidebar({ active, onNav, openAlerts, companies, selectedCompany, onCompanyChange, onCompanyCreated }) {
   const current = companies?.find(c => c.id === selectedCompany) || companies?.[0];
+  const [showAddCompany, setShowAddCompany] = useState(false);
+
+  const handleSelectChange = (value) => {
+    if (value === "__add_company__") {
+      setShowAddCompany(true);
+      return;
+    }
+    onCompanyChange?.(value);
+  };
+
   return (
     <aside className="w-60 h-screen bg-gray-950 flex flex-col flex-shrink-0 border-r border-gray-800/60 overflow-y-auto">
       {/* Brand */}
@@ -80,12 +93,13 @@ export default function Sidebar({ active, onNav, openAlerts, companies, selected
           <div className="min-w-0 flex-1 relative">
             <select
               value={selectedCompany}
-              onChange={(e) => onCompanyChange?.(e.target.value)}
+              onChange={(e) => handleSelectChange(e.target.value)}
               className="w-full bg-transparent text-white text-xs font-semibold leading-tight appearance-none cursor-pointer outline-none pr-4"
             >
               {companies?.map((c) => (
                 <option key={c.id} value={c.id} className="bg-gray-900 text-white">{c.name}</option>
               ))}
+              <option value="__add_company__" className="bg-gray-900 text-blue-400">+ Add Company</option>
             </select>
             <svg className="w-3 h-3 text-blue-400 absolute right-0 top-0.5 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M6 9l6 6 6-6"/>
@@ -162,6 +176,13 @@ export default function Sidebar({ active, onNav, openAlerts, companies, selected
           <p className="text-gray-600 text-xs">© 2026 Divvo Global LLC</p>
         </div>
       </div>
+
+      {showAddCompany && (
+        <AddCompanyModal
+          onClose={() => setShowAddCompany(false)}
+          onCreated={(company) => onCompanyCreated?.(company)}
+        />
+      )}
     </aside>
   );
 }

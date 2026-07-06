@@ -1,5 +1,4 @@
 import { SHIPMENTS } from "../data/shipments.js";
-import { COMPANIES } from "../data/companyFleets.js";
 import { fmtCurrency, fmtCurrencyCompact } from "../lib/utils.js";
 import { RiskBadge, StatusBadge } from "../components/Badges.jsx";
 
@@ -16,8 +15,7 @@ const KpiCard = ({ label, value, sub, accent, icon }) => (
   </div>
 );
 
-export default function Dashboard({ alerts: allAlerts, incidents: allIncidents, company = "owlet", onNav, onViewShipment }) {
-  const companyInfo = COMPANIES.find(c => c.id === company) || COMPANIES[0];
+export default function Dashboard({ alerts: allAlerts, incidents: allIncidents, companyInfo, onNav, onViewShipment }) {
   const companyShipments = SHIPMENTS.filter((s) => s.customer === companyInfo.name);
   const shipmentIds = new Set(companyShipments.map((s) => s.id));
   const alerts = allAlerts.filter((a) => shipmentIds.has(a.shipmentId));

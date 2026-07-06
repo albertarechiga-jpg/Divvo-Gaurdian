@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { SHIPMENTS } from "./data/shipments.js";
 import { INITIAL_ALERTS } from "./data/alerts.js";
 import { INITIAL_INCIDENTS } from "./data/incidents.js";
-import { COMPANIES } from "./data/companyFleets.js";
+import { fetchCompanies } from "./lib/companies.js";
 import { runTheftDetectionScan, createIncidentFromAlert } from "./lib/detectionEngine.js";
 import Sidebar from "./components/Sidebar.jsx";
 
@@ -58,15 +58,33 @@ export default function App() {
   const [selectedShipment, setSelectedShipment]   = useState(null);
   const [selectedIncident, setSelectedIncident]   = useState(null);
   const [selectedDevice, setSelectedDevice]       = useState("DG-1028");
-  const [company, setCompany]                     = useState(COMPANIES[0].id);
+  const [companies, setCompanies]                 = useState([]);
+  const [companiesLoading, setCompaniesLoading]   = useState(true);
+  const [company, setCompany]                     = useState(null);
 
   const [alerts,    setAlerts]    = useState(INITIAL_ALERTS);
   const [incidents, setIncidents] = useState(INITIAL_INCIDENTS);
   const [scanning,  setScanning]  = useState(false);
   const [scanResults, setScanResults] = useState(null);
 
-  const companyInfo = COMPANIES.find((c) => c.id === company) || COMPANIES[0];
-  const companyShipments = SHIPMENTS.filter((s) => s.customer === companyInfo.name);
+  // Companies now live in Supabase so new ones can be added at runtime
+  // (see src/lib/companies.js + api/add-company.js) instead of requiring a
+  // code change.
+  useEffect(() => {
+    fetchCompanies().then((rows) => {
+      setCompanies(rows);
+      if (rows.length) setCompany((prev) => prev || rows.find((c) => c.id === "owlet")?.id || rows[0].id);
+      setCompaniesLoading(false);
+    });
+  }, []);
+
+  const addCompanyToList = useCallback((newCompany) => {
+    setCompanies((prev) => [...prev, newCompany]);
+    setCompany(newCompany.id);
+  }, []);
+
+  const companyInfo = companies.find((c) => c.id === company) || null;
+  const companyShipments = companyInfo ? SHIPMENTS.filter((s) => s.customer === companyInfo.name) : [];
   const companyShipmentIds = new Set(companyShipments.map((s) => s.id));
 
   const openAlerts = alerts.filter((a) => a.status === "Open" && companyShipmentIds.has(a.shipmentId)).length;
@@ -156,27 +174,27 @@ export default function App() {
         return <RecoveryCase onBack={() => handleNav("unified-command")} deviceId={selectedDevice} />;
 
       case "unified-command":
-        return <UnifiedCommandCenter key={company} onNav={handleNav} company={company} />;
+        return <UnifiedCommandCenter key={company} onNav={handleNav} companyInfo={companyInfo} />;
 
       case "dashboard":
         return (
           <Dashboard
             alerts={alerts}
             incidents={incidents}
-            company={company}
+            companyInfo={companyInfo}
             onNav={handleNav}
             onViewShipment={handleViewShipment}
           />
         );
 
       case "shipments":
-        return <ShipmentsPage company={company} onViewShipment={handleViewShipment} />;
+        return <ShipmentsPage companyInfo={companyInfo} onViewShipment={handleViewShipment} />;
 
       case "alerts":
         return (
           <AlertsPage
             alerts={alerts}
-            company={company}
+            companyInfo={companyInfo}
             scanning={scanning}
             onScan={handleScan}
             onViewShipment={handleViewShipment}
@@ -186,25 +204,49 @@ export default function App() {
         );
 
       case "recovery":
-        return <RecoveryPage incidents={incidents} company={company} onViewIncident={handleViewIncident} />;
+        return <RecoveryPage incidents={incidents} companyInfo={companyInfo} onViewIncident={handleViewIncident} />;
 
       case "camera":
-        return <CameraView key={company} company={company} />;
+        return <CameraView key={company} companyInfo={companyInfo} />;
 
       case "reports":
-        return <ReportsPage company={company} alerts={alerts} incidents={incidents} />;
+        return <ReportsPage companyInfo={companyInfo} alerts={alerts} incidents={incidents} />;
 
       case "settings":
-        return <SettingsPage company={company} />;
+        return <SettingsPage companyInfo={companyInfo} />;
 
       default:
-        return <UnifiedCommandCenter key={company} onNav={handleNav} company={company} />;
+        return <UnifiedCommandCenter key={company} onNav={handleNav} companyInfo={companyInfo} />;
     }
   };
 
+  if (companiesLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-950 text-gray-500 text-sm">
+        Loading Divvo Guardian...
+      </div>
+    );
+  }
+
+  if (!companyInfo) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-950 text-gray-400 text-sm text-center px-6">
+        No companies found. Check that the `companies` table exists and is reachable in Supabase.
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
-      <Sidebar active={activeNav} onNav={handleNav} openAlerts={openAlerts} companies={COMPANIES} selectedCompany={company} onCompanyChange={setCompany} />
+      <Sidebar
+        active={activeNav}
+        onNav={handleNav}
+        openAlerts={openAlerts}
+        companies={companies}
+        selectedCompany={company}
+        onCompanyChange={setCompany}
+        onCompanyCreated={addCompanyToList}
+      />
       <main className="flex-1 overflow-auto min-w-0">
         {renderPage()}
       </main>

@@ -1,10 +1,8 @@
 import { SHIPMENTS } from "../data/shipments.js";
-import { COMPANIES } from "../data/companyFleets.js";
 import { fmtCurrencyCompact } from "../lib/utils.js";
 import { RiskBadge } from "../components/Badges.jsx";
 
-export default function RecoveryPage({ incidents: allIncidents, company = "owlet", onViewIncident }) {
-  const companyInfo = COMPANIES.find((c) => c.id === company) || COMPANIES[0];
+export default function RecoveryPage({ incidents: allIncidents, companyInfo, onViewIncident }) {
   const companyShipmentIds = new Set(SHIPMENTS.filter((s) => s.customer === companyInfo.name).map((s) => s.id));
   const incidents = allIncidents.filter((i) => companyShipmentIds.has(i.shipmentId));
   const active = incidents.filter((i) => i.stage < 7);

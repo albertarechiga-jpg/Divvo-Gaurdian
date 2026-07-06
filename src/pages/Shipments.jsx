@@ -1,12 +1,10 @@
 import { useState } from "react";
 import { SHIPMENTS } from "../data/shipments.js";
-import { COMPANIES } from "../data/companyFleets.js";
 import { fmtCurrencyCompact } from "../lib/utils.js";
 import { RiskBadge, StatusBadge } from "../components/Badges.jsx";
 
-export default function ShipmentsPage({ company = "owlet", onViewShipment }) {
+export default function ShipmentsPage({ companyInfo, onViewShipment }) {
   const [filter, setFilter] = useState("All");
-  const companyInfo = COMPANIES.find((c) => c.id === company) || COMPANIES[0];
   const companyShipments = SHIPMENTS.filter((s) => s.customer === companyInfo.name);
   const carrierCount = new Set(companyShipments.map((s) => s.carrier)).size;
   const statuses = ["All", "On Schedule", "In Transit", "Delayed", "Critical Alert"];
