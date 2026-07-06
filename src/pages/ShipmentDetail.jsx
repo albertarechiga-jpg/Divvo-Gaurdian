@@ -1,11 +1,14 @@
 import { SHIPMENTS } from "../data/shipments.js";
+import { COMPANY_SHIPMENT_ROUTES } from "../data/companyFleets.js";
 import { fmtCurrency, fmtDate, ALERT_STATUS_STYLES } from "../lib/utils.js";
 import { Badge, RiskBadge, StatusBadge, SeverityBadge } from "../components/Badges.jsx";
+import RouteMap from "../components/RouteMap.jsx";
 
-export default function ShipmentDetail({ shipmentId, alerts, onBack, onCreateIncident }) {
+export default function ShipmentDetail({ shipmentId, alerts, companyInfo, onBack, onCreateIncident }) {
   const s = SHIPMENTS.find((x) => x.id === shipmentId);
   if (!s) return null;
   const shipAlerts = alerts.filter((a) => a.shipmentId === shipmentId);
+  const routeCoords = (COMPANY_SHIPMENT_ROUTES[companyInfo?.id] || []).find((r) => r.id === shipmentId);
 
   return (
     <div className="p-8 space-y-6">
@@ -82,13 +85,23 @@ export default function ShipmentDetail({ shipmentId, alerts, onBack, onCreateInc
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-900">Live Map — Route Tracking</h2>
-          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-medium">Map integration pending</span>
+          <span className="text-xs text-gray-400 font-mono">{s.lastLocation}</span>
         </div>
-        <div className="bg-gray-100 h-56 flex flex-col items-center justify-center gap-2">
-          <div className="w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center text-2xl">🗺️</div>
-          <p className="text-sm font-medium text-gray-500">Live GPS Tracking Map</p>
-          <p className="text-xs text-gray-400 font-mono">{s.lastLocation}</p>
-        </div>
+        {routeCoords ? (
+          <RouteMap
+            height="224px"
+            line={{ from: routeCoords.from, to: routeCoords.to, color: s.riskLevel === "Critical" ? "#ef4444" : "#f97316" }}
+            markers={[
+              { coord: routeCoords.from, color: "#22c55e" },
+              { coord: routeCoords.to, color: "#3b82f6" },
+            ]}
+          />
+        ) : (
+          <div className="bg-gray-100 h-56 flex flex-col items-center justify-center gap-2">
+            <div className="w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center text-2xl">🗺️</div>
+            <p className="text-sm font-medium text-gray-500">No route configured for this shipment</p>
+          </div>
+        )}
       </div>
 
       {shipAlerts.length > 0 && (

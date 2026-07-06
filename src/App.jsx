@@ -155,6 +155,7 @@ export default function App() {
         <ShipmentDetail
           shipmentId={selectedShipment}
           alerts={alerts}
+          companyInfo={companyInfo}
           onBack={() => handleNav("shipments")}
           onCreateIncident={() => handleNav("recovery")}
         />

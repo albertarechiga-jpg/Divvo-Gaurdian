@@ -4,6 +4,15 @@ import { RECOVERY_MOCK } from "../data/recoveryMock.js";
 import { WORKFLOW_STAGES } from "../data/incidents.js";
 import { fmtCurrency, fmtDate } from "../lib/utils.js";
 import { RiskBadge } from "../components/Badges.jsx";
+import RouteMap from "../components/RouteMap.jsx";
+
+// Parses "32.8407° N, 83.6324° W" -> [lng, lat]
+function parseCoords(str) {
+  const match = str?.match(/([\d.]+)°\s*([NS]),\s*([\d.]+)°\s*([EW])/);
+  if (!match) return null;
+  const [, lat, ns, lng, ew] = match;
+  return [(ew === "W" ? -1 : 1) * parseFloat(lng), (ns === "S" ? -1 : 1) * parseFloat(lat)];
+}
 
 const SectionHeader = ({ label }) => (
   <div className="flex items-center gap-3 mb-4">
@@ -24,6 +33,7 @@ export default function RecoveryDetail({ incidentId, incidents, onBack }) {
   if (!inc) return null;
   const s = SHIPMENTS.find((x) => x.id === inc.shipmentId);
   const mock = RECOVERY_MOCK[inc.id] || RECOVERY_MOCK["INC-2026-0041"];
+  const lastGPSCoord = parseCoords(mock.lastGPS.coords);
 
   const [evidence, setEvidence] = useState(mock.evidence);
   const [custodyLog, setCustodyLog] = useState(mock.chainOfCustody);
@@ -168,11 +178,16 @@ export default function RecoveryDetail({ incidentId, incidents, onBack }) {
               </div>
               <p className="text-xs text-gray-500 mt-3">Signal at {fmtDate(mock.lastGPS.timestamp)}</p>
             </div>
-            <div className="bg-gray-100 rounded-lg h-28 flex flex-col items-center justify-center gap-1.5">
-              <span className="text-2xl">📍</span>
-              <p className="text-xs font-medium text-gray-500">Map integration pending</p>
-              <p className="text-xs text-gray-400">Last ping plotted</p>
-            </div>
+            {lastGPSCoord ? (
+              <div className="rounded-lg overflow-hidden">
+                <RouteMap height="112px" markers={[{ coord: lastGPSCoord, color: "#ef4444" }]} />
+              </div>
+            ) : (
+              <div className="bg-gray-100 rounded-lg h-28 flex flex-col items-center justify-center gap-1.5">
+                <span className="text-2xl">📍</span>
+                <p className="text-xs font-medium text-gray-500">Location unavailable</p>
+              </div>
+            )}
           </div>
         </div>
 
