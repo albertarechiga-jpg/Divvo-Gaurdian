@@ -209,6 +209,8 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
           email_critical: s.email_critical ?? true,
           email_warning:  s.email_warning ?? true,
           browser_all:    s.browser_all ?? true,
+          critical_response_minutes: s.critical_response_minutes ?? 5,
+          warning_response_minutes:  s.warning_response_minutes ?? 15,
         });
       } else {
         setSettingsId(null);
@@ -467,6 +469,48 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
             >
               Request Browser Permission
             </button>
+          </div>
+        </Section>
+
+        <Section title="Escalation Response Window">
+          <div style={{ paddingTop: 8 }}>
+            <p style={{ fontSize: 12, color: "#6b7280", marginBottom: 10 }}>
+              How long an operator has to acknowledge an alert in the Command Center before it auto-escalates (SMS/email sent automatically as unacknowledged).
+            </p>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #111827" }}>
+              <div>
+                <div style={{ fontSize: 13, color: "#d1d5db", fontWeight: 500 }}>Critical Alerts</div>
+                <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>Lock tamper, door breach, active theft</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <input
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={settings.critical_response_minutes}
+                  onChange={(e) => setSettings((s) => ({ ...s, critical_response_minutes: Math.max(1, parseInt(e.target.value, 10) || 1) }))}
+                  style={{ width: 56, background: "#111827", border: "1px solid #1f2937", borderRadius: 8, padding: "6px 8px", color: "#f9fafb", fontSize: 13, textAlign: "center" }}
+                />
+                <span style={{ fontSize: 12, color: "#6b7280" }}>min</span>
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0" }}>
+              <div>
+                <div style={{ fontSize: 13, color: "#d1d5db", fontWeight: 500 }}>Warning Alerts</div>
+                <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>Low battery, GPS degraded, geofence breach</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <input
+                  type="number"
+                  min={1}
+                  max={120}
+                  value={settings.warning_response_minutes}
+                  onChange={(e) => setSettings((s) => ({ ...s, warning_response_minutes: Math.max(1, parseInt(e.target.value, 10) || 1) }))}
+                  style={{ width: 56, background: "#111827", border: "1px solid #1f2937", borderRadius: 8, padding: "6px 8px", color: "#f9fafb", fontSize: 13, textAlign: "center" }}
+                />
+                <span style={{ fontSize: 12, color: "#6b7280" }}>min</span>
+              </div>
+            </div>
           </div>
         </Section>
 

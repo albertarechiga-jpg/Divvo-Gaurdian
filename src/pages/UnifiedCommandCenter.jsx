@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { dispatchAlert } from "../lib/notifications.js";
+import { dispatchAlert, fetchAlertSettings } from "../lib/notifications.js";
 import { COMPANY_DEVICES, COMPANY_SHIPMENT_ROUTES, COMPANY_DEVICE_CONTEXT } from "../data/companyFleets.js";
 import { SB_URL, sbHeaders } from "../lib/supabase.js";
 import { MAPBOX_TOKEN, geocode } from "../lib/mapbox.js";
@@ -92,7 +92,7 @@ function distanceFromRoute(lat, lon, waypoints) {
 // Live devices & shipments are company-scoped — see src/data/companyFleets.js
 
 // ── AI Response Generator ─────────────────────────────────────────────────────
-async function generateAIResponse(device) {
+async function generateAIResponse(device, windowMinutes = { critical: 5, warning: 15 }) {
   const prompt = `You are the AI operations center for Divvo Guardian, a cargo security platform. 
 Analyze this alert and generate a structured response for a single operator.
 
@@ -145,7 +145,9 @@ Respond ONLY with valid JSON, no markdown, no backticks:
       do_not: "Do not alert the driver if theft is suspected",
       evidence_status: "GPS log and sensor data captured automatically",
       escalate_le: device.severity === "Critical",
-      estimated_response_window: device.severity === "Critical" ? "Act within 5 minutes" : "Review within 15 minutes",
+      estimated_response_window: device.severity === "Critical"
+        ? `Act within ${windowMinutes.critical} minute${windowMinutes.critical === 1 ? "" : "s"}`
+        : `Review within ${windowMinutes.warning} minute${windowMinutes.warning === 1 ? "" : "s"}`,
     };
   }
 }
@@ -1089,16 +1091,22 @@ function AIResponsePanel({ device, onDismiss, onNav, company = "owlet" }) {
     setActionTaken(false);
     setEscalated(false);
     setConfirmDismiss(false);
-    generateAIResponse(device).then(data => {
-      setAiData(data);
-      setLoading(false);
-      setStep(1);
-      if (device.severity === "Critical") {
-        const secs = parseResponseWindowSeconds(data.estimated_response_window);
-        if (secs) { setTotalSeconds(secs); setSecondsLeft(secs); }
-      }
+    fetchAlertSettings(company).then((settings) => {
+      const windowMinutes = {
+        critical: settings?.critical_response_minutes ?? 5,
+        warning: settings?.warning_response_minutes ?? 15,
+      };
+      generateAIResponse(device, windowMinutes).then(data => {
+        setAiData(data);
+        setLoading(false);
+        setStep(1);
+        if (device.severity === "Critical") {
+          const secs = parseResponseWindowSeconds(data.estimated_response_window);
+          if (secs) { setTotalSeconds(secs); setSecondsLeft(secs); }
+        }
+      });
     });
-  }, [device?.id]);
+  }, [device?.id, company]);
 
   // Live countdown — ticks down once a second while a critical alert is unacknowledged
   useEffect(() => {
