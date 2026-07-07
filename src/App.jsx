@@ -82,6 +82,15 @@ export default function App() {
   // on every login/logout/token-refresh.
   useEffect(() => {
     let active = true;
+    // Fallback signal alongside the PASSWORD_RECOVERY auth event below: under
+    // the PKCE flow the redirect lands with ?type=recovery (or #type=recovery)
+    // before supabase-js finishes exchanging the code, so checking the URL
+    // directly catches this reliably regardless of exact event timing/naming.
+    const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    if (params.get("type") === "recovery" || hashParams.get("type") === "recovery") {
+      setPasswordRecovery(true);
+    }
     getSession().then((s) => {
       if (active) setSession(s);
     });
