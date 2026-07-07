@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { dispatchAlert } from "../lib/notifications.js";
 
 const CASE_DATA = {
   "DG-1028": {
@@ -82,8 +83,9 @@ const STATUS_STYLES = {
   "Closed":          { bg: "#111827", border: "#374151", text: "#9ca3af", dot: "#6b7280" },
 };
 
-export default function RecoveryCase({ onBack, deviceId }) {
+export default function RecoveryCase({ onBack, deviceId, companyInfo }) {
   const cd = CASE_DATA[deviceId] || CASE_DATA["DG-1028"];
+  const companyId = companyInfo?.id || "owlet";
 
   const [status, setStatus]         = useState("Active Recovery");
   const [timeline, setTimeline]     = useState(cd.timeline);
@@ -103,6 +105,19 @@ export default function RecoveryCase({ onBack, deviceId }) {
     setTimeout(() => setToast(null), 3500);
   };
 
+  // "ops"/"carrier"/"le" fire the same real dispatch pipeline the automatic
+  // theft-detection alerts use (dispatchAlert -> Twilio SMS + Resend email,
+  // gated by each company's alert_settings) — not just a local toast.
+  const notifyReal = (alertType, extraDetails = []) =>
+    dispatchAlert({
+      alertType,
+      deviceId: cd.device,
+      location: cd.location,
+      severity: cd.severity,
+      companyId,
+      details: [["Case ID", cd.caseId], ["Carrier", cd.carrier], ["Cargo Value", cd.cargoValue], ...extraDetails],
+    });
+
   const handleAction = (action) => {
     switch (action) {
       case "assign":
@@ -114,14 +129,17 @@ export default function RecoveryCase({ onBack, deviceId }) {
       case "ops":
         addEvent("Operations center notified — case escalated");
         showToast("Operations notified");
+        notifyReal("Recovery Escalation — Operations Notified");
         break;
       case "carrier":
         addEvent("Carrier dispatch contacted — " + cd.carrier + " ops center");
         showToast("Carrier notified");
+        notifyReal("Recovery — Carrier Notified", [["Notified Party", cd.carrier + " Ops Center"]]);
         break;
       case "le":
         addEvent("Law enforcement notified — local authorities alerted");
         showToast("Law enforcement notified");
+        notifyReal("Recovery — Law Enforcement Notified", [["Notified Party", "Local Law Enforcement"]]);
         break;
       case "located":
         setStatus("Asset Located");

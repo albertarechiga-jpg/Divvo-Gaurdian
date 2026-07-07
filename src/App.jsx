@@ -251,7 +251,7 @@ export default function App() {
 
     switch (page) {
       case "recovery-case":
-        return <RecoveryCase onBack={() => handleNav("unified-command")} deviceId={selectedDevice} />;
+        return <RecoveryCase onBack={() => handleNav("unified-command")} deviceId={selectedDevice} companyInfo={companyInfo} />;
 
       case "unified-command":
         return <UnifiedCommandCenter key={company} onNav={handleNav} companyInfo={companyInfo} />;
