@@ -48,12 +48,12 @@ export const COMPANY_SHIPMENT_ROUTES = {
     { id: "OWL-HOU-1001", severity: "High",     from: [-95.3698, 29.7604], to: [-118.2437, 34.0522], label: "Houston → LA",       cargo: "$2.4M", carrier: "Maersk Line", origin: "Houston, TX",  destination: "Los Angeles, CA" },
   ],
   meridian: [
-    { id: "MER-SEA-2001", severity: "Critical", from: [-122.3321, 47.6588], to: [-122.6750, 45.5051], label: "Seattle → Portland", cargo: "$2.6M", carrier: "ONE",       origin: "Seattle, WA",  destination: "Portland, OR" },
-    { id: "MER-TAC-2002", severity: "High",     from: [-122.4443, 47.2529], to: [-121.9886, 45.7749], label: "Tacoma → Salem",     cargo: "$1.9M", carrier: "Yang Ming", origin: "Tacoma, WA",   destination: "Salem, OR" },
+    { id: "MER-TAC-2001", severity: "Critical", from: [-122.4443, 47.2529], to: [-122.6750, 45.5051], label: "Tacoma → Portland", cargo: "$1.14M", carrier: "ONE",       origin: "Tacoma, WA",   destination: "Portland, OR" },
+    { id: "MER-PDX-2002", severity: "High",     from: [-122.6750, 45.5051], to: [-123.0351, 44.9429], label: "Portland → Salem", cargo: "$890K",  carrier: "Yang Ming", origin: "Portland, OR", destination: "Salem, OR" },
   ],
   coastal: [
-    { id: "CST-SAV-3001", severity: "Critical", from: [-81.0998, 32.0835], to: [-81.6557, 30.3322], label: "Savannah → Jacksonville", cargo: "$2.9M", carrier: "CMA CGM", origin: "Savannah, GA",   destination: "Jacksonville, FL" },
-    { id: "CST-CHS-3002", severity: "High",     from: [-79.9311, 32.7765], to: [-81.0998, 32.0835], label: "Charleston → Savannah",   cargo: "$1.7M", carrier: "OOCL",    origin: "Charleston, SC", destination: "Savannah, GA" },
+    { id: "CST-SAV-3001", severity: "Critical", from: [-81.0998, 32.0835], to: [-84.3880, 33.7490], label: "Savannah → Atlanta",      cargo: "$1.26M", carrier: "CMA CGM", origin: "Savannah, GA",    destination: "Atlanta, GA" },
+    { id: "CST-JAX-3002", severity: "High",     from: [-81.6557, 30.3322], to: [-81.3792, 28.5384], label: "Jacksonville → Orlando",  cargo: "$705K",  carrier: "OOCL",    origin: "Jacksonville, FL", destination: "Orlando, FL" },
   ],
 };
 
