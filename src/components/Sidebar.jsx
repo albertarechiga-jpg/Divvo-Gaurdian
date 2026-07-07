@@ -54,7 +54,7 @@ const NAV_ICONS = {
   ),
 };
 
-export default function Sidebar({ active, onNav, openAlerts, companies, selectedCompany, onCompanyChange, onCompanyCreated }) {
+export default function Sidebar({ active, onNav, openAlerts, companies, selectedCompany, onCompanyChange, onCompanyCreated, currentUser, onLogout }) {
   const current = companies?.find(c => c.id === selectedCompany) || companies?.[0];
   const [showAddCompany, setShowAddCompany] = useState(false);
 
@@ -163,17 +163,32 @@ export default function Sidebar({ active, onNav, openAlerts, companies, selected
       <div className="p-4 border-t border-gray-800/60 mt-4">
         <div className="flex items-center gap-2.5 mb-3">
           <div className="w-7 h-7 bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-gray-300 text-xs font-semibold">AA</span>
+            <span className="text-gray-300 text-xs font-semibold">
+              {(currentUser?.fullName || "?")
+                .split(" ")
+                .map((p) => p[0])
+                .slice(0, 2)
+                .join("")
+                .toUpperCase()}
+            </span>
           </div>
           <div className="min-w-0">
-            <p className="text-gray-300 text-xs font-semibold truncate">Alberto Arechiga</p>
-            <p className="text-gray-500 text-xs">Divvo Ops Analyst</p>
+            <p className="text-gray-300 text-xs font-semibold truncate">{currentUser?.fullName || "Unknown User"}</p>
+            <p className="text-gray-500 text-xs capitalize">{currentUser?.role || "—"}</p>
           </div>
-          <div className="ml-auto w-1.5 h-1.5 bg-emerald-400 rounded-full" />
+          <div className="ml-auto w-1.5 h-1.5 bg-emerald-400 rounded-full flex-shrink-0" />
         </div>
-        <div className="bg-gray-900 rounded-lg px-3 py-2">
-          <p className="text-gray-500 text-xs">Divvo Guardian v1.0</p>
-          <p className="text-gray-600 text-xs">© 2026 Divvo Global LLC</p>
+        <div className="flex items-center justify-between bg-gray-900 rounded-lg px-3 py-2">
+          <div>
+            <p className="text-gray-500 text-xs">Divvo Guardian v1.0</p>
+            <p className="text-gray-600 text-xs">© 2026 Divvo Global LLC</p>
+          </div>
+          <button
+            onClick={onLogout}
+            className="text-gray-500 hover:text-red-400 text-xs font-semibold transition-colors flex-shrink-0"
+          >
+            Log out
+          </button>
         </div>
       </div>
 

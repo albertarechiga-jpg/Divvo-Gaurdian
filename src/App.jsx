@@ -5,9 +5,11 @@ import { INITIAL_INCIDENTS } from "./data/incidents.js";
 import { RECOVERY_MOCK, buildDefaultRecoveryDetail } from "./data/recoveryMock.js";
 import { fetchCompanies } from "./lib/companies.js";
 import { runTheftDetectionScan, createIncidentFromAlert, createIncidentForShipment } from "./lib/detectionEngine.js";
+import { getSession, onAuthStateChange, fetchCurrentUser, signOut } from "./lib/auth.js";
 import Sidebar from "./components/Sidebar.jsx";
 
 // Pages
+import Login           from "./pages/Login.jsx";
 import UnifiedCommandCenter   from "./pages/UnifiedCommandCenter.jsx";
 import Dashboard       from "./pages/Dashboard.jsx";
 import ShipmentsPage   from "./pages/Shipments.jsx";
@@ -55,6 +57,10 @@ function ScanToast({ results, onDismiss }) {
 }
 
 export default function App() {
+  const [session, setSession]         = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
   const [page, setPage] = useState("unified-command");
   const [selectedShipment, setSelectedShipment]   = useState(null);
   const [selectedIncident, setSelectedIncident]   = useState(null);
@@ -68,6 +74,40 @@ export default function App() {
   const [recoveryDetails, setRecoveryDetails] = useState(() => ({ ...RECOVERY_MOCK }));
   const [scanning,  setScanning]  = useState(false);
   const [scanResults, setScanResults] = useState(null);
+
+  // Auth gate — the whole app renders nothing but <Login/> until a real
+  // Supabase session exists. Fires once with the current session, then again
+  // on every login/logout/token-refresh.
+  useEffect(() => {
+    let active = true;
+    getSession().then((s) => {
+      if (active) setSession(s);
+    });
+    const subscription = onAuthStateChange((s) => {
+      setSession(s);
+      if (!s) setCurrentUser(null);
+    });
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!session) {
+      setAuthLoading(false);
+      return;
+    }
+    setAuthLoading(true);
+    fetchCurrentUser(session.access_token, session.user.id).then((user) => {
+      setCurrentUser(user);
+      setAuthLoading(false);
+    });
+  }, [session]);
+
+  const handleLogout = useCallback(() => {
+    signOut();
+  }, []);
 
   // Companies now live in Supabase so new ones can be added at runtime
   // (see src/lib/companies.js + api/add-company.js) instead of requiring a
@@ -253,12 +293,36 @@ export default function App() {
         return <ReportsPage companyInfo={companyInfo} alerts={alerts} incidents={incidents} />;
 
       case "settings":
-        return <SettingsPage companyInfo={companyInfo} />;
+        return <SettingsPage companyInfo={companyInfo} session={session} currentUser={currentUser} />;
 
       default:
         return <UnifiedCommandCenter key={company} onNav={handleNav} companyInfo={companyInfo} />;
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-950 text-gray-500 text-sm">
+        Loading Divvo Guardian...
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Login />;
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-950 text-gray-400 text-sm text-center px-6 gap-4">
+        <p>Your login succeeded, but no user profile exists yet for this account.</p>
+        <p className="text-gray-600 text-xs">Ask an admin to add you to the `users`/`user_roles` tables, then reload this page.</p>
+        <button onClick={handleLogout} className="text-blue-400 hover:text-blue-300 text-xs font-semibold">
+          ← Back to login
+        </button>
+      </div>
+    );
+  }
 
   if (companiesLoading) {
     return (
@@ -286,6 +350,8 @@ export default function App() {
         selectedCompany={company}
         onCompanyChange={setCompany}
         onCompanyCreated={addCompanyToList}
+        currentUser={currentUser}
+        onLogout={handleLogout}
       />
       <main className="flex-1 overflow-auto min-w-0">
         {renderPage()}

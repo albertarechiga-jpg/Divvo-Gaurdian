@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { SB_URL, sbHeaders } from "../lib/supabase.js";
+import { SB_URL, sbHeaders, authHeaders } from "../lib/supabase.js";
 
 async function loadSettings(companyId) {
   const res = await fetch(SB_URL + `/rest/v1/alert_settings?select=*&company_id=eq.${companyId}&limit=1`, {
@@ -7,6 +7,148 @@ async function loadSettings(companyId) {
   });
   const rows = await res.json();
   return rows?.[0] ?? null;
+}
+
+// ── Team (Architecture v2.0 auth) ────────────────────────────────────────────
+async function loadTeam(accessToken) {
+  try {
+    const res = await fetch(
+      SB_URL + "/rest/v1/users?select=id,full_name,email,status,user_roles(role)&order=created_at.asc",
+      { headers: authHeaders(accessToken) }
+    );
+    const rows = await res.json();
+    if (!Array.isArray(rows)) return [];
+    return rows.map((r) => ({
+      id: r.id,
+      fullName: r.full_name,
+      email: r.email,
+      status: r.status,
+      role: r.user_roles?.[0]?.role || "—",
+    }));
+  } catch {
+    return [];
+  }
+}
+
+async function inviteTeamMember(accessToken, { fullName, email, role }) {
+  const res = await fetch("/api/create-user", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ fullName, email, role }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to invite team member");
+  return data;
+}
+
+const ROLE_OPTIONS = ["admin", "dispatcher", "analyst", "viewer"];
+
+function TeamSection({ session }) {
+  const [team, setTeam] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("dispatcher");
+  const [inviting, setInviting] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  const refresh = () => {
+    setLoading(true);
+    loadTeam(session.access_token).then((rows) => {
+      setTeam(rows);
+      setLoading(false);
+    });
+  };
+
+  useEffect(() => { refresh(); }, []);
+
+  const handleInvite = async (e) => {
+    e.preventDefault();
+    setError("");
+    setNotice("");
+    if (!fullName.trim() || !email.trim()) {
+      setError("Name and email are required");
+      return;
+    }
+    setInviting(true);
+    try {
+      await inviteTeamMember(session.access_token, { fullName: fullName.trim(), email: email.trim(), role });
+      setFullName("");
+      setEmail("");
+      setRole("dispatcher");
+      setNotice("Invite sent — they'll get an email to set their password.");
+      refresh();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  return (
+    <Section title="Team">
+      <div style={{ paddingTop: 8 }}>
+        {loading ? (
+          <p style={{ fontSize: 12, color: "#6b7280" }}>Loading team...</p>
+        ) : (
+          team.map((m) => (
+            <div key={m.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #111827" }}>
+              <div>
+                <div style={{ fontSize: 13, color: "#d1d5db", fontWeight: 500 }}>{m.fullName}</div>
+                <div style={{ fontSize: 11, color: "#6b7280" }}>{m.email}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {m.status === "invited" && (
+                  <span style={{ fontSize: 10, color: "#fcd34d", background: "#1a1200", border: "1px solid #f59e0b", borderRadius: 10, padding: "2px 8px" }}>Invited</span>
+                )}
+                <span style={{ fontSize: 11, color: "#9ca3af", textTransform: "capitalize" }}>{m.role}</span>
+              </div>
+            </div>
+          ))
+        )}
+        {!loading && team.length === 0 && (
+          <p style={{ fontSize: 12, color: "#6b7280", padding: "8px 0" }}>No team members yet.</p>
+        )}
+
+        <form onSubmit={handleInvite} style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #1f2937" }}>
+          <p style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Invite Team Member</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 120px auto", gap: 8 }}>
+            <input
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Full name"
+              style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, padding: "8px 12px", color: "#f9fafb", fontSize: 12 }}
+            />
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email address"
+              style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, padding: "8px 12px", color: "#f9fafb", fontSize: 12 }}
+            />
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, padding: "8px 8px", color: "#f9fafb", fontSize: 12 }}
+            >
+              {ROLE_OPTIONS.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              disabled={inviting}
+              style={{ background: "#1e3a8a", border: "1px solid #2563eb", color: "#93c5fd", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: inviting ? "not-allowed" : "pointer" }}
+            >
+              {inviting ? "Inviting..." : "+ Invite"}
+            </button>
+          </div>
+          {error && <p style={{ color: "#fca5a5", fontSize: 11, marginTop: 8 }}>{error}</p>}
+          {notice && <p style={{ color: "#86efac", fontSize: 11, marginTop: 8 }}>{notice}</p>}
+        </form>
+      </div>
+    </Section>
+  );
 }
 
 async function saveSettings(id, data) {
@@ -41,7 +183,7 @@ const Section = ({ title, children }) => (
   </div>
 );
 
-export default function SettingsPage({ companyInfo }) {
+export default function SettingsPage({ companyInfo, session, currentUser }) {
   const company = companyInfo.id;
   const [settings, setSettings]   = useState(null);
   const [settingsId, setSettingsId] = useState(null);
@@ -345,6 +487,8 @@ export default function SettingsPage({ companyInfo }) {
             </div>
           ))}
         </Section>
+
+        {currentUser?.role === "admin" && session && <TeamSection session={session} />}
 
         <div style={{ paddingBottom: 40, display: "flex", justifyContent: "flex-end" }}>
           <button
