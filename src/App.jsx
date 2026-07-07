@@ -10,6 +10,7 @@ import Sidebar from "./components/Sidebar.jsx";
 
 // Pages
 import Login           from "./pages/Login.jsx";
+import ResetPassword   from "./pages/ResetPassword.jsx";
 import UnifiedCommandCenter   from "./pages/UnifiedCommandCenter.jsx";
 import Dashboard       from "./pages/Dashboard.jsx";
 import ShipmentsPage   from "./pages/Shipments.jsx";
@@ -60,6 +61,7 @@ export default function App() {
   const [session, setSession]         = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   const [page, setPage] = useState("unified-command");
   const [selectedShipment, setSelectedShipment]   = useState(null);
@@ -83,9 +85,10 @@ export default function App() {
     getSession().then((s) => {
       if (active) setSession(s);
     });
-    const subscription = onAuthStateChange((s) => {
+    const subscription = onAuthStateChange((s, event) => {
       setSession(s);
       if (!s) setCurrentUser(null);
+      if (event === "PASSWORD_RECOVERY") setPasswordRecovery(true);
     });
     return () => {
       active = false;
@@ -306,6 +309,13 @@ export default function App() {
         Loading Divvo Guardian...
       </div>
     );
+  }
+
+  // Supabase issues a temporary session when the user follows a password
+  // reset email link — intercept it here before falling through to the
+  // normal dashboard, regardless of whether `session` is already set.
+  if (passwordRecovery) {
+    return <ResetPassword onDone={() => setPasswordRecovery(false)} />;
   }
 
   if (!session) {

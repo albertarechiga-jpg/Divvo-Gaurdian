@@ -16,11 +16,27 @@ export async function getSession() {
   return data.session;
 }
 
+// Emails a reset link; Supabase redirects the user back to `redirectTo` with
+// a recovery token, which onAuthStateChange below surfaces as a
+// "PASSWORD_RECOVERY" event.
+export async function requestPasswordReset(email) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin,
+  });
+  if (error) throw error;
+}
+
+// Only valid while a PASSWORD_RECOVERY session is active (see above).
+export async function updatePassword(newPassword) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw error;
+}
+
 // Fires immediately with the current session, then again on every
-// login/logout/token-refresh. Returns the underlying subscription so callers
-// can unsubscribe on unmount.
+// login/logout/token-refresh/password-recovery. Returns the underlying
+// subscription so callers can unsubscribe on unmount.
 export function onAuthStateChange(callback) {
-  const { data } = supabase.auth.onAuthStateChange((_event, session) => callback(session));
+  const { data } = supabase.auth.onAuthStateChange((event, session) => callback(session, event));
   return data.subscription;
 }
 
