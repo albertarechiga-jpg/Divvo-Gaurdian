@@ -1,5 +1,16 @@
 import { useState } from "react";
 import { dispatchAlert } from "../lib/notifications.js";
+import { reverseGeocode } from "../lib/mapbox.js";
+
+// "27.5061N" / "99.5075W" -> [lng, lat] decimal, for reverse geocoding.
+function parseLatLon(lat, lon) {
+  const latMatch = lat?.match(/([\d.]+)([NS])/);
+  const lonMatch = lon?.match(/([\d.]+)([EW])/);
+  if (!latMatch || !lonMatch) return null;
+  const latVal = parseFloat(latMatch[1]) * (latMatch[2] === "S" ? -1 : 1);
+  const lonVal = parseFloat(lonMatch[1]) * (lonMatch[2] === "W" ? -1 : 1);
+  return [lonVal, latVal];
+}
 
 const CASE_DATA = {
   "DG-1028": {
@@ -118,6 +129,48 @@ export default function RecoveryCase({ onBack, deviceId, companyInfo }) {
       details: [["Case ID", cd.caseId], ["Carrier", cd.carrier], ["Cargo Value", cd.cargoValue], ...extraDetails],
     });
 
+  // Reverse-geocodes the case's last known GPS fix to a real city/county/state,
+  // then opens the operator's own email client pre-filled with the case
+  // details and that jurisdiction in the subject line. There's no reliable
+  // public directory mapping coordinates to a specific agency's contact info,
+  // so the "To" field is deliberately left blank — the operator looks up and
+  // pastes in the correct department for that city/county themselves.
+  const openLawEnforcementEmail = async () => {
+    let placeLabel = cd.location;
+    const coords = parseLatLon(cd.lat, cd.lon);
+    if (coords) {
+      try {
+        const geo = await reverseGeocode(coords);
+        if (geo) {
+          const parts = [geo.city, geo.county, geo.state].filter(Boolean);
+          if (parts.length) placeLabel = parts.join(", ");
+        }
+      } catch (e) {
+        console.error("Reverse geocode failed:", e);
+      }
+    }
+
+    const subject = `URGENT — Cargo Theft In Progress — ${cd.caseId} — ${placeLabel}`;
+    const body = [
+      "Divvo Guardian cargo theft alert — requesting immediate law enforcement response.",
+      "",
+      `Case ID: ${cd.caseId}`,
+      `Device: ${cd.device}  ·  Trailer: ${cd.trailerId}`,
+      `Jurisdiction (from GPS): ${placeLabel}`,
+      `Coordinates: ${cd.lat}, ${cd.lon}`,
+      `Cargo Value: ${cd.cargoValue}`,
+      `Carrier: ${cd.carrier}`,
+      `Severity: ${cd.severity}`,
+      "",
+      "GPS history, camera footage, and tamper sensor logs are available on request — reply to this email or call our operations line.",
+      "",
+      `— Divvo Guardian Operations`,
+    ].join("\n");
+
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    showToast(`Email drafted for ${placeLabel} — pick the recipient in your mail app`);
+  };
+
   const handleAction = (action) => {
     switch (action) {
       case "assign":
@@ -138,8 +191,8 @@ export default function RecoveryCase({ onBack, deviceId, companyInfo }) {
         break;
       case "le":
         addEvent("Law enforcement notified — local authorities alerted");
-        showToast("Law enforcement notified");
         notifyReal("Recovery — Law Enforcement Notified", [["Notified Party", "Local Law Enforcement"]]);
+        openLawEnforcementEmail();
         break;
       case "located":
         setStatus("Asset Located");
