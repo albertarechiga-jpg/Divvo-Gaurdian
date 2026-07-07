@@ -1,11 +1,9 @@
 import { useState, useEffect } from "react";
-
-const SB_URL = import.meta.env.VITE_SUPABASE_URL;
-const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+import { SB_URL, sbHeaders } from "../lib/supabase.js";
 
 async function loadSettings(companyId) {
   const res = await fetch(SB_URL + `/rest/v1/alert_settings?select=*&company_id=eq.${companyId}&limit=1`, {
-    headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY },
+    headers: sbHeaders(),
   });
   const rows = await res.json();
   return rows?.[0] ?? null;
@@ -14,12 +12,7 @@ async function loadSettings(companyId) {
 async function saveSettings(id, data) {
   await fetch(SB_URL + "/rest/v1/alert_settings?id=eq." + id, {
     method: "PATCH",
-    headers: {
-      apikey: SB_KEY,
-      Authorization: "Bearer " + SB_KEY,
-      "Content-Type": "application/json",
-      Prefer: "return=minimal",
-    },
+    headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=minimal" }),
     body: JSON.stringify({ ...data, updated_at: new Date().toISOString() }),
   });
 }

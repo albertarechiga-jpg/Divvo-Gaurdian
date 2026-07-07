@@ -1,17 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { dispatchAlert } from "../lib/notifications.js";
 import { COMPANY_DEVICES, COMPANY_SHIPMENT_ROUTES, COMPANY_DEVICE_CONTEXT } from "../data/companyFleets.js";
+import { SB_URL, sbHeaders } from "../lib/supabase.js";
+import { MAPBOX_TOKEN, geocode } from "../lib/mapbox.js";
+import { sendSignal, pollSignal } from "../lib/webrtcSignaling.js";
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
-const SB_URL = import.meta.env.VITE_SUPABASE_URL;
-const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const ICE = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }] };
 
 // ── Supabase route helpers ───────────────────────────────────────────────────
 async function fetchSavedRoutes(companyId = "owlet") {
   try {
-    const res = await fetch(SB_URL + `/rest/v1/saved_routes?select=*&company_id=eq.${companyId}&order=created_at.desc`, { headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } });
+    const res = await fetch(SB_URL + `/rest/v1/saved_routes?select=*&company_id=eq.${companyId}&order=created_at.desc`, { headers: sbHeaders() });
     return await res.json();
   } catch { return []; }
 }
@@ -19,14 +19,14 @@ async function saveRouteToSB(route) {
   try {
     await fetch(SB_URL + "/rest/v1/saved_routes", {
       method: "POST",
-      headers: { "Content-Type": "application/json", apikey: SB_KEY, Authorization: "Bearer " + SB_KEY, Prefer: "return=minimal" },
+      headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=minimal" }),
       body: JSON.stringify(route),
     });
   } catch {}
 }
 async function deleteRouteFromSB(id) {
   try {
-    await fetch(SB_URL + "/rest/v1/saved_routes?id=eq." + id, { method: "DELETE", headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } });
+    await fetch(SB_URL + "/rest/v1/saved_routes?id=eq." + id, { method: "DELETE", headers: sbHeaders() });
   } catch {}
 }
 
@@ -34,7 +34,7 @@ async function logAuditEvent(action, operator, details, aiSummary) {
   try {
     await fetch(SB_URL + "/rest/v1/audit_log", {
       method: "POST",
-      headers: { "Content-Type": "application/json", apikey: SB_KEY, Authorization: "Bearer " + SB_KEY, Prefer: "return=minimal" },
+      headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=minimal" }),
       body: JSON.stringify({ action, operator, details, ai_summary: aiSummary }),
     });
   } catch {}
@@ -151,19 +151,6 @@ Respond ONLY with valid JSON, no markdown, no backticks:
 }
 
 // ── AI Route Generator ───────────────────────────────────────────────────────
-async function geocode(place) {
-  // Use Mapbox Geocoding v6 with full URL
-  const encoded = encodeURIComponent(place.trim());
-  const url = `https://api.mapbox.com/search/geocode/v6/forward?q=${encoded}&access_token=${MAPBOX_TOKEN}&limit=1`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Geocode failed ${res.status}: ${place}`);
-  const data = await res.json();
-  const feat = data.features?.[0];
-  if (!feat) throw new Error(`No results for: ${place}`);
-  // v6 returns coordinates in geometry
-  return feat.geometry.coordinates; // [lng, lat]
-}
-
 async function getMapboxRoute(originCoord, destCoord) {
   const coords = `${originCoord[0]},${originCoord[1]};${destCoord[0]},${destCoord[1]}`;
   const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${coords}?geometries=geojson&overview=full&steps=false&access_token=${MAPBOX_TOKEN}`;
@@ -284,21 +271,7 @@ Return ONLY valid JSON, no markdown, no backticks:
 }
 
 // ── WebRTC helpers ────────────────────────────────────────────────────────────
-async function sendSignal(slotId, type, payload) {
-  await fetch(SB_URL + "/rest/v1/webrtc_signals", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", apikey: SB_KEY, Authorization: "Bearer " + SB_KEY, Prefer: "return=minimal" },
-    body: JSON.stringify({ device_id: slotId + "-viewer", type, payload }),
-  });
-}
-async function pollSignal(slotId, type) {
-  const res = await fetch(
-    SB_URL + "/rest/v1/webrtc_signals?device_id=eq." + slotId + "-cam&type=eq." + type + "&order=created_at.desc&limit=1",
-    { headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } }
-  );
-  const rows = await res.json();
-  return rows?.[0] ?? null;
-}
+// (sendSignal/pollSignal imported from ../lib/webrtcSignaling.js)
 
 // ── Inline Camera Feed ────────────────────────────────────────────────────────
 function CamFeed({ slotId, label }) {
@@ -1387,7 +1360,7 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
   useEffect(() => {
     const poll = async () => {
       try {
-        const res = await fetch(SB_URL + "/rest/v1/gps_pings?select=*&order=created_at.desc&limit=50", { headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } });
+        const res = await fetch(SB_URL + "/rest/v1/gps_pings?select=*&order=created_at.desc&limit=50", { headers: sbHeaders() });
         const pings = await res.json();
         if (!pings?.length) return;
         const fresh = [];

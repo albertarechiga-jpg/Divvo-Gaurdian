@@ -1,12 +1,11 @@
-const SB_URL = import.meta.env.VITE_SUPABASE_URL;
-const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+import { SB_URL, sbHeaders } from "./supabase.js";
 
 // ── Fetch alert settings from Supabase ────────────────────────────────────────
 export async function fetchAlertSettings(companyId = "owlet") {
   try {
     const res = await fetch(
       SB_URL + `/rest/v1/alert_settings?select=*&company_id=eq.${companyId}&limit=1`,
-      { headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } }
+      { headers: sbHeaders() }
     );
     const rows = await res.json();
     return rows?.[0] ?? null;

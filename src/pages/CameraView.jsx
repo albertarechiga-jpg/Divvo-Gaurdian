@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { COMPANY_DEVICES } from "../data/companyFleets.js";
-
-const SB_URL = import.meta.env.VITE_SUPABASE_URL;
-const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+import { sendSignal, pollSignal as pollSignals } from "../lib/webrtcSignaling.js";
 
 const ICE_SERVERS = {
   iceServers: [
@@ -12,28 +10,6 @@ const ICE_SERVERS = {
 };
 
 const SEVERITY_COLOR = { Critical: "#ef4444", Warning: "#f59e0b", Secure: "#22c55e" };
-
-async function sendSignal(deviceId, type, payload) {
-  await fetch(SB_URL + "/rest/v1/webrtc_signals", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: SB_KEY,
-      Authorization: "Bearer " + SB_KEY,
-      Prefer: "return=minimal",
-    },
-    body: JSON.stringify({ device_id: deviceId + "-viewer", type, payload }),
-  });
-}
-
-async function pollSignals(deviceId, type) {
-  const res = await fetch(
-    SB_URL + "/rest/v1/webrtc_signals?device_id=eq." + deviceId + "-cam&type=eq." + type + "&order=created_at.desc&limit=1",
-    { headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } }
-  );
-  const rows = await res.json();
-  return rows?.[0] ?? null;
-}
 
 // ── Single Camera Feed ────────────────────────────────────────────────────────
 

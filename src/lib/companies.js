@@ -1,5 +1,4 @@
-const SB_URL = import.meta.env.VITE_SUPABASE_URL;
-const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+import { SB_URL, sbHeaders } from "./supabase.js";
 
 function normalizeCompany(r) {
   return {
@@ -15,7 +14,7 @@ function normalizeCompany(r) {
 export async function fetchCompanies() {
   try {
     const res = await fetch(`${SB_URL}/rest/v1/companies?select=*&order=created_at.asc`, {
-      headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
+      headers: sbHeaders(),
     });
     const rows = await res.json();
     if (!Array.isArray(rows)) return [];

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+import { MAPBOX_TOKEN } from "../lib/mapbox.js";
 
 // markers: [{ coord: [lng, lat], color, label }]
 // line: { from: [lng, lat], to: [lng, lat], color } (optional)
