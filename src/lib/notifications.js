@@ -63,9 +63,14 @@ export async function dispatchAlert({ alertType, deviceId, location, severity, d
   const subject = `[${severity}] Divvo Guardian — ${alertType} · ${deviceId}`;
   const smsBody = `🚨 DIVVO GUARDIAN ${severity.toUpperCase()} ALERT\n${alertType}\nDevice: ${deviceId}\nLocation: ${location}\nView: divvo-guardian.vercel.app`;
 
-  // Browser notification — always if enabled
+  // Browser notification — always if enabled. Wrapped so a permission-prompt
+  // failure (e.g. Chrome refusing requestPermission() outside a synchronous
+  // user gesture, which this no longer is by the time fetchAlertSettings
+  // resolves) can't throw and abort the SMS/email sends below it.
   if (settings.browser_all) {
-    await sendBrowserNotification(alertType, `${deviceId} · ${location}`, severity);
+    try {
+      await sendBrowserNotification(alertType, `${deviceId} · ${location}`, severity);
+    } catch (e) { console.error("Browser notification failed:", e); }
   }
 
   // SMS — Critical always, Warning only if enabled
