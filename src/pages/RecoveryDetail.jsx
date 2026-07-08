@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SHIPMENTS } from "../data/shipments.js";
+import { SHIPMENTS, CARRIER_CONTACTS } from "../data/shipments.js";
 import { INVESTIGATOR_ROSTER } from "../data/recoveryMock.js";
 import { WORKFLOW_STAGES } from "../data/incidents.js";
 import { fmtCurrency, fmtDate } from "../lib/utils.js";
@@ -110,6 +110,44 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
     setEditingIns(false);
   };
 
+  const contactCarrier = () => {
+    const contact = s?.carrier ? CARRIER_CONTACTS[s.carrier] : null;
+    if (!contact) {
+      showToast("No contact on file for this carrier");
+      return;
+    }
+    const subject = `Cargo Incident Follow-up — ${inc.id} — ${s.id}`;
+    const body = [
+      `Hi ${s.carrier} Dispatch,`,
+      "",
+      `Following up on the incident below involving your shipment.`,
+      "",
+      `Case ID: ${inc.id}`,
+      `Shipment: ${s.id}  ·  Container: ${s.containerNumber}`,
+      `Incident Type: ${recoveryDetail.incidentType}`,
+      `Cargo Value: ${fmtCurrency(inc.cargoValue)}`,
+      `Last Known Location: ${recoveryDetail.lastGPS.address}`,
+      "",
+      "Please advise on driver status and any information relevant to this incident.",
+      "",
+      "— Divvo Guardian Operations",
+    ].join("\n");
+    window.location.href = `mailto:${encodeURIComponent(contact.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    logCustody(`Carrier follow-up email drafted to ${s.carrier} dispatch`);
+    showToast(`Emailing ${s.carrier} dispatch (${contact.email})`);
+  };
+
+  const contactAgency = () => {
+    if (!le.contactPhone || le.contactPhone === "—") {
+      showToast("No law enforcement contact assigned to this case yet");
+      return;
+    }
+    const tel = le.contactPhone.replace(/[^\d+]/g, "");
+    window.location.href = `tel:${tel}`;
+    logCustody(`Called ${le.contactName} (${le.agency}) — ${le.contactPhone}`);
+    showToast(`Calling ${le.contactName} — ${le.contactPhone}`);
+  };
+
   const contactAdjuster = () => {
     if (!ins.adjusterEmail || ins.adjusterEmail === "—") {
       showToast("No adjuster assigned to this claim yet");
@@ -192,7 +230,7 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
               )}
             </div>
             <button
-              onClick={() => { logCustody("Contact Carrier action triggered — carrier notified"); showToast("Carrier contacted"); }}
+              onClick={contactCarrier}
               className="text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors bg-gray-800 hover:bg-gray-700 border border-gray-700"
             >
               Contact Carrier
@@ -396,7 +434,7 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
             <div className="mt-3 flex gap-2">
               <button onClick={handleGeneratePacket} className="flex-1 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold py-2 px-3 rounded-lg transition-colors">Generate LE Packet</button>
               <button
-                onClick={() => { logCustody("Direct LE contact initiated"); showToast("Law enforcement contacted"); }}
+                onClick={contactAgency}
                 className="flex-1 border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-medium py-2 px-3 rounded-lg transition-colors"
               >
                 Contact Agency

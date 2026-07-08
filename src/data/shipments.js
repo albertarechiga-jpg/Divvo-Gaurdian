@@ -1,3 +1,20 @@
+// Carrier ops-center contacts, keyed by the `carrier` name used on SHIPMENTS
+// records — used by RecoveryDetail.jsx's "Contact Carrier" action.
+export const CARRIER_CONTACTS = {
+  "Maersk Line": { email: "dispatch@maersk-ops.com", phone: "+1 (973) 555-0110" },
+  "COSCO Shipping": { email: "dispatch@cosco-ops.com", phone: "+1 (562) 555-0121" },
+  "Hapag-Lloyd": { email: "dispatch@hapaglloyd-ops.com", phone: "+1 (201) 555-0132" },
+  "Evergreen Marine": { email: "dispatch@evergreen-ops.com", phone: "+1 (714) 555-0143" },
+  "ONE": { email: "dispatch@one-line-ops.com", phone: "+1 (972) 555-0154" },
+  "Yang Ming": { email: "dispatch@yangming-ops.com", phone: "+1 (714) 555-0165" },
+  "ZIM": { email: "dispatch@zim-ops.com", phone: "+1 (804) 555-0176" },
+  "MSC": { email: "dispatch@msc-ops.com", phone: "+1 (212) 555-0187" },
+  "CMA CGM": { email: "dispatch@cma-cgm-ops.com", phone: "+1 (757) 555-0198" },
+  "OOCL": { email: "dispatch@oocl-ops.com", phone: "+1 (714) 555-0109" },
+  "Wan Hai": { email: "dispatch@wanhai-ops.com", phone: "+1 (562) 555-0120" },
+  "APL": { email: "dispatch@apl-ops.com", phone: "+1 (904) 555-0131" },
+};
+
 export const SHIPMENTS = [
   {
     id: "OWL-HOU-1001",
