@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { dispatchAlert } from "../lib/notifications.js";
+import { dispatchAlert, fetchAlertSettings } from "../lib/notifications.js";
 import { reverseGeocode } from "../lib/mapbox.js";
 
 // "27.5061N" / "99.5075W" -> [lng, lat] decimal, for reverse geocoding.
@@ -129,24 +129,38 @@ export default function RecoveryCase({ onBack, deviceId, companyInfo }) {
       details: [["Case ID", cd.caseId], ["Carrier", cd.carrier], ["Cargo Value", cd.cargoValue], ...extraDetails],
     });
 
+  // Matches a reverse-geocoded city/county/state against the company's
+  // configured Law Enforcement Contacts (Settings > Law Enforcement
+  // Contacts), case-insensitive substring match on any field.
+  const matchLEContact = (contacts, geo) => {
+    if (!geo || !contacts?.length) return null;
+    const haystack = [geo.city, geo.county, geo.state].filter(Boolean).join(" ").toLowerCase();
+    return contacts.find((c) => c.match && haystack.includes(c.match.toLowerCase())) || null;
+  };
+
   // Reverse-geocodes the case's last known GPS fix to a real city/county/state,
   // then opens the operator's own email client pre-filled with the case
-  // details and that jurisdiction in the subject line. There's no reliable
-  // public directory mapping coordinates to a specific agency's contact info,
-  // so the "To" field is deliberately left blank — the operator looks up and
-  // pastes in the correct department for that city/county themselves.
+  // details. If a configured Law Enforcement Contact matches that
+  // jurisdiction, the "To" field is filled in automatically; otherwise there
+  // is no reliable public directory mapping coordinates to a specific
+  // agency's contact info, so it's left blank for the operator to fill in.
   const openLawEnforcementEmail = async () => {
     let placeLabel = cd.location;
+    let matched = null;
     const coords = parseLatLon(cd.lat, cd.lon);
     if (coords) {
       try {
-        const geo = await reverseGeocode(coords);
+        const [geo, alertSettings] = await Promise.all([
+          reverseGeocode(coords),
+          fetchAlertSettings(companyId),
+        ]);
         if (geo) {
           const parts = [geo.city, geo.county, geo.state].filter(Boolean);
           if (parts.length) placeLabel = parts.join(", ");
+          matched = matchLEContact(alertSettings?.le_contacts, geo);
         }
       } catch (e) {
-        console.error("Reverse geocode failed:", e);
+        console.error("Reverse geocode / LE contact lookup failed:", e);
       }
     }
 
@@ -167,8 +181,13 @@ export default function RecoveryCase({ onBack, deviceId, companyInfo }) {
       `— Divvo Guardian Operations`,
     ].join("\n");
 
-    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    showToast(`Email drafted for ${placeLabel} — pick the recipient in your mail app`);
+    const to = matched?.email || "";
+    window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    showToast(
+      matched
+        ? `Emailing ${matched.agency} directly (${placeLabel})`
+        : `Email drafted for ${placeLabel} — no contact configured, pick the recipient in your mail app`
+    );
   };
 
   const handleAction = (action) => {

@@ -192,6 +192,7 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
   const [toast, setToast]         = useState(null);
   const [newEmail, setNewEmail]   = useState("");
   const [newPhone, setNewPhone]   = useState("");
+  const [newLE, setNewLE] = useState({ match: "", agency: "", email: "", phone: "" });
   const [testLoading, setTestLoading] = useState(false);
 
   useEffect(() => {
@@ -211,6 +212,7 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
           browser_all:    s.browser_all ?? true,
           critical_response_minutes: s.critical_response_minutes ?? 5,
           warning_response_minutes:  s.warning_response_minutes ?? 15,
+          le_contacts: Array.isArray(s.le_contacts) ? s.le_contacts : [],
         });
       } else {
         setSettingsId(null);
@@ -251,6 +253,16 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
 
   const removePhone = (i) => {
     setSettings((s) => ({ ...s, phones: s.phones.filter((_, idx) => idx !== i) }));
+  };
+
+  const addLEContact = () => {
+    if (!newLE.match.trim() || !newLE.agency.trim() || !newLE.email.trim()) return;
+    setSettings((s) => ({ ...s, le_contacts: [...(s.le_contacts || []), { ...newLE, match: newLE.match.trim(), agency: newLE.agency.trim(), email: newLE.email.trim(), phone: newLE.phone.trim() }] }));
+    setNewLE({ match: "", agency: "", email: "", phone: "" });
+  };
+
+  const removeLEContact = (i) => {
+    setSettings((s) => ({ ...s, le_contacts: s.le_contacts.filter((_, idx) => idx !== i) }));
   };
 
   const sendTestAlert = async () => {
@@ -417,6 +429,53 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
                 style={{ flex: 1, background: "#111827", border: "1px solid #1f2937", borderRadius: 8, padding: "8px 12px", color: "#f9fafb", fontSize: 12 }}
               />
               <button onClick={addPhone} style={{ background: "#1e3a8a", border: "1px solid #2563eb", color: "#93c5fd", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Add</button>
+            </div>
+          </div>
+        </Section>
+
+        <Section title="Law Enforcement Contacts">
+          <div style={{ paddingTop: 8 }}>
+            <p style={{ fontSize: 12, color: "#6b7280", marginBottom: 10 }}>
+              When "Notify Law Enforcement" is used on a case, the truck's last GPS fix is matched against the city/county/state below (case-insensitive). A match auto-fills that agency's email; no match falls back to a blank recipient for manual lookup.
+            </p>
+            {(settings.le_contacts || []).map((c, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid #111827" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: "#d1d5db", fontWeight: 600 }}>{c.agency} <span style={{ color: "#6b7280", fontWeight: 400 }}>— matches "{c.match}"</span></div>
+                  <div style={{ fontSize: 11, color: "#6b7280", fontFamily: "monospace" }}>{c.email}{c.phone ? `  ·  ${c.phone}` : ""}</div>
+                </div>
+                <button onClick={() => removeLEContact(i)} style={{ background: "#450a0a", border: "1px solid #ef4444", color: "#fca5a5", borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Remove</button>
+              </div>
+            ))}
+            {(settings.le_contacts || []).length === 0 && (
+              <p style={{ fontSize: 12, color: "#6b7280", padding: "6px 0" }}>No jurisdictions configured yet — every case will fall back to a blank recipient.</p>
+            )}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr auto", gap: 8, marginTop: 10 }}>
+              <input
+                value={newLE.match}
+                onChange={(e) => setNewLE((s) => ({ ...s, match: e.target.value }))}
+                placeholder="City or county (e.g. Laredo)"
+                style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, padding: "8px 10px", color: "#f9fafb", fontSize: 12 }}
+              />
+              <input
+                value={newLE.agency}
+                onChange={(e) => setNewLE((s) => ({ ...s, agency: e.target.value }))}
+                placeholder="Agency name"
+                style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, padding: "8px 10px", color: "#f9fafb", fontSize: 12 }}
+              />
+              <input
+                value={newLE.email}
+                onChange={(e) => setNewLE((s) => ({ ...s, email: e.target.value }))}
+                placeholder="Agency email"
+                style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, padding: "8px 10px", color: "#f9fafb", fontSize: 12 }}
+              />
+              <input
+                value={newLE.phone}
+                onChange={(e) => setNewLE((s) => ({ ...s, phone: e.target.value }))}
+                placeholder="Phone (optional)"
+                style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, padding: "8px 10px", color: "#f9fafb", fontSize: 12 }}
+              />
+              <button onClick={addLEContact} style={{ background: "#1e3a8a", border: "1px solid #2563eb", color: "#93c5fd", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>+ Add</button>
             </div>
           </div>
         </Section>
