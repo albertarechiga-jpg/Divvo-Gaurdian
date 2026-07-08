@@ -110,6 +110,33 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
     setEditingIns(false);
   };
 
+  const contactAdjuster = () => {
+    if (!ins.adjusterEmail || ins.adjusterEmail === "—") {
+      showToast("No adjuster assigned to this claim yet");
+      return;
+    }
+    const subject = `Cargo Theft Claim Follow-up — ${inc.id} — Policy ${ins.policyNumber}`;
+    const body = [
+      `Hi ${ins.adjusterName},`,
+      "",
+      "Following up on the claim below.",
+      "",
+      `Case ID: ${inc.id}`,
+      `Policy #: ${ins.policyNumber}`,
+      `Claim #: ${ins.claimNumber || "Not yet filed"}`,
+      `Incident Type: ${recoveryDetail.incidentType}`,
+      `Shipment: ${s?.id || "—"}  ·  Cargo Value: ${fmtCurrency(inc.cargoValue)}`,
+      `Carrier: ${s?.carrier || "—"}`,
+      "",
+      "Please advise on next steps for this claim.",
+      "",
+      "— Divvo Guardian Operations",
+    ].join("\n");
+    window.location.href = `mailto:${encodeURIComponent(ins.adjusterEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    logCustody(`Insurance claim follow-up email drafted to ${ins.adjusterName}`);
+    showToast(`Emailing ${ins.adjusterName} (${ins.adjusterEmail})`);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {actionToast && (
@@ -408,7 +435,7 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
             </div>
             <div className="mt-3">
               <button
-                onClick={() => { logCustody("Insurance claim follow-up initiated"); showToast("Insurance adjuster contacted"); }}
+                onClick={contactAdjuster}
                 className="w-full border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-medium py-2 px-3 rounded-lg transition-colors"
               >
                 Contact Adjuster
