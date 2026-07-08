@@ -213,6 +213,12 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
           critical_response_minutes: s.critical_response_minutes ?? 5,
           warning_response_minutes:  s.warning_response_minutes ?? 15,
           le_contacts: Array.isArray(s.le_contacts) ? s.le_contacts : [],
+          route_deviation_miles:     s.route_deviation_miles ?? 0.5,
+          unauthorized_stop_minutes: s.unauthorized_stop_minutes ?? 20,
+          low_battery_pct:           s.low_battery_pct ?? 35,
+          critical_risk_score:       s.critical_risk_score ?? 80,
+          imu_impact_g:              s.imu_impact_g ?? 3.2,
+          angular_tilt_deg:          s.angular_tilt_deg ?? 12.0,
         });
       } else {
         setSettingsId(null);
@@ -575,20 +581,36 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
 
         {/* Detection thresholds */}
         <Section title="Detection Thresholds">
+          <p style={{ fontSize: 12, color: "#6b7280", marginBottom: 6, paddingTop: 8 }}>
+            These drive the Dashboard's "Run Scan" detection engine — a shipment only generates an alert when it crosses the threshold below.
+          </p>
           {[
-            ["Route Deviation Threshold", "0.5 miles"],
-            ["Unauthorized Stop Duration", "20 minutes"],
-            ["Low Battery Threshold", "35%"],
-            ["Critical Risk Score", "80 / 100"],
-            ["Tracker Offline Threshold", "30 minutes"],
-            ["Speed Alert Threshold", "25 mph"],
-            ["IMU Impact Threshold", "3.20G force"],
-          ].map(([k, v]) => (
-            <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #111827" }}>
-              <span style={{ fontSize: 13, color: "#9ca3af" }}>{k}</span>
-              <span style={{ fontSize: 13, color: "#d1d5db", fontWeight: 600 }}>{v}</span>
+            { key: "route_deviation_miles", label: "Route Deviation Threshold", suffix: "miles", step: 0.1, min: 0.1 },
+            { key: "unauthorized_stop_minutes", label: "Unauthorized Stop Duration", suffix: "min", step: 1, min: 1 },
+            { key: "low_battery_pct", label: "Low Battery Threshold", suffix: "%", step: 1, min: 1, max: 100 },
+            { key: "critical_risk_score", label: "Critical Risk Score", suffix: "/ 100", step: 1, min: 1, max: 100 },
+            { key: "imu_impact_g", label: "IMU Impact Threshold", suffix: "G", step: 0.05, min: 0.1 },
+            { key: "angular_tilt_deg", label: "Angular Tilt Threshold", suffix: "°", step: 0.5, min: 0.5 },
+          ].map(({ key, label, suffix, step, min, max }) => (
+            <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #111827" }}>
+              <span style={{ fontSize: 13, color: "#9ca3af" }}>{label}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <input
+                  type="number"
+                  step={step}
+                  min={min}
+                  max={max}
+                  value={settings[key]}
+                  onChange={(e) => setSettings((s) => ({ ...s, [key]: Math.max(min ?? 0, parseFloat(e.target.value) || 0) }))}
+                  style={{ width: 72, background: "#111827", border: "1px solid #1f2937", borderRadius: 8, padding: "6px 8px", color: "#f9fafb", fontSize: 13, textAlign: "center" }}
+                />
+                <span style={{ fontSize: 12, color: "#6b7280", minWidth: 40 }}>{suffix}</span>
+              </div>
             </div>
           ))}
+          <p style={{ fontSize: 11, color: "#4b5563", marginTop: 10 }}>
+            Tracker Offline and Speed Alert aren't evaluated as numeric thresholds by the detection engine yet, so there's no control for them here.
+          </p>
         </Section>
 
         {currentUser?.role === "admin" && session && <TeamSection session={session} />}

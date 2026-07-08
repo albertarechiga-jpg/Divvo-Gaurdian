@@ -4,7 +4,8 @@ import { INITIAL_ALERTS } from "./data/alerts.js";
 import { INITIAL_INCIDENTS } from "./data/incidents.js";
 import { RECOVERY_MOCK, buildDefaultRecoveryDetail } from "./data/recoveryMock.js";
 import { fetchCompanies } from "./lib/companies.js";
-import { runTheftDetectionScan, createIncidentFromAlert, createIncidentForShipment } from "./lib/detectionEngine.js";
+import { runTheftDetectionScan, createIncidentFromAlert, createIncidentForShipment, DEFAULT_THRESHOLDS } from "./lib/detectionEngine.js";
+import { fetchAlertSettings } from "./lib/notifications.js";
 import { getSession, onAuthStateChange, fetchCurrentUser, signOut } from "./lib/auth.js";
 import Sidebar from "./components/Sidebar.jsx";
 
@@ -176,13 +177,23 @@ export default function App() {
   const handleScan = useCallback(() => {
     setScanning(true);
     setScanResults(null);
-    setTimeout(() => {
-      const newAlerts = runTheftDetectionScan(companyShipments, alerts);
-      setAlerts((prev) => [...prev, ...newAlerts]);
-      setScanResults(newAlerts);
-      setScanning(false);
-    }, 1800);
-  }, [alerts, companyShipments]);
+    fetchAlertSettings(company).then((settings) => {
+      const thresholds = {
+        route_deviation_miles: settings?.route_deviation_miles ?? DEFAULT_THRESHOLDS.route_deviation_miles,
+        unauthorized_stop_minutes: settings?.unauthorized_stop_minutes ?? DEFAULT_THRESHOLDS.unauthorized_stop_minutes,
+        low_battery_pct: settings?.low_battery_pct ?? DEFAULT_THRESHOLDS.low_battery_pct,
+        critical_risk_score: settings?.critical_risk_score ?? DEFAULT_THRESHOLDS.critical_risk_score,
+        imu_impact_g: settings?.imu_impact_g ?? DEFAULT_THRESHOLDS.imu_impact_g,
+        angular_tilt_deg: settings?.angular_tilt_deg ?? DEFAULT_THRESHOLDS.angular_tilt_deg,
+      };
+      setTimeout(() => {
+        const newAlerts = runTheftDetectionScan(companyShipments, alerts, thresholds);
+        setAlerts((prev) => [...prev, ...newAlerts]);
+        setScanResults(newAlerts);
+        setScanning(false);
+      }, 1800);
+    });
+  }, [alerts, companyShipments, company]);
 
   const handleConvertToIncident = useCallback((alert) => {
     const ship = SHIPMENTS.find((s) => s.id === alert.shipmentId);
