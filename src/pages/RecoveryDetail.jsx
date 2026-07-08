@@ -6,6 +6,8 @@ import { fmtCurrency, fmtDate } from "../lib/utils.js";
 import { RiskBadge } from "../components/Badges.jsx";
 import RouteMap from "../components/RouteMap.jsx";
 import CasePacketModal from "../components/CasePacketModal.jsx";
+import { dispatchAlert, fetchAlertSettings } from "../lib/notifications.js";
+import { reverseGeocode } from "../lib/mapbox.js";
 
 // Parses "32.8407° N, 83.6324° W" -> [lng, lat]
 function parseCoords(str) {
@@ -29,7 +31,7 @@ const InfoRow = ({ label, value, danger }) => (
   </div>
 );
 
-export default function RecoveryDetail({ incidentId, incidents, alerts, recoveryDetail, onUpdateRecoveryDetail, onAdvanceStage, onBack }) {
+export default function RecoveryDetail({ incidentId, incidents, alerts, recoveryDetail, onUpdateRecoveryDetail, onAdvanceStage, onBack, companyInfo }) {
   const inc = incidents.find((i) => i.id === incidentId);
   if (!inc || !recoveryDetail) return null;
   const s = SHIPMENTS.find((x) => x.id === inc.shipmentId);
@@ -110,6 +112,32 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
     setEditingIns(false);
   };
 
+  // Real internal fan-out (Twilio SMS + Resend email, gated by the
+  // company's alert_settings) — same dispatchAlert() pipeline the automatic
+  // theft-detection alerts use.
+  const notifyOperations = () => {
+    dispatchAlert({
+      alertType: `Recovery Escalation — Operations Notified`,
+      deviceId: inc.deviceId || inc.id,
+      location: recoveryDetail.lastGPS.address,
+      severity: inc.priority,
+      companyId: companyInfo?.id || "owlet",
+      details: [["Case ID", inc.id], ["Incident Type", recoveryDetail.incidentType], ["Cargo Value", fmtCurrency(inc.cargoValue)]],
+    });
+    logCustody("Operations center notified — case escalated");
+    showToast("Operations notified");
+  };
+
+  const assignRecoveryTeam = () => {
+    onUpdateRecoveryDetail(inc.id, {
+      recoveryTeam: "Recovery Team Alpha",
+      teamLead: recoveryDetail.teamLead === "Pending" ? "Field Lead — TBD" : recoveryDetail.teamLead,
+      teamDeployed: new Date().toISOString(),
+    });
+    logCustody("Recovery Team Alpha assigned and dispatched");
+    showToast("Recovery Team Alpha assigned");
+  };
+
   const contactCarrier = () => {
     const contact = s?.carrier ? CARRIER_CONTACTS[s.carrier] : null;
     if (!contact) {
@@ -137,15 +165,59 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
     showToast(`Emailing ${s.carrier} dispatch (${contact.email})`);
   };
 
-  const contactAgency = () => {
-    if (!le.contactPhone || le.contactPhone === "—") {
-      showToast("No law enforcement contact assigned to this case yet");
+  const contactAgency = async () => {
+    // A known agency/contact is already on file for this case — call them
+    // directly, no lookup needed.
+    if (le.contactPhone && le.contactPhone !== "—") {
+      const tel = le.contactPhone.replace(/[^\d+]/g, "");
+      window.location.href = `tel:${tel}`;
+      logCustody(`Called ${le.contactName} (${le.agency}) — ${le.contactPhone}`);
+      showToast(`Calling ${le.contactName} — ${le.contactPhone}`);
       return;
     }
-    const tel = le.contactPhone.replace(/[^\d+]/g, "");
-    window.location.href = `tel:${tel}`;
-    logCustody(`Called ${le.contactName} (${le.agency}) — ${le.contactPhone}`);
-    showToast(`Calling ${le.contactName} — ${le.contactPhone}`);
+
+    // Not yet engaged — reverse-geocode the case's last known location and
+    // match it against the company's configured Law Enforcement Contacts
+    // (Settings > Law Enforcement Contacts) to auto-fill a recipient; falls
+    // back to a blank "To" field (still pre-filled subject/body) when no
+    // jurisdiction match exists, since there's no reliable public directory
+    // mapping coordinates to a specific agency's contact info.
+    let placeLabel = recoveryDetail.lastGPS.address || "the case location";
+    let matched = null;
+    if (lastGPSCoord) {
+      try {
+        const [geo, alertSettings] = await Promise.all([
+          reverseGeocode(lastGPSCoord),
+          fetchAlertSettings(companyInfo?.id || "owlet"),
+        ]);
+        if (geo) {
+          const parts = [geo.city, geo.county, geo.state].filter(Boolean);
+          if (parts.length) placeLabel = parts.join(", ");
+          const haystack = parts.join(" ").toLowerCase();
+          matched = (alertSettings?.le_contacts || []).find((c) => c.match && haystack.includes(c.match.toLowerCase())) || null;
+        }
+      } catch (e) {
+        console.error("Reverse geocode / LE contact lookup failed:", e);
+      }
+    }
+
+    const subject = `URGENT — Cargo Theft In Progress — ${inc.id} — ${placeLabel}`;
+    const body = [
+      "Divvo Guardian cargo theft alert — requesting immediate law enforcement response.",
+      "",
+      `Case ID: ${inc.id}`,
+      `Jurisdiction (from GPS): ${placeLabel}`,
+      `Coordinates: ${recoveryDetail.lastGPS.coords}`,
+      `Cargo Value: ${fmtCurrency(inc.cargoValue)}`,
+      "",
+      "GPS history, camera footage, and tamper sensor logs are available on request — reply to this email or call our operations line.",
+      "",
+      "— Divvo Guardian Operations",
+    ].join("\n");
+    const to = matched?.email || "";
+    window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    logCustody(matched ? `Law enforcement email drafted to ${matched.agency}` : "Law enforcement email drafted — no contact configured for this jurisdiction");
+    showToast(matched ? `Emailing ${matched.agency} directly (${placeLabel})` : `Email drafted for ${placeLabel} — no contact configured, pick the recipient in your mail app`);
   };
 
   const contactAdjuster = () => {
@@ -230,6 +302,12 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
               )}
             </div>
             <button
+              onClick={notifyOperations}
+              className="text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors bg-gray-800 hover:bg-gray-700 border border-gray-700"
+            >
+              Notify Operations
+            </button>
+            <button
               onClick={contactCarrier}
               className="text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors bg-gray-800 hover:bg-gray-700 border border-gray-700"
             >
@@ -302,19 +380,37 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <SectionHeader label="Shipment & Cargo" />
-            {s && (<>
-              <InfoRow label="Shipment ID" value={s.id} />
-              <InfoRow label="Container #" value={s.containerNumber} />
-              <InfoRow label="Cargo Type" value={s.cargoType} />
-              <InfoRow label="Cargo Value" value={fmtCurrency(inc.cargoValue)} />
-              <InfoRow label="Carrier" value={s.carrier} />
-              <InfoRow label="Origin" value={s.originPort.split("(")[0].trim()} />
-              <InfoRow label="Destination" value={s.destination} />
-              <InfoRow label="ETA" value={fmtDate(s.eta)} />
-              <InfoRow label="Seal Status" value={s.sealStatus} danger={s.sealStatus !== "Intact"} />
-              <InfoRow label="Door Status" value={s.doorStatus} danger={s.doorStatus !== "Closed"} />
-            </>)}
+            {s ? (
+              <>
+                <SectionHeader label="Shipment & Cargo" />
+                <InfoRow label="Shipment ID" value={s.id} />
+                <InfoRow label="Container #" value={s.containerNumber} />
+                <InfoRow label="Cargo Type" value={s.cargoType} />
+                <InfoRow label="Cargo Value" value={fmtCurrency(inc.cargoValue)} />
+                <InfoRow label="Carrier" value={s.carrier} />
+                <InfoRow label="Origin" value={s.originPort.split("(")[0].trim()} />
+                <InfoRow label="Destination" value={s.destination} />
+                <InfoRow label="ETA" value={fmtDate(s.eta)} />
+                <InfoRow label="Seal Status" value={s.sealStatus} danger={s.sealStatus !== "Intact"} />
+                <InfoRow label="Door Status" value={s.doorStatus} danger={s.doorStatus !== "Closed"} />
+              </>
+            ) : recoveryDetail.deviceSnapshot ? (
+              <>
+                <SectionHeader label="Device Snapshot" />
+                <InfoRow label="Device" value={inc.deviceId} />
+                <InfoRow label="Trailer" value={inc.trailerId} />
+                <InfoRow label="Cargo Value" value={fmtCurrency(inc.cargoValue)} />
+                <InfoRow label="Door" value={recoveryDetail.deviceSnapshot.door} danger={recoveryDetail.deviceSnapshot.door !== "Closed"} />
+                <InfoRow label="Lock" value={recoveryDetail.deviceSnapshot.lock} danger={recoveryDetail.deviceSnapshot.lock !== "Secure" && recoveryDetail.deviceSnapshot.lock !== "Locked"} />
+                <InfoRow label="Battery" value={`${recoveryDetail.deviceSnapshot.battery}%`} />
+                <InfoRow label="Camera" value={recoveryDetail.deviceSnapshot.camera} />
+                <InfoRow label="Vibration" value={recoveryDetail.deviceSnapshot.vibration} />
+                <InfoRow label="LTE Signal" value={recoveryDetail.deviceSnapshot.lte} />
+                <p className="text-xs text-gray-400 mt-3">Snapshot captured when this case was opened from the Command Center.</p>
+              </>
+            ) : (
+              <SectionHeader label="Shipment & Cargo" />
+            )}
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -371,7 +467,7 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
             <InfoRow label="Email" value={recoveryDetail.investigatorEmail} />
             <div className="mt-4 pt-4 border-t border-gray-100">
               <button
-                onClick={() => { logCustody("Recovery team assignment action triggered"); showToast("Recovery team assignment updated"); }}
+                onClick={assignRecoveryTeam}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2 px-4 rounded-lg transition-colors"
               >
                 Assign / Reassign Recovery Team

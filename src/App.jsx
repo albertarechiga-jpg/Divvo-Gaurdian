@@ -2,9 +2,9 @@ import { useState, useCallback, useEffect } from "react";
 import { SHIPMENTS } from "./data/shipments.js";
 import { INITIAL_ALERTS } from "./data/alerts.js";
 import { INITIAL_INCIDENTS } from "./data/incidents.js";
-import { RECOVERY_MOCK, buildDefaultRecoveryDetail } from "./data/recoveryMock.js";
+import { RECOVERY_MOCK, buildDefaultRecoveryDetail, buildDefaultRecoveryDetailForDevice } from "./data/recoveryMock.js";
 import { fetchCompanies } from "./lib/companies.js";
-import { runTheftDetectionScan, createIncidentFromAlert, createIncidentForShipment, DEFAULT_THRESHOLDS } from "./lib/detectionEngine.js";
+import { runTheftDetectionScan, createIncidentFromAlert, createIncidentForShipment, createIncidentForDevice, DEFAULT_THRESHOLDS } from "./lib/detectionEngine.js";
 import { fetchAlertSettings } from "./lib/notifications.js";
 import { getSession, onAuthStateChange, fetchCurrentUser, signOut } from "./lib/auth.js";
 import Sidebar from "./components/Sidebar.jsx";
@@ -19,7 +19,6 @@ import ShipmentDetail  from "./pages/ShipmentDetail.jsx";
 import AlertsPage      from "./pages/Alerts.jsx";
 import RecoveryPage    from "./pages/Recovery.jsx";
 import RecoveryDetail  from "./pages/RecoveryDetail.jsx";
-import RecoveryCase    from "./pages/RecoveryCase.jsx";
 import ReportsPage     from "./pages/Reports.jsx";
 import SettingsPage    from "./pages/Settings.jsx";
 import CameraView      from "./pages/CameraView.jsx";
@@ -67,7 +66,6 @@ export default function App() {
   const [page, setPage] = useState("unified-command");
   const [selectedShipment, setSelectedShipment]   = useState(null);
   const [selectedIncident, setSelectedIncident]   = useState(null);
-  const [selectedDevice, setSelectedDevice]       = useState("DG-1028");
   const [companies, setCompanies]                 = useState([]);
   const [companiesLoading, setCompaniesLoading]   = useState(true);
   const [company, setCompany]                     = useState(null);
@@ -75,6 +73,10 @@ export default function App() {
   const [alerts,    setAlerts]    = useState(INITIAL_ALERTS);
   const [incidents, setIncidents] = useState(INITIAL_INCIDENTS);
   const [recoveryDetails, setRecoveryDetails] = useState(() => ({ ...RECOVERY_MOCK }));
+  // Maps a Command Center device id -> the incident created for it, so
+  // repeat "Recovery Actions" clicks reuse the same case instead of
+  // creating a duplicate incident every time.
+  const [deviceIncidents, setDeviceIncidents] = useState({});
   const [scanning,  setScanning]  = useState(false);
   const [scanResults, setScanResults] = useState(null);
 
@@ -150,20 +152,6 @@ export default function App() {
     setSelectedIncident(null);
   };
 
-  // Listen for navigation events from child components
-  useEffect(() => {
-    const handler = (e) => {
-      if (typeof e.detail === "object" && e.detail.page) {
-        setSelectedDevice(e.detail.deviceId || "DG-1028");
-        handleNav(e.detail.page);
-      } else {
-        handleNav(e.detail);
-      }
-    };
-    window.addEventListener("divvo-nav", handler);
-    return () => window.removeEventListener("divvo-nav", handler);
-  }, []);
-
   const handleViewShipment = (id) => {
     setSelectedShipment(id);
     setPage("shipment-detail");
@@ -173,6 +161,36 @@ export default function App() {
     setSelectedIncident(id);
     setPage("recovery-detail");
   };
+
+  // Bridges a Command Center device into the same incident/recoveryDetails
+  // model everything else uses — creates an incident the first time a
+  // device's "Recovery Actions" is clicked, reuses it on repeat clicks
+  // (deviceIncidents map) instead of creating duplicates.
+  const handleViewOrCreateDeviceIncident = useCallback((device) => {
+    const existingId = deviceIncidents[device.id];
+    if (existingId) {
+      handleViewIncident(existingId);
+      return;
+    }
+    const { incident, incidentId } = createIncidentForDevice(device);
+    setIncidents((prev) => [incident, ...prev]);
+    setRecoveryDetails((prev) => ({ ...prev, [incidentId]: buildDefaultRecoveryDetailForDevice(device) }));
+    setDeviceIncidents((prev) => ({ ...prev, [device.id]: incidentId }));
+    handleViewIncident(incidentId);
+  }, [deviceIncidents]);
+
+  // Listen for navigation events from child components
+  useEffect(() => {
+    const handler = (e) => {
+      if (typeof e.detail === "object" && e.detail.page === "recovery-from-device" && e.detail.device) {
+        handleViewOrCreateDeviceIncident(e.detail.device);
+        return;
+      }
+      handleNav(e.detail);
+    };
+    window.addEventListener("divvo-nav", handler);
+    return () => window.removeEventListener("divvo-nav", handler);
+  }, [handleViewOrCreateDeviceIncident]);
 
   const handleScan = useCallback(() => {
     setScanning(true);
@@ -269,12 +287,11 @@ export default function App() {
           onUpdateRecoveryDetail={handleUpdateRecoveryDetail}
           onAdvanceStage={handleAdvanceStage}
           onBack={() => handleNav("recovery")}
+          companyInfo={companyInfo}
         />
       );
 
     switch (page) {
-      case "recovery-case":
-        return <RecoveryCase onBack={() => handleNav("unified-command")} deviceId={selectedDevice} companyInfo={companyInfo} />;
 
       case "unified-command":
         return <UnifiedCommandCenter key={company} onNav={handleNav} companyInfo={companyInfo} />;

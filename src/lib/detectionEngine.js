@@ -206,6 +206,34 @@ export function createIncidentForShipment(shipment, { title, description, priori
   };
 }
 
+// Bridges a Command Center device (COMPANY_DEVICES entry — id, trailerId,
+// type, severity, location, cargo string, etc.) into the same incident model
+// used everywhere else, so device-triggered recovery cases share one data
+// model with shipment-triggered ones instead of a separate mock page.
+export function createIncidentForDevice(device) {
+  const id = `INC-2026-${String(_incidentSeq++).padStart(4, "0")}`;
+  const now = new Date().toISOString();
+  const cargoValue = parseFloat(String(device.cargo ?? "").replace(/[^0-9.]/g, "")) || 0;
+  return {
+    incident: {
+      id,
+      shipmentId: null,
+      deviceId: device.id,
+      trailerId: device.trailerId,
+      title: `${device.type} — ${device.id}`,
+      stage: 2,
+      stageLabel: "Case Created",
+      priority: device.severity ?? "Medium",
+      createdAt: now,
+      assignedTo: "Unassigned",
+      cargoValue,
+      description: `Recovery case opened from Command Center for device ${device.id} (${device.type}) at ${device.location}.`,
+      updates: [{ time: now, text: `Incident case created from Command Center device ${device.id}` }],
+    },
+    incidentId: id,
+  };
+}
+
 export function createIncidentFromAlert(alert, shipment) {
   const now = new Date().toISOString();
   const result = createIncidentForShipment(shipment, {

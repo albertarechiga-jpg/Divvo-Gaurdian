@@ -49,6 +49,69 @@ export function buildDefaultRecoveryDetail(shipment) {
   };
 }
 
+// Sibling to buildDefaultRecoveryDetail() above, for incidents created from a
+// Command Center device (see createIncidentForDevice in detectionEngine.js)
+// rather than from a shipment. deviceSnapshot captures the device's
+// telemetry at creation time — this app has no live-updating telemetry feed
+// outside the Command Center's own state, so a snapshot is consistent with
+// how the rest of the mock data model works.
+export function buildDefaultRecoveryDetailForDevice(device) {
+  const now = new Date().toISOString();
+  return {
+    incidentType: `${device.type} — Active Recovery`,
+    investigator: "Unassigned",
+    investigatorPhone: "—",
+    investigatorEmail: "—",
+    recoveryTeam: "Unassigned",
+    teamLead: "Pending",
+    teamPhone: "—",
+    teamDeployed: null,
+    lastGPS: {
+      coords: device.lat != null && device.lon != null ? `${device.lat}° N, ${Math.abs(device.lon)}° W` : "—",
+      address: device.location || "—",
+      timestamp: now,
+      speed: "—",
+      heading: "—",
+    },
+    deviceSnapshot: {
+      door: device.door,
+      lock: device.lock,
+      battery: device.battery,
+      camera: device.camera,
+      vibration: device.vibration,
+      lte: device.lte,
+    },
+    evidence: [],
+    lawEnforcement: {
+      agency: "Not yet engaged",
+      caseNumber: "Pending",
+      contactName: "—",
+      contactPhone: "—",
+      reportFiled: false,
+      reportFiledAt: null,
+      notes: "No law enforcement action taken yet.",
+      packetGenerated: false,
+      packetGeneratedAt: null,
+    },
+    insurance: {
+      carrier: "—",
+      policyNumber: "—",
+      claimNumber: "Not filed",
+      adjusterName: "—",
+      adjusterPhone: "—",
+      adjusterEmail: "—",
+      claimFiled: false,
+      claimFiledAt: null,
+      estimatedPayout: null,
+      status: "Not Initiated",
+      notes: "No insurance claim filed yet.",
+    },
+    chainOfCustody: [
+      { time: now, actor: "Divvo Detection Engine", action: `${device.type} alert triggered on device ${device.id}`, artifact: "AUTO-ALERT" },
+    ],
+  };
+}
+
 export const RECOVERY_MOCK = {
   "INC-2026-0041": {
     incidentType: "Cargo Theft — Active",

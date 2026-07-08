@@ -14,7 +14,8 @@ export async function geocode(place) {
 // coord: [lng, lat] -> human-readable place (city/county/state), best-effort.
 // There is no reliable public directory mapping coordinates to the correct
 // law-enforcement agency's contact info, so this only resolves the place
-// name — the recipient is still a human decision (see RecoveryCase.jsx).
+// name — the recipient is still a human decision (see RecoveryDetail.jsx's
+// contactAgency()).
 export async function reverseGeocode([lng, lat]) {
   const url = `https://api.mapbox.com/search/geocode/v6/reverse?longitude=${lng}&latitude=${lat}&access_token=${MAPBOX_TOKEN}`;
   const res = await fetch(url);

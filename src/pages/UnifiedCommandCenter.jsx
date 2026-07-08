@@ -1270,7 +1270,7 @@ function AIResponsePanel({ device, onDismiss, onNav, company = "owlet" }) {
 
             {/* Action buttons */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              <button onClick={() => { setActionTaken(true); window.dispatchEvent(new CustomEvent("divvo-nav", { detail: { page: "recovery-case", deviceId: device.id } })); }}
+              <button onClick={() => { setActionTaken(true); window.dispatchEvent(new CustomEvent("divvo-nav", { detail: { page: "recovery-from-device", device } })); }}
                 style={{ background: isCrit ? "#7f1d1d" : "#451a03", border: `1px solid ${borderColor}`, color: textColor, borderRadius: 8, padding: "9px 0", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                 Open Recovery Case
               </button>
