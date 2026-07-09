@@ -1,4 +1,7 @@
+import { useState, useEffect } from "react";
 import { fmtCurrency, fmtDate } from "../lib/utils.js";
+import { fetchMissionEvidenceForShipment } from "../lib/bol.js";
+import { getEvidenceUrl } from "../lib/evidence.js";
 
 const PRINT_STYLE = `
   @media print {
@@ -33,11 +36,42 @@ function buildTimeline(alerts, incident) {
   return entries.sort((a, b) => new Date(a.time) - new Date(b.time));
 }
 
-export default function CasePacketModal({ onClose, shipment, incident, recoveryDetail, alerts }) {
+export default function CasePacketModal({ onClose, shipment, incident, recoveryDetail, alerts, session }) {
   const timeline = buildTimeline(alerts, incident);
   const gps = recoveryDetail?.lastGPS;
   const isLEPacket = !!incident;
   const cargoValue = incident?.cargoValue ?? shipment?.cargoValue;
+
+  // Pulls in everything from the v2 Mission Engine tables tied to this
+  // shipment (BOL, chain of custody, lock/unlock log, captured evidence) —
+  // previously this packet had zero awareness of any of that. undefined =
+  // loading, null = no BOL exists yet for this shipment.
+  const [missionEvidence, setMissionEvidence] = useState(undefined);
+  const [evidenceUrls, setEvidenceUrls] = useState({});
+  const [loadingUrlFor, setLoadingUrlFor] = useState(null);
+
+  useEffect(() => {
+    if (!session?.access_token || !shipment?.id) {
+      setMissionEvidence(null);
+      return;
+    }
+    fetchMissionEvidenceForShipment(session.access_token, shipment.id).then(setMissionEvidence);
+  }, [session, shipment?.id]);
+
+  const handleViewEvidence = async (id) => {
+    if (evidenceUrls[id]) {
+      window.open(evidenceUrls[id], "_blank");
+      return;
+    }
+    setLoadingUrlFor(id);
+    try {
+      const url = await getEvidenceUrl(session.access_token, id);
+      setEvidenceUrls((prev) => ({ ...prev, [id]: url }));
+      window.open(url, "_blank");
+    } finally {
+      setLoadingUrlFor(null);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 overflow-y-auto py-10 px-4">
@@ -153,6 +187,77 @@ export default function CasePacketModal({ onClose, shipment, incident, recoveryD
               ))}
             </div>
           </Section>
+        )}
+
+        {missionEvidence && (
+          <>
+            <Section label="Digital BOL">
+              <Row label="BOL Number" value={missionEvidence.bol.bol_number} />
+              <Row label="Status" value={missionEvidence.bol.status} />
+              <Row label="Carrier" value={missionEvidence.bol.missions?.carriers?.name} />
+              <Row label="Driver" value={missionEvidence.bol.missions?.drivers?.full_name} />
+              <Row label="Pickup Location" value={missionEvidence.bol.pickup_location} />
+              <Row label="Delivery Location" value={missionEvidence.bol.delivery_location} />
+            </Section>
+
+            <Section label="Mission Chain of Custody">
+              {missionEvidence.custodyEvents.length === 0 ? (
+                <p className="text-sm text-gray-400">No custody events recorded.</p>
+              ) : (
+                <div className="space-y-2">
+                  {missionEvidence.custodyEvents.map((ev) => (
+                    <div key={ev.id} className="flex gap-4 text-sm">
+                      <span className="font-mono text-gray-400 flex-shrink-0 w-32">{fmtDate(ev.occurred_at)}</span>
+                      <span className="text-gray-700 flex-1">
+                        <span className="font-semibold capitalize">{ev.event_type.replace(/_/g, " ")}</span>
+                        {ev.description ? ` — ${ev.description}` : ""}
+                      </span>
+                      <span className="text-gray-400 flex-shrink-0 capitalize">{ev.actor_type}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Section>
+
+            <Section label="Lock / Unlock Audit Log">
+              {missionEvidence.lockEvents.length === 0 ? (
+                <p className="text-sm text-gray-400">No lock events recorded.</p>
+              ) : (
+                <div className="space-y-2">
+                  {missionEvidence.lockEvents.map((ev) => (
+                    <div key={ev.id} className="flex gap-4 text-sm">
+                      <span className="font-mono text-gray-400 flex-shrink-0 w-32">{fmtDate(ev.occurred_at)}</span>
+                      <span className="text-gray-700 flex-1 font-semibold capitalize">{ev.event_type.replace(/_/g, " ")}</span>
+                      <span className="text-gray-400 flex-shrink-0 capitalize">{ev.triggered_by.replace(/_/g, " ")}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Section>
+
+            <Section label="Captured Evidence">
+              {missionEvidence.evidenceFiles.length === 0 ? (
+                <p className="text-sm text-gray-400">No evidence files captured.</p>
+              ) : (
+                <div className="space-y-2">
+                  {missionEvidence.evidenceFiles.map((ev) => (
+                    <div key={ev.id} className="flex gap-4 text-sm items-center">
+                      <span className="font-mono text-gray-400 flex-shrink-0 w-32">{fmtDate(ev.created_at)}</span>
+                      <span className="text-gray-700 flex-1 capitalize">{ev.file_type}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleViewEvidence(ev.id)}
+                        disabled={loadingUrlFor === ev.id}
+                        className="no-print text-blue-600 hover:underline text-xs font-semibold disabled:opacity-50 flex-shrink-0"
+                      >
+                        {loadingUrlFor === ev.id ? "Loading…" : "View"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Section>
+          </>
         )}
 
         <div className="border-t border-gray-300 pt-4 mt-6 text-xs text-gray-400 flex items-center justify-between">

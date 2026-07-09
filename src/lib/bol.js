@@ -1,5 +1,6 @@
 // Client helper for the Digital BOL flow (api/submit-bol.js, api/submit-bol-delivery.js).
 import { SB_URL, authHeaders } from "./supabase.js";
+import { fetchEvidenceFiles } from "./evidence.js";
 
 // SHA-256 hash of a signature canvas's data URL, computed entirely in the
 // browser via the native Web Crypto API (no library) — the raw signature
@@ -132,4 +133,28 @@ export async function logLockEvent(accessToken, payload) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Failed to log lock event");
   return data;
+}
+
+// Orchestrates every mission-scoped record tied to a shipment into one
+// bundle, for CasePacketModal.jsx's LE packet — the packet previously only
+// ever knew about the old mock incident data model, with zero awareness of
+// the BOL/chain-of-custody/lock-event/evidence data that actually lives in
+// the v2 Mission Engine tables. Returns null if this shipment has no BOL
+// bridged for it yet (the common case for shipments no dispatcher has
+// created a BOL for).
+export async function fetchMissionEvidenceForShipment(accessToken, legacyShipmentId) {
+  const bolSummary = await fetchLatestBolForShipment(accessToken, legacyShipmentId);
+  if (!bolSummary) return null;
+
+  const bol = await fetchBolDetail(accessToken, bolSummary.id);
+  if (!bol) return null;
+
+  const guardianId = bol.missions?.guardian_id;
+  const [custodyEvents, lockEvents, evidenceFiles] = await Promise.all([
+    fetchCustodyEvents(accessToken, bol.mission_id),
+    guardianId ? fetchLockEvents(accessToken, guardianId) : Promise.resolve([]),
+    fetchEvidenceFiles(accessToken, bol.mission_id),
+  ]);
+
+  return { bol, custodyEvents, lockEvents, evidenceFiles };
 }

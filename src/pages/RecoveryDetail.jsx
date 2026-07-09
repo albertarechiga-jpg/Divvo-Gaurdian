@@ -31,7 +31,7 @@ const InfoRow = ({ label, value, danger }) => (
   </div>
 );
 
-export default function RecoveryDetail({ incidentId, incidents, alerts, recoveryDetail, onUpdateRecoveryDetail, onAdvanceStage, onBack, companyInfo }) {
+export default function RecoveryDetail({ incidentId, incidents, alerts, recoveryDetail, onUpdateRecoveryDetail, onAdvanceStage, onBack, companyInfo, session }) {
   const inc = incidents.find((i) => i.id === incidentId);
   if (!inc || !recoveryDetail) return null;
   const s = SHIPMENTS.find((x) => x.id === inc.shipmentId);
@@ -262,6 +262,7 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
           incident={inc}
           recoveryDetail={recoveryDetail}
           alerts={incAlerts}
+          session={session}
         />
       )}
 

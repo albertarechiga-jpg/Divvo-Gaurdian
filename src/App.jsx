@@ -312,6 +312,7 @@ export default function App() {
           onAdvanceStage={handleAdvanceStage}
           onBack={() => handleNav("recovery")}
           companyInfo={companyInfo}
+          session={session}
         />
       );
 

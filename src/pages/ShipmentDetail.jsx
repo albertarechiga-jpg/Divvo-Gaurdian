@@ -64,7 +64,7 @@ export default function ShipmentDetail({ shipmentId, alerts, companyInfo, onBack
       </div>
 
       {showCaseFile && (
-        <CasePacketModal onClose={() => setShowCaseFile(false)} shipment={s} alerts={shipAlerts} />
+        <CasePacketModal onClose={() => setShowCaseFile(false)} shipment={s} alerts={shipAlerts} session={session} />
       )}
 
       {showBolModal && (
