@@ -52,6 +52,7 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
   const [newEventDesc, setNewEventDesc] = useState("");
   const [loggingEvent, setLoggingEvent] = useState(false);
   const [custodyError, setCustodyError] = useState("");
+  const [confirmingIncident, setConfirmingIncident] = useState(false);
 
   useEffect(() => {
     fetchBolDetail(session.access_token, bolId).then(setBol);
@@ -65,9 +66,7 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
     if (bol?.mission_id) refreshCustody(bol.mission_id);
   }, [bol?.mission_id, refreshCustody]);
 
-  const handleAddEvent = async (e) => {
-    e.preventDefault();
-    if (!newEventDesc.trim()) return;
+  const doLogEvent = async () => {
     setLoggingEvent(true);
     setCustodyError("");
     try {
@@ -78,12 +77,27 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
         description: newEventDesc.trim(),
       });
       setNewEventDesc("");
+      setConfirmingIncident(false);
       refreshCustody(bol.mission_id);
     } catch (err) {
       setCustodyError(err.message || "Failed to log event");
     } finally {
       setLoggingEvent(false);
     }
+  };
+
+  // Incident Action entries get an extra confirm step before writing —
+  // chain_of_custody_events is append-only (no edit/delete), and an incident
+  // entry is a materially more serious, permanent claim than a routine
+  // checkpoint/handoff, so it shouldn't go in on a single accidental click.
+  const handleAddEvent = (e) => {
+    e.preventDefault();
+    if (!newEventDesc.trim()) return;
+    if (newEventType === "incident_action" && !confirmingIncident) {
+      setConfirmingIncident(true);
+      return;
+    }
+    doLogEvent();
   };
 
   const pickupSig = bol?.bol_signatures?.find((s) => s.signer_type === "driver");
@@ -198,24 +212,44 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
               <form onSubmit={handleAddEvent} className="no-print mt-4 pt-4 border-t border-gray-200 flex gap-2 items-start">
                 <select
                   value={newEventType}
-                  onChange={(e) => setNewEventType(e.target.value)}
+                  onChange={(e) => { setNewEventType(e.target.value); setConfirmingIncident(false); }}
                   className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-700"
                 >
                   {MANUAL_EVENT_TYPES.map((t) => <option key={t} value={t}>{EVENT_TYPE_LABEL[t]}</option>)}
                 </select>
                 <input
                   value={newEventDesc}
-                  onChange={(e) => setNewEventDesc(e.target.value)}
+                  onChange={(e) => { setNewEventDesc(e.target.value); setConfirmingIncident(false); }}
                   placeholder="Describe what happened…"
                   className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-700"
                 />
-                <button
-                  type="submit"
-                  disabled={loggingEvent || !newEventDesc.trim()}
-                  className="bg-gray-900 hover:bg-gray-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  {loggingEvent ? "Adding…" : "Add"}
-                </button>
+                {confirmingIncident ? (
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <span className="text-xs text-red-500 whitespace-nowrap">Log permanently?</span>
+                    <button
+                      type="submit"
+                      disabled={loggingEvent}
+                      className="bg-red-600 hover:bg-red-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {loggingEvent ? "Logging…" : "Yes"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingIncident(false)}
+                      className="border border-gray-300 text-gray-600 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={loggingEvent || !newEventDesc.trim()}
+                    className="bg-gray-900 hover:bg-gray-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 flex-shrink-0"
+                  >
+                    {loggingEvent ? "Adding…" : "Add"}
+                  </button>
+                )}
               </form>
             )}
             {custodyError && <p className="no-print text-red-500 text-xs mt-2">{custodyError}</p>}
