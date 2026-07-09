@@ -132,14 +132,21 @@ export default function App() {
 
   // Companies now live in Supabase so new ones can be added at runtime
   // (see src/lib/companies.js + api/add-company.js) instead of requiring a
-  // code change.
+  // code change. Waits on currentUser so the tenant filter below has
+  // something to filter by: Divvo Global staff (isPlatformOrg) see every
+  // pilot client, same as always; a client-org signup only ever sees the
+  // one company tied to their own organization_id.
   useEffect(() => {
+    if (!currentUser) return;
     fetchCompanies().then((rows) => {
-      setCompanies(rows);
-      if (rows.length) setCompany((prev) => prev || rows.find((c) => c.id === "owlet")?.id || rows[0].id);
+      const visible = currentUser.isPlatformOrg
+        ? rows
+        : rows.filter((c) => c.organizationId === currentUser.organizationId);
+      setCompanies(visible);
+      if (visible.length) setCompany((prev) => prev || visible.find((c) => c.id === "owlet")?.id || visible[0].id);
       setCompaniesLoading(false);
     });
-  }, []);
+  }, [currentUser]);
 
   const addCompanyToList = useCallback((newCompany) => {
     setCompanies((prev) => [...prev, newCompany]);
@@ -432,6 +439,7 @@ export default function App() {
         onCompanyCreated={addCompanyToList}
         currentUser={currentUser}
         onLogout={handleLogout}
+        session={session}
       />
       <main className="flex-1 overflow-auto min-w-0">
         {renderPage()}

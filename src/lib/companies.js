@@ -8,6 +8,7 @@ function normalizeCompany(r) {
     region: r.region,
     mapCenter: [r.map_center_lng, r.map_center_lat],
     mapZoom: r.map_zoom,
+    organizationId: r.organization_id,
   };
 }
 
@@ -26,10 +27,13 @@ export async function fetchCompanies() {
 
 // Writes go through api/add-company.js (service_role key, bypasses RLS) —
 // the anon key used everywhere else in this file can only read companies.
-export async function createCompany({ name, region, mapCenter, mapZoom, primaryEmail, primaryPhone }) {
+// Requires the caller's access token: api/add-company.js now validates the
+// caller is an admin of a platform org (creating a new pilot client is a
+// Divvo-ops action, not something any logged-in user should be able to do).
+export async function createCompany(accessToken, { name, region, mapCenter, mapZoom, primaryEmail, primaryPhone }) {
   const res = await fetch("/api/add-company", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
     body: JSON.stringify({ name, region, mapCenter, mapZoom, primaryEmail, primaryPhone }),
   });
   const data = await res.json();

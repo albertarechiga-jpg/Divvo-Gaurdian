@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createCompany } from "../lib/companies.js";
 import { geocode } from "../lib/mapbox.js";
 
-export default function AddCompanyModal({ onClose, onCreated }) {
+export default function AddCompanyModal({ onClose, onCreated, session }) {
   const [name, setName] = useState("");
   const [region, setRegion] = useState("");
   const [email, setEmail] = useState("");
@@ -24,7 +24,7 @@ export default function AddCompanyModal({ onClose, onCreated }) {
     setError("");
     try {
       const mapCenter = await geocode(region);
-      const company = await createCompany({
+      const company = await createCompany(session?.access_token, {
         name: name.trim(),
         region: region.trim(),
         mapCenter,

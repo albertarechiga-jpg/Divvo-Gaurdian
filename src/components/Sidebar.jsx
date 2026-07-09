@@ -54,9 +54,10 @@ const NAV_ICONS = {
   ),
 };
 
-export default function Sidebar({ active, onNav, openAlerts, companies, selectedCompany, onCompanyChange, onCompanyCreated, currentUser, onLogout }) {
+export default function Sidebar({ active, onNav, openAlerts, companies, selectedCompany, onCompanyChange, onCompanyCreated, currentUser, onLogout, session }) {
   const current = companies?.find(c => c.id === selectedCompany) || companies?.[0];
   const [showAddCompany, setShowAddCompany] = useState(false);
+  const canAddCompany = currentUser?.isPlatformOrg && currentUser?.role === "admin";
 
   const handleSelectChange = (value) => {
     if (value === "__add_company__") {
@@ -99,7 +100,9 @@ export default function Sidebar({ active, onNav, openAlerts, companies, selected
               {companies?.map((c) => (
                 <option key={c.id} value={c.id} className="bg-gray-900 text-white">{c.name}</option>
               ))}
-              <option value="__add_company__" className="bg-gray-900 text-blue-400">+ Add Company</option>
+              {canAddCompany && (
+                <option value="__add_company__" className="bg-gray-900 text-blue-400">+ Add Company</option>
+              )}
             </select>
             <svg className="w-3 h-3 text-blue-400 absolute right-0 top-0.5 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M6 9l6 6 6-6"/>
@@ -198,6 +201,7 @@ export default function Sidebar({ active, onNav, openAlerts, companies, selected
         <AddCompanyModal
           onClose={() => setShowAddCompany(false)}
           onCreated={(company) => onCompanyCreated?.(company)}
+          session={session}
         />
       )}
     </aside>

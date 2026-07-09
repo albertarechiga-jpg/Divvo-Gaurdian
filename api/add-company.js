@@ -1,8 +1,18 @@
 // Server-only: uses the Supabase service_role key, which bypasses Row Level
 // Security entirely. This must never be exposed to the client — the browser
 // only ever talks to this endpoint, never to Supabase directly for writes here.
+//
+// Onboarding a new pilot client is a Divvo-ops action, not something any
+// logged-in user should be able to trigger — this used to have zero caller
+// validation (it predates auth entirely). Now that real per-company tenant
+// separation exists (see the signup migration's organizations/companies
+// bridge), an unauthenticated write here would let anyone spin up an
+// unlinked "company" row, so it's gated the same way api/create-user.js
+// gates admin-only actions: validate the caller's session, then confirm
+// they're an admin of the platform org (Divvo Global staff).
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
 
 function slugify(name) {
   return name
@@ -15,13 +25,19 @@ function slugify(name) {
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-    return res.status(500).json({ error: "Server not configured: missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY" });
+  if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !ANON_KEY) {
+    return res.status(500).json({ error: "Server not configured: missing SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, or VITE_SUPABASE_ANON_KEY" });
+  }
+
+  const authHeader = req.headers.authorization || "";
+  const callerToken = authHeader.replace(/^Bearer\s+/i, "");
+  if (!callerToken) {
+    return res.status(401).json({ error: "Missing Authorization bearer token" });
   }
 
   const { name, region, mapCenter, mapZoom, primaryEmail, primaryPhone } = req.body;
@@ -40,6 +56,30 @@ export default async function handler(req, res) {
   };
 
   try {
+    // 1. Validate the caller's token is a real, live Supabase session.
+    const callerRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { apikey: ANON_KEY, Authorization: `Bearer ${callerToken}` },
+    });
+    if (!callerRes.ok) {
+      return res.status(401).json({ error: "Invalid or expired session" });
+    }
+    const caller = await callerRes.json();
+
+    // 2. Confirm the caller is an admin of the platform org (Divvo Global
+    //    staff) — service-role read, bypasses RLS deliberately, this IS the
+    //    authorization check.
+    const callerRolesRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/user_roles?select=role,organization_id,organizations(is_platform_org)&user_id=eq.${caller.id}`,
+      { headers }
+    );
+    const callerRoles = await callerRolesRes.json();
+    const adminRow = Array.isArray(callerRoles)
+      ? callerRoles.find((r) => r.role === "admin" && r.organizations?.is_platform_org)
+      : null;
+    if (!adminRow) {
+      return res.status(403).json({ error: "Only Divvo Global admins can add a new company" });
+    }
+
     // Reject duplicates up front for a clean error instead of a 409 from Postgres
     const existing = await fetch(`${SUPABASE_URL}/rest/v1/companies?select=id&id=eq.${id}`, { headers });
     const existingRows = await existing.json();

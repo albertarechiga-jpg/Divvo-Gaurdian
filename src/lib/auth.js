@@ -11,6 +11,31 @@ export async function signOut() {
   await supabase.auth.signOut();
 }
 
+// Public self-service signup. The company_id/full_name metadata lands in
+// auth.users.raw_user_meta_data, where a security-definer trigger
+// (handle_new_signup, see the signup migration) reads it to create the
+// matching users/user_roles rows itself — scoped to a hardcoded 'viewer'
+// role and an org resolved server-side from companies.organization_id, never
+// trusted directly from this payload. Returns { session }, which is null if
+// the project requires email confirmation (no session until they click the
+// link) — the profile row exists either way since the trigger fires at
+// auth.users insert time, not at confirmation time.
+export async function signUp(email, password, { fullName, companyId }) {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { full_name: fullName, company_id: companyId } },
+  });
+  if (error) throw error;
+  // Supabase returns a "successful" response with an empty identities array
+  // for an already-registered email when confirmations are on, instead of a
+  // real error (deliberate anti-enumeration behavior) — surface it as one.
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    throw new Error("An account with this email already exists. Try signing in instead.");
+  }
+  return { session: data.session };
+}
+
 export async function getSession() {
   const { data } = await supabase.auth.getSession();
   return data.session;
@@ -47,8 +72,9 @@ export async function fetchCurrentUser(accessToken, userId) {
     const res = await fetch(
       // user_roles has two FKs to users (user_id, granted_by) — the "!user_id"
       // hint tells PostgREST which relationship to embed; without it the
-      // request 400s (PGRST201, ambiguous embed).
-      `${SB_URL}/rest/v1/users?select=id,full_name,email,organization_id,user_roles!user_id(role)&id=eq.${userId}`,
+      // request 400s (PGRST201, ambiguous embed). organizations has only one
+      // FK from users (organization_id), so that embed needs no hint.
+      `${SB_URL}/rest/v1/users?select=id,full_name,email,organization_id,organizations(is_platform_org),user_roles!user_id(role)&id=eq.${userId}`,
       { headers: authHeaders(accessToken) }
     );
     const rows = await res.json();
@@ -64,6 +90,7 @@ export async function fetchCurrentUser(accessToken, userId) {
       fullName: row.full_name,
       email: row.email,
       organizationId: row.organization_id,
+      isPlatformOrg: row.organizations?.is_platform_org ?? false,
       roles,
       role: roles.includes("admin") ? "admin" : roles[0] || "viewer",
     };

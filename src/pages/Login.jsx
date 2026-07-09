@@ -1,13 +1,33 @@
-import { useState } from "react";
-import { signIn, requestPasswordReset } from "../lib/auth.js";
+import { useState, useEffect } from "react";
+import { signIn, requestPasswordReset, signUp } from "../lib/auth.js";
+import { fetchCompanies } from "../lib/companies.js";
 
 export default function Login() {
-  const [mode, setMode] = useState("signin"); // "signin" | "forgot"
+  const [mode, setMode] = useState("signin"); // "signin" | "forgot" | "signup"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+
+  // Signup-only fields
+  const [fullName, setFullName] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [companyId, setCompanyId] = useState("");
+  const [companies, setCompanies] = useState([]);
+
+  useEffect(() => {
+    if (mode !== "signup" || companies.length) return;
+    fetchCompanies().then((rows) => {
+      // Only offer companies that are actually linked to a real v2
+      // organization — see the signup migration's companies.organization_id
+      // bridge. Anything unlinked can't be resolved by the handle_new_signup
+      // trigger and would leave the new user without a profile row.
+      const linked = rows.filter((c) => c.organizationId);
+      setCompanies(linked);
+      setCompanyId((prev) => prev || linked[0]?.id || "");
+    });
+  }, [mode, companies.length]);
 
   const switchMode = (next) => {
     setMode(next);
@@ -52,6 +72,38 @@ export default function Login() {
     }
   };
 
+  const handleSignup = async (e) => {
+    e.preventDefault();
+    setError("");
+    setNotice("");
+    if (!fullName.trim() || !email.trim() || !password) {
+      setError("Fill in your name, email, and password");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords don't match");
+      return;
+    }
+    if (!companyId) {
+      setError("Select your company");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { session } = await signUp(email.trim(), password, { fullName: fullName.trim(), companyId });
+      if (session) {
+        // onAuthStateChange in App.jsx picks up the new session from here.
+        return;
+      }
+      setNotice("Account created — check your email to confirm it before signing in.");
+      setMode("signin");
+    } catch (err) {
+      setError(err.message || "Failed to create account");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="flex items-center justify-center h-screen bg-gray-950 px-4">
       <div className="w-full max-w-sm">
@@ -71,7 +123,7 @@ export default function Login() {
           {mode === "signin" ? (
             <>
               <h1 className="text-white text-sm font-bold mb-1">Sign in</h1>
-              <p className="text-gray-500 text-xs mb-5">Access is invite-only. Contact your admin if you need an account.</p>
+              <p className="text-gray-500 text-xs mb-5">Welcome back to Divvo Guardian.</p>
 
               <form onSubmit={handleSubmit} className="space-y-3">
                 <div>
@@ -107,6 +159,7 @@ export default function Login() {
                 </div>
 
                 {error && <p className="text-red-400 text-xs">{error}</p>}
+                {notice && <p className="text-emerald-400 text-xs">{notice}</p>}
 
                 <button
                   type="submit"
@@ -115,9 +168,16 @@ export default function Login() {
                 >
                   {submitting ? "Signing in…" : "Sign In"}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => switchMode("signup")}
+                  className="w-full text-gray-400 hover:text-gray-200 text-xs font-medium py-1"
+                >
+                  Don't have an account? Sign up
+                </button>
               </form>
             </>
-          ) : (
+          ) : mode === "forgot" ? (
             <>
               <h1 className="text-white text-sm font-bold mb-1">Reset your password</h1>
               <p className="text-gray-500 text-xs mb-5">Enter your account email and we'll send you a reset link.</p>
@@ -144,6 +204,88 @@ export default function Login() {
                   className="w-full bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg py-2.5 transition-colors disabled:opacity-50"
                 >
                   {submitting ? "Sending…" : "Send Reset Link"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchMode("signin")}
+                  className="w-full text-gray-400 hover:text-gray-200 text-xs font-medium py-1"
+                >
+                  ← Back to sign in
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <h1 className="text-white text-sm font-bold mb-1">Create your account</h1>
+              <p className="text-gray-500 text-xs mb-5">Sign up and pick your company to get access to its shipments.</p>
+
+              <form onSubmit={handleSignup} className="space-y-3">
+                <div>
+                  <label className="block text-gray-400 text-xs font-semibold mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    autoComplete="name"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:border-blue-600"
+                    placeholder="Jane Rivera"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-xs font-semibold mb-1">Company</label>
+                  <select
+                    value={companyId}
+                    onChange={(e) => setCompanyId(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-blue-600"
+                  >
+                    {companies.length === 0 && <option value="">Loading companies…</option>}
+                    {companies.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-xs font-semibold mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:border-blue-600"
+                    placeholder="you@company.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-xs font-semibold mb-1">Password</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="new-password"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:border-blue-600"
+                    placeholder="••••••••"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-xs font-semibold mb-1">Confirm Password</label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    autoComplete="new-password"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:border-blue-600"
+                    placeholder="••••••••"
+                  />
+                </div>
+
+                {error && <p className="text-red-400 text-xs">{error}</p>}
+
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg py-2.5 transition-colors disabled:opacity-50"
+                >
+                  {submitting ? "Creating account…" : "Create Account"}
                 </button>
                 <button
                   type="button"
