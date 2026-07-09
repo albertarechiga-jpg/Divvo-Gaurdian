@@ -56,15 +56,23 @@ export default function CasePacketModal({ onClose, shipment, incident, recoveryD
   // previously this packet had zero awareness of any of that. undefined =
   // loading, null = no BOL exists yet for this shipment.
   const [missionEvidence, setMissionEvidence] = useState(undefined);
+  const [missionEvidenceError, setMissionEvidenceError] = useState("");
   const [evidenceUrls, setEvidenceUrls] = useState({});
   const [loadingUrlFor, setLoadingUrlFor] = useState(null);
+  const [evidenceError, setEvidenceError] = useState("");
 
   useEffect(() => {
     if (!session?.access_token || !shipment?.id) {
       setMissionEvidence(null);
       return;
     }
-    fetchMissionEvidenceForShipment(session.access_token, shipment.id).then(setMissionEvidence);
+    setMissionEvidenceError("");
+    fetchMissionEvidenceForShipment(session.access_token, shipment.id)
+      .then(setMissionEvidence)
+      .catch((err) => {
+        setMissionEvidenceError(err.message || "Failed to load Digital BOL / chain-of-custody data for this shipment");
+        setMissionEvidence(null);
+      });
   }, [session, shipment?.id]);
 
   const handleViewEvidence = async (id) => {
@@ -73,10 +81,13 @@ export default function CasePacketModal({ onClose, shipment, incident, recoveryD
       return;
     }
     setLoadingUrlFor(id);
+    setEvidenceError("");
     try {
       const url = await getEvidenceUrl(session.access_token, id);
       setEvidenceUrls((prev) => ({ ...prev, [id]: url }));
       window.open(url, "_blank");
+    } catch (err) {
+      setEvidenceError(err.message || "Failed to open evidence file");
     } finally {
       setLoadingUrlFor(null);
     }
@@ -87,13 +98,23 @@ export default function CasePacketModal({ onClose, shipment, incident, recoveryD
       <style>{PRINT_STYLE}</style>
 
       <div className="no-print max-w-3xl mx-auto mb-4 flex items-center justify-between">
-        <p className="text-white text-sm font-semibold">
-          {isLEPacket ? "Law Enforcement Evidence Packet" : "Shipment Case File"}
-        </p>
+        <div>
+          <p className="text-white text-sm font-semibold">
+            {isLEPacket ? "Law Enforcement Evidence Packet" : "Shipment Case File"}
+          </p>
+          {missionEvidence === undefined && !missionEvidenceError && (
+            <p className="text-gray-400 text-xs mt-1">Loading Digital BOL, chain of custody, and evidence…</p>
+          )}
+          {missionEvidenceError && (
+            <p className="text-red-400 text-xs mt-1">{missionEvidenceError} — this packet will be missing those sections.</p>
+          )}
+        </div>
         <div className="flex gap-2">
           <button
             onClick={() => window.print()}
-            className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+            disabled={missionEvidence === undefined}
+            className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title={missionEvidence === undefined ? "Waiting for mission data to finish loading" : undefined}
           >
             Print / Save as PDF
           </button>
@@ -266,6 +287,7 @@ export default function CasePacketModal({ onClose, shipment, incident, recoveryD
             </Section>
 
             <Section label="Captured Evidence">
+              {evidenceError && <p className="no-print text-xs text-red-600 mb-2">{evidenceError}</p>}
               {missionEvidence.evidenceFiles.length === 0 ? (
                 <p className="text-sm text-gray-400">No evidence files captured.</p>
               ) : (

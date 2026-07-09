@@ -16,8 +16,18 @@ export default function Login() {
   const [companyId, setCompanyId] = useState("");
   const [companies, setCompanies] = useState([]);
 
-  useEffect(() => {
-    if (mode !== "signup" || companies.length) return;
+  const [companiesLoading, setCompaniesLoading] = useState(false);
+  // fetchCompanies() swallows network errors into an empty array by design
+  // (see lib/companies.js), so an empty result here is indistinguishable
+  // from a genuine fetch failure — either way, "nothing to pick from" is a
+  // dead end for signup, so it gets the same retry affordance regardless
+  // of which actually happened, rather than leaving the dropdown stuck on
+  // "Loading companies…" forever.
+  const [companiesFailed, setCompaniesFailed] = useState(false);
+
+  const loadCompanies = () => {
+    setCompaniesLoading(true);
+    setCompaniesFailed(false);
     fetchCompanies().then((rows) => {
       // Only offer companies that are actually linked to a real v2
       // organization — see the signup migration's companies.organization_id
@@ -26,7 +36,14 @@ export default function Login() {
       const linked = rows.filter((c) => c.organizationId);
       setCompanies(linked);
       setCompanyId((prev) => prev || linked[0]?.id || "");
+      setCompaniesFailed(linked.length === 0);
+      setCompaniesLoading(false);
     });
+  };
+
+  useEffect(() => {
+    if (mode !== "signup" || companies.length) return;
+    loadCompanies();
   }, [mode, companies.length]);
 
   const switchMode = (next) => {
@@ -236,13 +253,22 @@ export default function Login() {
                   <select
                     value={companyId}
                     onChange={(e) => setCompanyId(e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-blue-600"
+                    disabled={companies.length === 0}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-blue-600 disabled:opacity-50"
                   >
-                    {companies.length === 0 && <option value="">Loading companies…</option>}
+                    {companies.length === 0 && (
+                      <option value="">{companiesLoading ? "Loading companies…" : "No companies available"}</option>
+                    )}
                     {companies.map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
+                  {companiesFailed && !companiesLoading && (
+                    <p className="text-red-400 text-xs mt-1">
+                      Couldn't load the company list.{" "}
+                      <button type="button" onClick={loadCompanies} className="underline hover:text-red-300">Retry</button>
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-gray-400 text-xs font-semibold mb-1">Email</label>

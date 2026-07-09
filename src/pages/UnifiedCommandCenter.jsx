@@ -10,24 +10,21 @@ const ICE = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "st
 
 // ── Supabase route helpers ───────────────────────────────────────────────────
 async function fetchSavedRoutes(companyId = "owlet") {
-  try {
-    const res = await fetch(SB_URL + `/rest/v1/saved_routes?select=*&company_id=eq.${companyId}&order=created_at.desc`, { headers: sbHeaders() });
-    return await res.json();
-  } catch { return []; }
+  const res = await fetch(SB_URL + `/rest/v1/saved_routes?select=*&company_id=eq.${companyId}&order=created_at.desc`, { headers: sbHeaders() });
+  if (!res.ok) throw new Error(`Failed to load saved routes (HTTP ${res.status})`);
+  return await res.json();
 }
 async function saveRouteToSB(route) {
-  try {
-    await fetch(SB_URL + "/rest/v1/saved_routes", {
-      method: "POST",
-      headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=minimal" }),
-      body: JSON.stringify(route),
-    });
-  } catch {}
+  const res = await fetch(SB_URL + "/rest/v1/saved_routes", {
+    method: "POST",
+    headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=minimal" }),
+    body: JSON.stringify(route),
+  });
+  if (!res.ok) throw new Error(`Failed to save route (HTTP ${res.status})`);
 }
 async function deleteRouteFromSB(id) {
-  try {
-    await fetch(SB_URL + "/rest/v1/saved_routes?id=eq." + id, { method: "DELETE", headers: sbHeaders() });
-  } catch {}
+  const res = await fetch(SB_URL + "/rest/v1/saved_routes?id=eq." + id, { method: "DELETE", headers: sbHeaders() });
+  if (!res.ok) throw new Error(`Failed to delete route (HTTP ${res.status})`);
 }
 
 async function logAuditEvent(action, operator, details, aiSummary) {
@@ -381,6 +378,7 @@ function RouteDeletionModal({ route, operator, onConfirm, onCancel }) {
   const [loading, setLoading]     = useState(false);
   const [aiSummary, setAiSummary] = useState(null);
   const [reason, setReason]       = useState("");
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     // Pre-generate AI summary while operator reviews
@@ -389,14 +387,23 @@ function RouteDeletionModal({ route, operator, onConfirm, onCancel }) {
 
   const handleConfirm = async () => {
     setLoading(true);
+    setDeleteError("");
     const summary = aiSummary || `Route "${route.name}" deleted by ${operator}.`;
+    // Best-effort audit trail — a failure here shouldn't block the delete
+    // itself, matching the non-fatal-audit-write convention used elsewhere
+    // in this app (e.g. chain_of_custody_events).
     await logAuditEvent(
       "ROUTE_DELETED",
       operator,
       { routeId: route.id, routeName: route.name, waypoints: route.waypoints?.length, corridor: route.corridor_meters || route.corridorMeters, reason: reason || "No reason provided" },
       summary
     );
-    onConfirm(route.id);
+    try {
+      await onConfirm(route.id);
+    } catch (err) {
+      setDeleteError(err.message || "Failed to delete this route — it's still active.");
+      setLoading(false);
+    }
   };
 
   return (
@@ -456,6 +463,10 @@ function RouteDeletionModal({ route, operator, onConfirm, onCancel }) {
               style={{ width: "100%", background: "#111827", border: "1px solid #1f2937", borderRadius: 8, padding: "8px 10px", color: "#d1d5db", fontSize: 12, resize: "none", outline: "none", fontFamily: "inherit", lineHeight: 1.5 }}
             />
           </div>
+
+          {deleteError && (
+            <p style={{ fontSize: 11, color: "#fca5a5", marginBottom: 10 }}>{deleteError}</p>
+          )}
 
           {/* Buttons */}
           <div style={{ display: "flex", gap: 10 }}>
@@ -1349,27 +1360,42 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [mapFullscreen, setMapFullscreen]   = useState(false);
   const [devices, setDevices]               = useState(DEVICES);
-  const [toast, setToast]                   = useState(null);
+  const [toast, setToastState]              = useState(null); // { msg, ok }
   const [liveGPS, setLiveGPS]               = useState([]);
+  const [gpsStale, setGpsStale]             = useState(false);
   const [savedRoutes, setSavedRoutes]       = useState([]);
+  const [routesError, setRoutesError]       = useState("");
   const [routeDeviations, setRouteDeviations] = useState([]);
   const [deletionTarget, setDeletionTarget] = useState(null); // route pending deletion
   const [aiRoutePrefill, setAiRoutePrefill] = useState(null); // prefill for AI route panel
 
+  const showToast = (msg, ok = true) => {
+    setToastState({ msg, ok });
+    setTimeout(() => setToastState(null), 3000);
+  };
+
   // Load saved routes on mount
-  useEffect(() => {
-    fetchSavedRoutes(company).then(rows => { if (Array.isArray(rows)) setSavedRoutes(rows); });
-  }, []);
+  const loadSavedRoutes = useCallback(() => {
+    setRoutesError("");
+    fetchSavedRoutes(company).then(rows => {
+      if (Array.isArray(rows)) setSavedRoutes(rows);
+    }).catch(() => setRoutesError("Couldn't load saved monitoring routes."));
+  }, [company]);
+  useEffect(() => { loadSavedRoutes(); }, [loadSavedRoutes]);
 
   // Poll Supabase for live phone GPS — restricted to this company's own devices,
   // since gps_pings has no company column and device IDs from other companies
   // (different prefix, e.g. MR-/CL- vs DG-) would otherwise still show up here.
+  // A failed poll is reported as "GPS feed unavailable" rather than just
+  // silently stopping — indistinguishable from "no live data" otherwise.
   const companyDeviceIds = new Set(DEVICES.map(d => d.id));
   useEffect(() => {
     const poll = async () => {
       try {
         const res = await fetch(SB_URL + "/rest/v1/gps_pings?select=*&order=created_at.desc&limit=50", { headers: sbHeaders() });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const pings = await res.json();
+        setGpsStale(false);
         if (!pings?.length) return;
         const fresh = [];
         const seen = {};
@@ -1392,7 +1418,9 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
           }
         }
         setRouteDeviations(deviations);
-      } catch {}
+      } catch {
+        setGpsStale(true);
+      }
     };
     poll();
     const iv = setInterval(poll, 5000);
@@ -1407,9 +1435,14 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
 
   const handleRouteSave = async (route) => {
     const tagged = { ...route, company_id: company };
-    await saveRouteToSB(tagged);
-    const newRoute = { ...tagged, id: Date.now() };
-    setSavedRoutes(prev => [newRoute, ...prev]);
+    try {
+      await saveRouteToSB(tagged);
+      const newRoute = { ...tagged, id: Date.now() };
+      setSavedRoutes(prev => [newRoute, ...prev]);
+      showToast("Route saved");
+    } catch (err) {
+      showToast(err.message || "Failed to save route", false);
+    }
   };
 
   const handleRouteDelete = (id) => {
@@ -1417,6 +1450,9 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
     if (route) setDeletionTarget(route);
   };
 
+  // Throws on failure — RouteDeletionModal's handleConfirm catches this to
+  // show the error and keep the modal open instead of closing as if the
+  // route was actually deleted.
   const confirmRouteDelete = async (id) => {
     await deleteRouteFromSB(id);
     setSavedRoutes(prev => prev.filter(r => r.id !== id));
@@ -1434,8 +1470,7 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
     }
     setSelectedDevice(device);
     if (device.severity === "Critical") {
-      setToast("AI analyzing critical alert — " + id);
-      setTimeout(() => setToast(null), 3000);
+      showToast("AI analyzing critical alert — " + id);
     }
   }, [devices]);
 
@@ -1456,9 +1491,9 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
 
       {/* Toast */}
       {toast && (
-        <div style={{ position: "fixed", top: 16, right: 16, zIndex: 1000, background: "#052e16", border: "1px solid #22c55e", borderRadius: 10, padding: "10px 16px", display: "flex", alignItems: "center", gap: 8, boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}>
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", animation: "pulse 1s infinite", display: "inline-block" }}/>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "#86efac" }}>{toast}</span>
+        <div style={{ position: "fixed", top: 16, right: 16, zIndex: 1000, background: toast.ok === false ? "#450a0a" : "#052e16", border: `1px solid ${toast.ok === false ? "#ef4444" : "#22c55e"}`, borderRadius: 10, padding: "10px 16px", display: "flex", alignItems: "center", gap: 8, boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: toast.ok === false ? "#ef4444" : "#22c55e", animation: "pulse 1s infinite", display: "inline-block" }}/>
+          <span style={{ fontSize: 12, fontWeight: 700, color: toast.ok === false ? "#fca5a5" : "#86efac" }}>{toast.msg}</span>
         </div>
       )}
 
@@ -1554,9 +1589,19 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
               <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#22c55e", animation: "pulse 2s infinite", display: "inline-block" }}/>
               <span style={{ fontSize: 10, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.08em" }}>Live Fleet Map · {companyInfo.region}</span>
             </div>
-            {liveGPS.length > 0 && (
-              <span style={{ fontSize: 10, color: "#22c55e", fontWeight: 600 }}>● {liveGPS.length} phone GPS live</span>
-            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {routesError && (
+                <span style={{ fontSize: 10, color: "#ef4444", fontWeight: 600 }}>
+                  {routesError} <button onClick={loadSavedRoutes} style={{ color: "#fca5a5", textDecoration: "underline", background: "none", border: "none", cursor: "pointer", fontSize: 10, fontWeight: 700 }}>Retry</button>
+                </span>
+              )}
+              {gpsStale && (
+                <span style={{ fontSize: 10, color: "#f59e0b", fontWeight: 600 }}>● GPS feed unavailable</span>
+              )}
+              {!gpsStale && liveGPS.length > 0 && (
+                <span style={{ fontSize: 10, color: "#22c55e", fontWeight: 600 }}>● {liveGPS.length} phone GPS live</span>
+              )}
+            </div>
           </div>
           <div style={{ flex: 1 }}>
             <LiveMap devices={devices} onSelect={handleSelectDevice} selectedId={selectedDevice?.id} fullscreen={false} onFullscreen={() => setMapFullscreen(true)} savedRoutes={savedRoutes} onRouteSave={handleRouteSave} onRouteDelete={handleRouteDelete} routeDeviations={routeDeviations} shipmentRoutes={SHIPMENT_ROUTES} deviceShipmentContext={DEVICE_SHIPMENT_CONTEXT} mapCenter={companyInfo.mapCenter} mapZoom={companyInfo.mapZoom}/>

@@ -8,10 +8,12 @@ export default function RouteMap({ markers = [], line, height = "224px" }) {
   const map = useRef(null);
   const mapInitStarted = useRef(false);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
-  useEffect(() => {
+  const initMap = () => {
     if (mapInitStarted.current || !mapContainer.current) return;
     mapInitStarted.current = true;
+    setLoadError("");
 
     const link = document.createElement("link");
     link.rel = "stylesheet";
@@ -35,9 +37,16 @@ export default function RouteMap({ markers = [], line, height = "224px" }) {
       });
       map.current.addControl(new window.mapboxgl.NavigationControl({ showCompass: false }), "top-right");
       map.current.on("load", () => setLoaded(true));
+      map.current.on("error", () => setLoadError("Map failed to load — check your connection and retry."));
+    };
+    script.onerror = () => {
+      setLoadError("Couldn't load the map — check your connection and retry.");
+      mapInitStarted.current = false;
     };
     document.head.appendChild(script);
-  }, []);
+  };
+
+  useEffect(() => { initMap(); }, []);
 
   useEffect(() => {
     if (!loaded || !window.mapboxgl) return;
@@ -68,9 +77,22 @@ export default function RouteMap({ markers = [], line, height = "224px" }) {
       {!loaded && (
         <div
           className="text-gray-400 text-xs"
-          style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#f3f4f6" }}
+          style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", gap: 8, alignItems: "center", justifyContent: "center", background: "#f3f4f6" }}
         >
-          Loading map…
+          {loadError ? (
+            <>
+              <span className="text-red-500 text-center px-4">{loadError}</span>
+              <button
+                type="button"
+                onClick={initMap}
+                className="text-blue-600 hover:underline text-xs font-semibold"
+              >
+                Retry
+              </button>
+            </>
+          ) : (
+            "Loading map…"
+          )}
         </div>
       )}
     </div>

@@ -62,6 +62,7 @@ const Row = ({ label, value }) => (
 
 export default function BolPacketModal({ bolId, session, currentUser, onClose }) {
   const [bol, setBol] = useState(undefined); // undefined = loading, null = not found
+  const [bolError, setBolError] = useState("");
   const [custodyEvents, setCustodyEvents] = useState([]);
   const [newEventType, setNewEventType] = useState("checkpoint");
   const [newEventDesc, setNewEventDesc] = useState("");
@@ -74,11 +75,17 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
   const [pendingLockAction, setPendingLockAction] = useState(null); // null | "tamper_detected" | "forced_open"
 
   useEffect(() => {
-    fetchBolDetail(session.access_token, bolId).then(setBol);
+    setBolError("");
+    fetchBolDetail(session.access_token, bolId)
+      .then(setBol)
+      .catch((err) => { setBolError(err.message || "Failed to load this BOL"); setBol(null); });
   }, [bolId, session]);
 
   const refreshCustody = useCallback((missionId) => {
-    fetchCustodyEvents(session.access_token, missionId).then(setCustodyEvents);
+    setCustodyError("");
+    fetchCustodyEvents(session.access_token, missionId)
+      .then(setCustodyEvents)
+      .catch((err) => setCustodyError(err.message || "Failed to load chain-of-custody events"));
   }, [session]);
 
   useEffect(() => {
@@ -88,7 +95,10 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
   const guardianId = bol?.missions?.guardian_id;
 
   const refreshLockEvents = useCallback((gId) => {
-    fetchLockEvents(session.access_token, gId).then(setLockEvents);
+    setLockError("");
+    fetchLockEvents(session.access_token, gId)
+      .then(setLockEvents)
+      .catch((err) => setLockError(err.message || "Failed to load lock/unlock events"));
   }, [session]);
 
   useEffect(() => {
@@ -131,6 +141,7 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
 
   useEffect(() => {
     if (!bol?.mission_id) return;
+    setClaimError("");
     fetchInsuranceClaim(session.access_token, bol.mission_id).then((claim) => {
       setInsuranceClaim(claim);
       if (claim) {
@@ -146,6 +157,9 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
           notes: claim.notes || "",
         });
       }
+    }).catch((err) => {
+      setClaimError(err.message || "Failed to load insurance claim");
+      setInsuranceClaim(null);
     });
   }, [bol?.mission_id, session]);
 
@@ -178,7 +192,10 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
   const canvasRef = useRef(null);
 
   const refreshEvidence = useCallback((missionId) => {
-    fetchEvidenceFiles(session.access_token, missionId).then(setEvidenceFiles);
+    setEvidenceError("");
+    fetchEvidenceFiles(session.access_token, missionId)
+      .then(setEvidenceFiles)
+      .catch((err) => setEvidenceError(err.message || "Failed to load captured evidence"));
   }, [session]);
 
   useEffect(() => {
@@ -323,7 +340,8 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
       </div>
 
       {bol === undefined && <p className="no-print text-center text-gray-400 text-sm">Loading…</p>}
-      {bol === null && <p className="no-print text-center text-gray-400 text-sm">BOL not found.</p>}
+      {bol === null && bolError && <p className="no-print text-center text-red-400 text-sm">{bolError}</p>}
+      {bol === null && !bolError && <p className="no-print text-center text-gray-400 text-sm">BOL not found.</p>}
 
       {bol && (
         <div className="bol-packet max-w-3xl mx-auto bg-white rounded-xl shadow-2xl p-10">
