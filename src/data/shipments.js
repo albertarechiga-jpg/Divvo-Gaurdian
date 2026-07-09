@@ -348,3 +348,16 @@ export const SHIPMENTS = [
     atDestination: false,
   },
 ];
+
+// Mutates the exported array in place so every one of the 8 files that
+// import SHIPMENTS directly (not via props) sees new real shipments
+// automatically at their next render — no per-file wiring needed. Real
+// shipments (src/lib/shipments.js's fetchLiveShipments/createShipment)
+// have no simulated device-telemetry fields (deviationMiles, trackerOffline,
+// imu_impact_g_force, etc.); detectionEngine.js's comparisons against
+// undefined already evaluate safely, so those rules just never fire for
+// shipments added this way, which is correct — there's no simulated device
+// generating anomalies for them.
+export function addShipmentToMock(shipment) {
+  SHIPMENTS.push(shipment);
+}

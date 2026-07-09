@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
-import { SHIPMENTS } from "./data/shipments.js";
+import { SHIPMENTS, addShipmentToMock } from "./data/shipments.js";
+import { fetchLiveShipments } from "./lib/shipments.js";
 import { INITIAL_ALERTS } from "./data/alerts.js";
 import { INITIAL_INCIDENTS } from "./data/incidents.js";
 import { RECOVERY_MOCK, buildDefaultRecoveryDetail, buildDefaultRecoveryDetailForDevice } from "./data/recoveryMock.js";
@@ -68,6 +69,11 @@ export default function App() {
   const [selectedIncident, setSelectedIncident]   = useState(null);
   const [companies, setCompanies]                 = useState([]);
   const [companiesLoading, setCompaniesLoading]   = useState(true);
+  // Bumped after SHIPMENTS is mutated (real shipments pushed in) so React
+  // re-renders and every SHIPMENTS.filter(...)/find(...) call downstream
+  // picks up the fuller array — SHIPMENTS itself is a shared, mutated-in-
+  // place module export, not React state (see data/shipments.js).
+  const [shipmentsTick, setShipmentsTick]         = useState(0);
   const [company, setCompany]                     = useState(null);
 
   const [alerts,    setAlerts]    = useState(INITIAL_ALERTS);
@@ -138,6 +144,22 @@ export default function App() {
   const addCompanyToList = useCallback((newCompany) => {
     setCompanies((prev) => [...prev, newCompany]);
     setCompany(newCompany.id);
+  }, []);
+
+  // Real, persisted shipments (src/lib/shipments.js) get merged into the
+  // mock SHIPMENTS array once on load — see addShipmentToMock's comment for
+  // why a direct mutation instead of threading a second data source through
+  // every consumer.
+  useEffect(() => {
+    fetchLiveShipments().then((rows) => {
+      rows.forEach(addShipmentToMock);
+      if (rows.length) setShipmentsTick((t) => t + 1);
+    });
+  }, []);
+
+  const handleShipmentCreated = useCallback((shipment) => {
+    addShipmentToMock(shipment);
+    setShipmentsTick((t) => t + 1);
   }, []);
 
   const companyInfo = companies.find((c) => c.id === company) || null;
@@ -310,7 +332,15 @@ export default function App() {
         );
 
       case "shipments":
-        return <ShipmentsPage companyInfo={companyInfo} onViewShipment={handleViewShipment} />;
+        return (
+          <ShipmentsPage
+            companyInfo={companyInfo}
+            onViewShipment={handleViewShipment}
+            session={session}
+            currentUser={currentUser}
+            onShipmentCreated={handleShipmentCreated}
+          />
+        );
 
       case "alerts":
         return (

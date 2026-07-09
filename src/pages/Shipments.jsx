@@ -2,13 +2,16 @@ import { useState } from "react";
 import { SHIPMENTS } from "../data/shipments.js";
 import { fmtCurrencyCompact } from "../lib/utils.js";
 import { RiskBadge, StatusBadge } from "../components/Badges.jsx";
+import AddShipmentModal from "../components/AddShipmentModal.jsx";
 
-export default function ShipmentsPage({ companyInfo, onViewShipment }) {
+export default function ShipmentsPage({ companyInfo, onViewShipment, session, currentUser, onShipmentCreated }) {
   const [filter, setFilter] = useState("All");
+  const [showAddShipment, setShowAddShipment] = useState(false);
   const companyShipments = SHIPMENTS.filter((s) => s.customer === companyInfo.name);
   const carrierCount = new Set(companyShipments.map((s) => s.carrier)).size;
   const statuses = ["All", "On Schedule", "In Transit", "Delayed", "Critical Alert"];
   const shown = filter === "All" ? companyShipments : companyShipments.filter((s) => s.status === filter);
+  const canAddShipment = currentUser?.role === "admin" || currentUser?.role === "dispatcher";
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -23,11 +26,25 @@ export default function ShipmentsPage({ companyInfo, onViewShipment }) {
             <h1 className="text-2xl font-bold text-gray-900">Shipments</h1>
             <p className="text-gray-400 text-sm mt-0.5">Tracking {companyShipments.length} active shipment{companyShipments.length === 1 ? "" : "s"} across {carrierCount} carrier{carrierCount === 1 ? "" : "s"}</p>
           </div>
-          <button className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors">
-            + Add Shipment
-          </button>
+          {canAddShipment && (
+            <button
+              onClick={() => setShowAddShipment(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors"
+            >
+              + Add Shipment
+            </button>
+          )}
         </div>
       </div>
+
+      {showAddShipment && (
+        <AddShipmentModal
+          companyInfo={companyInfo}
+          session={session}
+          onClose={() => setShowAddShipment(false)}
+          onCreated={onShipmentCreated}
+        />
+      )}
 
       <div className="p-8 space-y-5">
         <div className="flex gap-2">
