@@ -1,6 +1,7 @@
 // Client helper for the Digital BOL flow (api/submit-bol.js, api/submit-bol-delivery.js).
 import { SB_URL, authHeaders } from "./supabase.js";
 import { fetchEvidenceFiles } from "./evidence.js";
+import { fetchInsuranceClaim } from "./insurance.js";
 
 // SHA-256 hash of a signature canvas's data URL, computed entirely in the
 // browser via the native Web Crypto API (no library) — the raw signature
@@ -150,11 +151,12 @@ export async function fetchMissionEvidenceForShipment(accessToken, legacyShipmen
   if (!bol) return null;
 
   const guardianId = bol.missions?.guardian_id;
-  const [custodyEvents, lockEvents, evidenceFiles] = await Promise.all([
+  const [custodyEvents, lockEvents, evidenceFiles, insuranceClaim] = await Promise.all([
     fetchCustodyEvents(accessToken, bol.mission_id),
     guardianId ? fetchLockEvents(accessToken, guardianId) : Promise.resolve([]),
     fetchEvidenceFiles(accessToken, bol.mission_id),
+    fetchInsuranceClaim(accessToken, bol.mission_id),
   ]);
 
-  return { bol, custodyEvents, lockEvents, evidenceFiles };
+  return { bol, custodyEvents, lockEvents, evidenceFiles, insuranceClaim };
 }

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { fmtCurrency, fmtDate } from "../lib/utils.js";
 import { fetchBolDetail, fetchCustodyEvents, logCustodyEvent, fetchLockEvents, logLockEvent } from "../lib/bol.js";
 import { captureEvidence, fetchEvidenceFiles, getEvidenceUrl } from "../lib/evidence.js";
+import { fetchInsuranceClaim, upsertInsuranceClaim } from "../lib/insurance.js";
 
 const PRINT_STYLE = `
   @media print {
@@ -31,6 +32,19 @@ const EVENT_TYPE_LABEL = {
 // Manual entries only — pickup/delivery are logged automatically by the
 // submit-bol / submit-bol-delivery endpoints, not offered here.
 const MANUAL_EVENT_TYPES = ["checkpoint", "handoff", "incident_action"];
+
+const CLAIM_STATUS_LABEL = {
+  not_filed: "Not Filed",
+  filed: "Filed",
+  under_review: "Under Review",
+  approved: "Approved",
+  denied: "Denied",
+  paid: "Paid",
+};
+const CLAIM_STATUSES = Object.keys(CLAIM_STATUS_LABEL);
+
+const formInputClass = "w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-700";
+const formLabelClass = "block text-gray-500 text-xs font-semibold mb-1";
 
 const Section = ({ label, children }) => (
   <div className="mb-6 break-inside-avoid">
@@ -104,6 +118,52 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
       return;
     }
     doLogLockEvent(eventType);
+  };
+
+  const [insuranceClaim, setInsuranceClaim] = useState(undefined); // undefined = loading, null = not filed
+  const [claimDraft, setClaimDraft] = useState({
+    insurerName: "", policyNumber: "", claimNumber: "",
+    adjusterName: "", adjusterPhone: "", adjusterEmail: "",
+    status: "not_filed", estimatedPayout: "", notes: "",
+  });
+  const [savingClaim, setSavingClaim] = useState(false);
+  const [claimError, setClaimError] = useState("");
+
+  useEffect(() => {
+    if (!bol?.mission_id) return;
+    fetchInsuranceClaim(session.access_token, bol.mission_id).then((claim) => {
+      setInsuranceClaim(claim);
+      if (claim) {
+        setClaimDraft({
+          insurerName: claim.insurer_name || "",
+          policyNumber: claim.policy_number || "",
+          claimNumber: claim.claim_number || "",
+          adjusterName: claim.adjuster_name || "",
+          adjusterPhone: claim.adjuster_phone || "",
+          adjusterEmail: claim.adjuster_email || "",
+          status: claim.status || "not_filed",
+          estimatedPayout: claim.estimated_payout_cents != null ? String(claim.estimated_payout_cents / 100) : "",
+          notes: claim.notes || "",
+        });
+      }
+    });
+  }, [bol?.mission_id, session]);
+
+  // Unlike the append-only audit logs (custody/lock events), this is a
+  // mutable, ongoing record (updated_at) — no confirm-gate needed, a
+  // dispatcher can freely edit it as the claim progresses.
+  const handleSaveClaim = async (e) => {
+    e.preventDefault();
+    setSavingClaim(true);
+    setClaimError("");
+    try {
+      const claim = await upsertInsuranceClaim(session.access_token, { missionId: bol.mission_id, ...claimDraft });
+      setInsuranceClaim(claim);
+    } catch (err) {
+      setClaimError(err.message || "Failed to save insurance claim");
+    } finally {
+      setSavingClaim(false);
+    }
   };
 
   const [evidenceFiles, setEvidenceFiles] = useState([]);
@@ -518,6 +578,71 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
                 {cameraError && <p className="text-gray-500 text-xs">Camera unavailable or permission denied — use Upload Photo instead.</p>}
                 {evidenceError && <p className="text-red-500 text-xs">{evidenceError}</p>}
               </div>
+            )}
+          </Section>
+
+          <Section label="Insurance Claim">
+            {insuranceClaim && (
+              <div className="mb-3">
+                <Row label="Status" value={CLAIM_STATUS_LABEL[insuranceClaim.status] || insuranceClaim.status} />
+                {insuranceClaim.claim_filed_at && <Row label="Filed" value={fmtDate(insuranceClaim.claim_filed_at)} />}
+              </div>
+            )}
+            {currentUser && (
+              <form onSubmit={handleSaveClaim} className="no-print space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={formLabelClass}>Insurer</label>
+                    <input className={formInputClass} value={claimDraft.insurerName} onChange={(e) => setClaimDraft((c) => ({ ...c, insurerName: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className={formLabelClass}>Policy #</label>
+                    <input className={formInputClass} value={claimDraft.policyNumber} onChange={(e) => setClaimDraft((c) => ({ ...c, policyNumber: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={formLabelClass}>Claim #</label>
+                    <input className={formInputClass} value={claimDraft.claimNumber} onChange={(e) => setClaimDraft((c) => ({ ...c, claimNumber: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className={formLabelClass}>Status</label>
+                    <select className={formInputClass} value={claimDraft.status} onChange={(e) => setClaimDraft((c) => ({ ...c, status: e.target.value }))}>
+                      {CLAIM_STATUSES.map((s) => <option key={s} value={s}>{CLAIM_STATUS_LABEL[s]}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className={formLabelClass}>Adjuster Name</label>
+                    <input className={formInputClass} value={claimDraft.adjusterName} onChange={(e) => setClaimDraft((c) => ({ ...c, adjusterName: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className={formLabelClass}>Adjuster Phone</label>
+                    <input className={formInputClass} value={claimDraft.adjusterPhone} onChange={(e) => setClaimDraft((c) => ({ ...c, adjusterPhone: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className={formLabelClass}>Adjuster Email</label>
+                    <input className={formInputClass} value={claimDraft.adjusterEmail} onChange={(e) => setClaimDraft((c) => ({ ...c, adjusterEmail: e.target.value }))} />
+                  </div>
+                </div>
+                <div>
+                  <label className={formLabelClass}>Estimated Payout (USD)</label>
+                  <input type="number" className={formInputClass} value={claimDraft.estimatedPayout} onChange={(e) => setClaimDraft((c) => ({ ...c, estimatedPayout: e.target.value }))} />
+                </div>
+                <div>
+                  <label className={formLabelClass}>Notes</label>
+                  <textarea className={formInputClass} rows={2} value={claimDraft.notes} onChange={(e) => setClaimDraft((c) => ({ ...c, notes: e.target.value }))} />
+                </div>
+                <button
+                  type="submit"
+                  disabled={savingClaim}
+                  className="bg-gray-900 hover:bg-gray-700 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {savingClaim ? "Saving…" : insuranceClaim ? "Update Claim" : "File Claim"}
+                </button>
+                {claimError && <p className="text-red-500 text-xs">{claimError}</p>}
+              </form>
             )}
           </Section>
 

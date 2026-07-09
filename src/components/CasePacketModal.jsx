@@ -19,6 +19,15 @@ const Section = ({ label, children }) => (
   </div>
 );
 
+const CLAIM_STATUS_LABEL = {
+  not_filed: "Not Filed",
+  filed: "Filed",
+  under_review: "Under Review",
+  approved: "Approved",
+  denied: "Denied",
+  paid: "Paid",
+};
+
 const Row = ({ label, value }) => (
   <div className="flex items-start justify-between gap-4 py-1 text-sm">
     <span className="text-gray-500">{label}</span>
@@ -199,6 +208,27 @@ export default function CasePacketModal({ onClose, shipment, incident, recoveryD
               <Row label="Pickup Location" value={missionEvidence.bol.pickup_location} />
               <Row label="Delivery Location" value={missionEvidence.bol.delivery_location} />
             </Section>
+
+            {missionEvidence.insuranceClaim && (
+              <Section label="Insurance Claim">
+                <Row label="Status" value={CLAIM_STATUS_LABEL[missionEvidence.insuranceClaim.status] || missionEvidence.insuranceClaim.status} />
+                <Row label="Insurer" value={missionEvidence.insuranceClaim.insurer_name} />
+                <Row label="Policy #" value={missionEvidence.insuranceClaim.policy_number} />
+                <Row label="Claim #" value={missionEvidence.insuranceClaim.claim_number} />
+                <Row label="Adjuster" value={missionEvidence.insuranceClaim.adjuster_name} />
+                <Row label="Adjuster Phone" value={missionEvidence.insuranceClaim.adjuster_phone} />
+                <Row label="Adjuster Email" value={missionEvidence.insuranceClaim.adjuster_email} />
+                {missionEvidence.insuranceClaim.estimated_payout_cents != null && (
+                  <Row label="Estimated Payout" value={fmtCurrency(missionEvidence.insuranceClaim.estimated_payout_cents / 100)} />
+                )}
+                {missionEvidence.insuranceClaim.claim_filed_at && (
+                  <Row label="Filed" value={fmtDate(missionEvidence.insuranceClaim.claim_filed_at)} />
+                )}
+                {missionEvidence.insuranceClaim.notes && (
+                  <Row label="Notes" value={missionEvidence.insuranceClaim.notes} />
+                )}
+              </Section>
+            )}
 
             <Section label="Mission Chain of Custody">
               {missionEvidence.custodyEvents.length === 0 ? (
