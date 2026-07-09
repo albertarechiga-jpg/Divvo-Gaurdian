@@ -209,46 +209,54 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
             )}
 
             {currentUser && (
-              <form onSubmit={handleAddEvent} className="no-print mt-4 pt-4 border-t border-gray-200 flex gap-2 items-start">
-                <select
-                  value={newEventType}
-                  onChange={(e) => { setNewEventType(e.target.value); setConfirmingIncident(false); }}
-                  className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-700"
-                >
-                  {MANUAL_EVENT_TYPES.map((t) => <option key={t} value={t}>{EVENT_TYPE_LABEL[t]}</option>)}
-                </select>
-                <input
-                  value={newEventDesc}
-                  onChange={(e) => { setNewEventDesc(e.target.value); setConfirmingIncident(false); }}
-                  placeholder="Describe what happened…"
-                  className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-700"
-                />
-                {confirmingIncident ? (
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <span className="text-xs text-red-500 whitespace-nowrap">Log permanently?</span>
+              <form onSubmit={handleAddEvent} className="no-print mt-4 pt-4 border-t border-gray-200">
+                <div className="flex gap-2 items-start">
+                  <select
+                    value={newEventType}
+                    onChange={(e) => { setNewEventType(e.target.value); setConfirmingIncident(false); }}
+                    disabled={confirmingIncident}
+                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-700 disabled:opacity-50"
+                  >
+                    {MANUAL_EVENT_TYPES.map((t) => <option key={t} value={t}>{EVENT_TYPE_LABEL[t]}</option>)}
+                  </select>
+                  <input
+                    value={newEventDesc}
+                    onChange={(e) => { setNewEventDesc(e.target.value); setConfirmingIncident(false); }}
+                    disabled={confirmingIncident}
+                    placeholder="Describe what happened…"
+                    className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-700 disabled:opacity-50"
+                  />
+                  {!confirmingIncident && (
                     <button
                       type="submit"
-                      disabled={loggingEvent}
-                      className="bg-red-600 hover:bg-red-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                      disabled={loggingEvent || !newEventDesc.trim()}
+                      className="bg-gray-900 hover:bg-gray-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 flex-shrink-0"
                     >
-                      {loggingEvent ? "Logging…" : "Yes"}
+                      {loggingEvent ? "Adding…" : "Add"}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmingIncident(false)}
-                      className="border border-gray-300 text-gray-600 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
-                    >
-                      Cancel
-                    </button>
+                  )}
+                </div>
+
+                {confirmingIncident && (
+                  <div className="mt-3 bg-red-50 border border-red-300 rounded-lg p-3 flex items-center justify-between gap-3">
+                    <span className="text-sm text-red-700 font-medium">This will permanently log an Incident Action — it cannot be edited or deleted afterward. Continue?</span>
+                    <div className="flex gap-2 flex-shrink-0">
+                      <button
+                        type="submit"
+                        disabled={loggingEvent}
+                        className="bg-red-600 hover:bg-red-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        {loggingEvent ? "Logging…" : "Yes, Log It"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingIncident(false)}
+                        className="border border-gray-300 bg-white text-gray-600 text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
-                ) : (
-                  <button
-                    type="submit"
-                    disabled={loggingEvent || !newEventDesc.trim()}
-                    className="bg-gray-900 hover:bg-gray-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 flex-shrink-0"
-                  >
-                    {loggingEvent ? "Adding…" : "Add"}
-                  </button>
                 )}
               </form>
             )}
