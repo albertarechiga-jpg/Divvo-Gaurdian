@@ -411,6 +411,34 @@ export default function App() {
     );
   }
 
+  // Self-signups land as "pending" (see the signup migration's
+  // handle_new_signup trigger) and have no real data access at the RLS
+  // layer until an admin approves them from Settings > Team — this screen
+  // is just the UI-side reflection of that gate, not the gate itself.
+  if (currentUser.status === "pending") {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-950 text-gray-400 text-sm text-center px-6 gap-4">
+        <p>Your account is pending approval.</p>
+        <p className="text-gray-600 text-xs">An admin at your company needs to approve your account before you can access the dashboard. Check back soon, or reach out to your admin directly.</p>
+        <button onClick={handleLogout} className="text-blue-400 hover:text-blue-300 text-xs font-semibold">
+          ← Back to login
+        </button>
+      </div>
+    );
+  }
+
+  if (currentUser.status === "suspended") {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-950 text-gray-400 text-sm text-center px-6 gap-4">
+        <p>Your account has been suspended.</p>
+        <p className="text-gray-600 text-xs">Contact your admin if you believe this is a mistake.</p>
+        <button onClick={handleLogout} className="text-blue-400 hover:text-blue-300 text-xs font-semibold">
+          ← Back to login
+        </button>
+      </div>
+    );
+  }
+
   if (companiesLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-950 text-gray-500 text-sm">

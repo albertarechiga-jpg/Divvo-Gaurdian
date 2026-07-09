@@ -74,7 +74,7 @@ export async function fetchCurrentUser(accessToken, userId) {
       // hint tells PostgREST which relationship to embed; without it the
       // request 400s (PGRST201, ambiguous embed). organizations has only one
       // FK from users (organization_id), so that embed needs no hint.
-      `${SB_URL}/rest/v1/users?select=id,full_name,email,organization_id,organizations(is_platform_org),user_roles!user_id(role)&id=eq.${userId}`,
+      `${SB_URL}/rest/v1/users?select=id,full_name,email,status,organization_id,organizations(is_platform_org),user_roles!user_id(role)&id=eq.${userId}`,
       { headers: authHeaders(accessToken) }
     );
     const rows = await res.json();
@@ -89,6 +89,7 @@ export async function fetchCurrentUser(accessToken, userId) {
       id: row.id,
       fullName: row.full_name,
       email: row.email,
+      status: row.status,
       organizationId: row.organization_id,
       isPlatformOrg: row.organizations?.is_platform_org ?? false,
       roles,

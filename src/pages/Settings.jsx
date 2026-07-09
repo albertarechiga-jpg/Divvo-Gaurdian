@@ -41,6 +41,32 @@ async function inviteTeamMember(accessToken, { fullName, email, role }) {
   return data;
 }
 
+// Approve/reject act directly on the users table with the caller's own
+// session, no service-role endpoint needed — RLS's users_cud_admin policy
+// (organization_id = current_org_id() and is_admin()) already restricts
+// this to an admin acting on their own org's users, same pattern as
+// logCustodyEvent in src/lib/bol.js.
+async function approveTeamMember(accessToken, userId) {
+  const res = await fetch(`${SB_URL}/rest/v1/users?id=eq.${userId}`, {
+    method: "PATCH",
+    headers: authHeaders(accessToken, { "Content-Type": "application/json", Prefer: "return=minimal" }),
+    body: JSON.stringify({ status: "active" }),
+  });
+  if (!res.ok) throw new Error("Failed to approve — you may not have admin rights for this organization");
+}
+
+// Deletes their users/user_roles rows (cascades) — their underlying
+// Supabase Auth login still exists, but with no profile row they permanently
+// hit the "no profile" screen and can't re-signup (email already
+// registered). Not a full account deletion; that would need the Admin API.
+async function rejectTeamMember(accessToken, userId) {
+  const res = await fetch(`${SB_URL}/rest/v1/users?id=eq.${userId}`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken),
+  });
+  if (!res.ok) throw new Error("Failed to reject");
+}
+
 const ROLE_OPTIONS = ["admin", "dispatcher", "analyst", "viewer"];
 
 function TeamSection({ session }) {
@@ -52,6 +78,7 @@ function TeamSection({ session }) {
   const [inviting, setInviting] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [actingOnId, setActingOnId] = useState(null);
 
   const refresh = () => {
     setLoading(true);
@@ -62,6 +89,32 @@ function TeamSection({ session }) {
   };
 
   useEffect(() => { refresh(); }, []);
+
+  const handleApprove = async (userId) => {
+    setError("");
+    setActingOnId(userId);
+    try {
+      await approveTeamMember(session.access_token, userId);
+      refresh();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActingOnId(null);
+    }
+  };
+
+  const handleReject = async (userId) => {
+    setError("");
+    setActingOnId(userId);
+    try {
+      await rejectTeamMember(session.access_token, userId);
+      refresh();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActingOnId(null);
+    }
+  };
 
   const handleInvite = async (e) => {
     e.preventDefault();
@@ -102,7 +155,27 @@ function TeamSection({ session }) {
                 {m.status === "invited" && (
                   <span style={{ fontSize: 10, color: "#fcd34d", background: "#1a1200", border: "1px solid #f59e0b", borderRadius: 10, padding: "2px 8px" }}>Invited</span>
                 )}
-                <span style={{ fontSize: 11, color: "#9ca3af", textTransform: "capitalize" }}>{m.role}</span>
+                {m.status === "pending" ? (
+                  <>
+                    <span style={{ fontSize: 10, color: "#93c5fd", background: "#0c1a33", border: "1px solid #2563eb", borderRadius: 10, padding: "2px 8px" }}>Pending approval</span>
+                    <button
+                      onClick={() => handleApprove(m.id)}
+                      disabled={actingOnId === m.id}
+                      style={{ background: "#052e16", border: "1px solid #16a34a", color: "#86efac", borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: 700, cursor: actingOnId === m.id ? "not-allowed" : "pointer" }}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleReject(m.id)}
+                      disabled={actingOnId === m.id}
+                      style={{ background: "#2a0a0a", border: "1px solid #dc2626", color: "#fca5a5", borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: 700, cursor: actingOnId === m.id ? "not-allowed" : "pointer" }}
+                    >
+                      Reject
+                    </button>
+                  </>
+                ) : (
+                  <span style={{ fontSize: 11, color: "#9ca3af", textTransform: "capitalize" }}>{m.role}</span>
+                )}
               </div>
             </div>
           ))
