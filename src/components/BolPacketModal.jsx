@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { fmtCurrency, fmtDate } from "../lib/utils.js";
 import { fetchBolDetail, fetchCustodyEvents, logCustodyEvent, fetchLockEvents, logLockEvent } from "../lib/bol.js";
+import { captureEvidence, fetchEvidenceFiles, getEvidenceUrl } from "../lib/evidence.js";
 
 const PRINT_STYLE = `
   @media print {
@@ -103,6 +104,94 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
       return;
     }
     doLogLockEvent(eventType);
+  };
+
+  const [evidenceFiles, setEvidenceFiles] = useState([]);
+  const [evidenceError, setEvidenceError] = useState("");
+  const [uploadingEvidence, setUploadingEvidence] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState(false);
+  const [evidenceUrls, setEvidenceUrls] = useState({}); // id -> signed url
+  const [loadingUrlFor, setLoadingUrlFor] = useState(null);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  const refreshEvidence = useCallback((missionId) => {
+    fetchEvidenceFiles(session.access_token, missionId).then(setEvidenceFiles);
+  }, [session]);
+
+  useEffect(() => {
+    if (bol?.mission_id) refreshEvidence(bol.mission_id);
+  }, [bol?.mission_id, refreshEvidence]);
+
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    setCameraActive(false);
+  };
+
+  useEffect(() => () => stopCamera(), []);
+
+  const startCamera = async () => {
+    setCameraError(false);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      streamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+      setCameraActive(true);
+    } catch {
+      setCameraError(true);
+    }
+  };
+
+  const uploadImageDataUrl = async (imageDataUrl) => {
+    setUploadingEvidence(true);
+    setEvidenceError("");
+    try {
+      await captureEvidence(session.access_token, { missionId: bol.mission_id, imageDataUrl });
+      refreshEvidence(bol.mission_id);
+    } catch (err) {
+      setEvidenceError(err.message || "Failed to capture evidence");
+    } finally {
+      setUploadingEvidence(false);
+    }
+  };
+
+  const captureSnapshot = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+    stopCamera();
+    uploadImageDataUrl(canvas.toDataURL("image/jpeg", 0.85));
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => uploadImageDataUrl(reader.result);
+    reader.readAsDataURL(file);
+  };
+
+  const handleViewEvidence = async (id) => {
+    if (evidenceUrls[id]) {
+      window.open(evidenceUrls[id], "_blank");
+      return;
+    }
+    setLoadingUrlFor(id);
+    try {
+      const url = await getEvidenceUrl(session.access_token, id);
+      setEvidenceUrls((prev) => ({ ...prev, [id]: url }));
+      window.open(url, "_blank");
+    } catch (err) {
+      setEvidenceError(err.message || "Failed to load evidence");
+    } finally {
+      setLoadingUrlFor(null);
+    }
   };
 
   const doLogEvent = async () => {
@@ -364,6 +453,62 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
                 )}
                 {lockError && <p className="no-print text-red-500 text-xs mt-2">{lockError}</p>}
               </>
+            )}
+          </Section>
+
+          <Section label="Evidence Capture">
+            {evidenceFiles.length === 0 ? (
+              <p className="text-sm text-gray-400 mb-4">No evidence captured yet.</p>
+            ) : (
+              <div className="space-y-2 mb-4">
+                {evidenceFiles.map((ev) => (
+                  <div key={ev.id} className="flex gap-4 text-sm items-center">
+                    <span className="font-mono text-gray-400 flex-shrink-0 w-32">{fmtDate(ev.created_at)}</span>
+                    <span className="text-gray-700 flex-1 capitalize">{ev.file_type}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleViewEvidence(ev.id)}
+                      disabled={loadingUrlFor === ev.id}
+                      className="no-print text-blue-600 hover:underline text-xs font-semibold disabled:opacity-50 flex-shrink-0"
+                    >
+                      {loadingUrlFor === ev.id ? "Loading…" : "View"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {currentUser && (
+              <div className="no-print pt-4 border-t border-gray-200 space-y-3">
+                <canvas ref={canvasRef} className="hidden" />
+                {cameraActive ? (
+                  <div className="space-y-2">
+                    <div className="bg-black rounded-lg overflow-hidden aspect-video max-w-sm">
+                      <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={captureSnapshot} disabled={uploadingEvidence} className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50">
+                        {uploadingEvidence ? "Uploading…" : "Capture & Upload"}
+                      </button>
+                      <button type="button" onClick={stopCamera} className="border border-gray-300 text-gray-600 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-2 flex-wrap items-center">
+                    <button type="button" onClick={startCamera} disabled={uploadingEvidence} className="bg-gray-900 hover:bg-gray-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50">
+                      Open Camera
+                    </button>
+                    <label className="border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors cursor-pointer">
+                      {uploadingEvidence ? "Uploading…" : "Upload Photo"}
+                      <input type="file" accept="image/*" onChange={handleFileUpload} disabled={uploadingEvidence} className="hidden" />
+                    </label>
+                  </div>
+                )}
+                {cameraError && <p className="text-gray-500 text-xs">Camera unavailable or permission denied — use Upload Photo instead.</p>}
+                {evidenceError && <p className="text-red-500 text-xs">{evidenceError}</p>}
+              </div>
             )}
           </Section>
 
