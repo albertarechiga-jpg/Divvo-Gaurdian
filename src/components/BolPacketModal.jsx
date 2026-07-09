@@ -133,12 +133,21 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
 
   useEffect(() => () => stopCamera(), []);
 
+  // The <video> element only exists in the DOM once cameraActive is true
+  // (it's behind that conditional below), so attaching the stream has to
+  // happen in an effect that runs *after* that render commits — not
+  // inline in startCamera, where videoRef.current is still null.
+  useEffect(() => {
+    if (cameraActive && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [cameraActive]);
+
   const startCamera = async () => {
     setCameraError(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
       setCameraActive(true);
     } catch {
       setCameraError(true);

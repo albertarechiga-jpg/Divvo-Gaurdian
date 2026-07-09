@@ -52,13 +52,23 @@ export default function CreateBolModal({ shipment, session, onClose, onCreated }
 
   useEffect(() => () => stopCamera(), []);
 
+  // The <video> element only exists once `verifying` is true (it's behind
+  // that conditional below), so attaching the stream has to happen in an
+  // effect that runs after that render commits, not inline in
+  // runVerification right after getUserMedia resolves — videoRef.current
+  // isn't guaranteed to be populated at that point.
+  useEffect(() => {
+    if (verifying && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [verifying]);
+
   const runVerification = async () => {
     setCameraError(false);
     setVerifying(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
       // Simulated pass after a short "scan" — the live camera feed is only
       // ever shown to the operator locally; it is never captured to an
       // image, uploaded, or sent to any API, and the stream is stopped

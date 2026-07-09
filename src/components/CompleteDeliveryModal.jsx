@@ -47,13 +47,23 @@ export default function CompleteDeliveryModal({ bol, session, onClose, onComplet
 
   useEffect(() => () => stopCamera(), []);
 
+  // The <video> element only exists once `verifying` is true (it's behind
+  // that conditional below), so attaching the stream has to happen in an
+  // effect that runs after that render commits, not inline in
+  // runVerification right after getUserMedia resolves — videoRef.current
+  // isn't guaranteed to be populated at that point.
+  useEffect(() => {
+    if (verifying && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [verifying]);
+
   const runVerification = async () => {
     setCameraError(false);
     setVerifying(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
       // Same guarantee as pickup verification: the live preview is shown
       // only to the operator locally and is never captured, uploaded, or
       // sent to any API. The stream is stopped immediately below.
