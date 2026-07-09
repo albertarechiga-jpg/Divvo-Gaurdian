@@ -7,6 +7,7 @@ import RouteMap from "../components/RouteMap.jsx";
 import CasePacketModal from "../components/CasePacketModal.jsx";
 import CreateBolModal from "../components/CreateBolModal.jsx";
 import CompleteDeliveryModal from "../components/CompleteDeliveryModal.jsx";
+import BolPacketModal from "../components/BolPacketModal.jsx";
 import { fetchLatestBolForShipment } from "../lib/bol.js";
 
 const BOL_STATUS_LABEL = {
@@ -25,6 +26,7 @@ export default function ShipmentDetail({ shipmentId, alerts, companyInfo, onBack
   const [showCaseFile, setShowCaseFile] = useState(false);
   const [showBolModal, setShowBolModal] = useState(false);
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [showBolPacket, setShowBolPacket] = useState(false);
   const [bol, setBol] = useState(undefined); // undefined = loading, null = none found
   const canCreateBol = currentUser?.role === "admin" || currentUser?.role === "dispatcher";
 
@@ -85,22 +87,33 @@ export default function ShipmentDetail({ shipmentId, alerts, companyInfo, onBack
               </p>
             )}
           </div>
-          {bol === null && (
-            <button onClick={() => setShowBolModal(true)} className="border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors flex-shrink-0">
-              Create Digital BOL
-            </button>
-          )}
-          {bol?.status === "signed_pickup" && (
-            <button onClick={() => setShowDeliveryModal(true)} className="border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors flex-shrink-0">
-              Complete Delivery — Receiver Verification
-            </button>
-          )}
-          {bol?.status === "signed_delivery" && (
-            <span className="text-emerald-600 text-sm font-semibold flex items-center gap-1.5 flex-shrink-0">
-              <span>✓</span> Delivered
-            </span>
-          )}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {bol === null && (
+              <button onClick={() => setShowBolModal(true)} className="border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+                Create Digital BOL
+              </button>
+            )}
+            {bol?.status === "signed_pickup" && (
+              <button onClick={() => setShowDeliveryModal(true)} className="border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+                Complete Delivery — Receiver Verification
+              </button>
+            )}
+            {bol?.status === "signed_delivery" && (
+              <span className="text-emerald-600 text-sm font-semibold flex items-center gap-1.5">
+                <span>✓</span> Delivered
+              </span>
+            )}
+            {bol && (
+              <button onClick={() => setShowBolPacket(true)} className="border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+                View Document
+              </button>
+            )}
+          </div>
         </div>
+      )}
+
+      {showBolPacket && bol && (
+        <BolPacketModal bolId={bol.id} session={session} onClose={() => setShowBolPacket(false)} />
       )}
 
       <div className="grid grid-cols-3 gap-5">

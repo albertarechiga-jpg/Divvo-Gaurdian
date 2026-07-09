@@ -57,3 +57,21 @@ export async function fetchLatestBolForShipment(accessToken, legacyShipmentId) {
   const [bol] = await bolRes.json();
   return bol || null;
 }
+
+// Full BOL record for the printable document view — carrier/driver info,
+// both signature events (pickup + delivery, if it's gotten that far) and
+// their verification results. Uses the caller's own session, same as above.
+export async function fetchBolDetail(accessToken, bolId) {
+  const headers = authHeaders(accessToken);
+  const select = [
+    "id,bol_number,status,pickup_location,delivery_location,cargo_description,declared_value_cents,issued_at",
+    "missions(status,drivers(full_name,phone,email,license_state),carriers(name))",
+    "bol_signatures(signer_type,signature_hash,signed_at," +
+      "driver_verifications(provider,result,confidence_score,verified_at,consent_given)," +
+      "receiver_verifications(receiver_name,receiver_phone,verification_type,provider,result,verified_at,consent_given))",
+  ].join(",");
+  const res = await fetch(`${SB_URL}/rest/v1/digital_bols?select=${select}&id=eq.${bolId}`, { headers });
+  if (!res.ok) return null;
+  const [row] = await res.json();
+  return row || null;
+}
