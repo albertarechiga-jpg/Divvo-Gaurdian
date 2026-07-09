@@ -64,7 +64,7 @@ export async function fetchLatestBolForShipment(accessToken, legacyShipmentId) {
 export async function fetchBolDetail(accessToken, bolId) {
   const headers = authHeaders(accessToken);
   const select = [
-    "id,bol_number,status,pickup_location,delivery_location,cargo_description,declared_value_cents,issued_at",
+    "id,bol_number,status,mission_id,pickup_location,delivery_location,cargo_description,declared_value_cents,issued_at",
     "missions(status,drivers(full_name,phone,email,license_state),carriers(name))",
     "bol_signatures(signer_type,signature_hash,signed_at," +
       "driver_verifications(provider,result,confidence_score,verified_at,consent_given)," +
@@ -74,4 +74,37 @@ export async function fetchBolDetail(accessToken, bolId) {
   if (!res.ok) return null;
   const [row] = await res.json();
   return row || null;
+}
+
+// Chain of custody — mission-scoped, real Supabase table (distinct from
+// RecoveryDetail.jsx's own incident-scoped, in-memory "Chain of Custody Log",
+// which this does not touch). coc_insert_staff RLS lets any dispatcher-level
+// session insert directly with their own auth — no service-role endpoint
+// needed for these manual entries.
+export async function fetchCustodyEvents(accessToken, missionId) {
+  const headers = authHeaders(accessToken);
+  const res = await fetch(
+    `${SB_URL}/rest/v1/chain_of_custody_events?select=id,event_type,actor_type,description,occurred_at&mission_id=eq.${missionId}&order=occurred_at.asc`,
+    { headers }
+  );
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function logCustodyEvent(accessToken, { missionId, actorUserId, eventType, description }) {
+  const res = await fetch(`${SB_URL}/rest/v1/chain_of_custody_events`, {
+    method: "POST",
+    headers: authHeaders(accessToken, { "Content-Type": "application/json", Prefer: "return=representation" }),
+    body: JSON.stringify({
+      mission_id: missionId,
+      event_type: eventType,
+      actor_type: "dispatcher",
+      actor_user_id: actorUserId,
+      description,
+      occurred_at: new Date().toISOString(),
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || data.error || "Failed to log custody event");
+  return Array.isArray(data) ? data[0] : data;
 }

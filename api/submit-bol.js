@@ -253,6 +253,26 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: `Failed to record signature: ${err.message || signatureRes.status}` });
     }
 
+    // 10. Chain-of-custody entry for the pickup event. Not fatal if this
+    //     fails — the BOL itself is already fully recorded — so this is
+    //     logged but doesn't block the response.
+    const coCRes = await fetch(`${SUPABASE_URL}/rest/v1/chain_of_custody_events`, {
+      method: "POST",
+      headers: serviceHeaders,
+      body: JSON.stringify({
+        mission_id: mission.id,
+        event_type: "pickup",
+        actor_type: "driver",
+        actor_driver_id: driverRow.id,
+        description: `BOL ${bolNumber} signed at pickup by ${driver.fullName}`,
+        occurred_at: new Date().toISOString(),
+      }),
+    });
+    if (!coCRes.ok) {
+      const err = await coCRes.json().catch(() => ({}));
+      console.error("Failed to log pickup chain-of-custody event:", err.message || coCRes.status);
+    }
+
     return res.status(201).json({
       bolNumber,
       bolId: createdBol.id,

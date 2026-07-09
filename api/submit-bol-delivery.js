@@ -83,7 +83,7 @@ export default async function handler(req, res) {
     // 3. Look up the BOL + its mission, confirm it belongs to the caller's
     //    org and is actually awaiting delivery.
     const bolRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/digital_bols?select=id,status,mission_id,missions(organization_id,driver_id)&id=eq.${bolId}`,
+      `${SUPABASE_URL}/rest/v1/digital_bols?select=id,bol_number,status,mission_id,missions(organization_id,driver_id)&id=eq.${bolId}`,
       { headers: serviceHeaders }
     );
     const [bolRow] = await bolRes.json();
@@ -145,6 +145,24 @@ export default async function handler(req, res) {
     if (!updateRes.ok) {
       const err = await updateRes.json().catch(() => ({}));
       return res.status(500).json({ error: `Failed to update BOL status: ${err.message || updateRes.status}` });
+    }
+
+    // 7. Chain-of-custody entry for the delivery event. Not fatal if this
+    //    fails — the delivery itself is already fully recorded.
+    const coCRes = await fetch(`${SUPABASE_URL}/rest/v1/chain_of_custody_events`, {
+      method: "POST",
+      headers: serviceHeaders,
+      body: JSON.stringify({
+        mission_id: bolRow.mission_id,
+        event_type: "delivery",
+        actor_type: "receiver",
+        description: `BOL ${bolRow.bol_number} signed at delivery by ${receiverName}`,
+        occurred_at: new Date().toISOString(),
+      }),
+    });
+    if (!coCRes.ok) {
+      const err = await coCRes.json().catch(() => ({}));
+      console.error("Failed to log delivery chain-of-custody event:", err.message || coCRes.status);
     }
 
     return res.status(200).json({ bolId: bolRow.id, status: "signed_delivery", verificationId: verification.id });

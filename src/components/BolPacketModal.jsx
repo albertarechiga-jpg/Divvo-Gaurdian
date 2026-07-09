@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { fmtCurrency, fmtDate } from "../lib/utils.js";
-import { fetchBolDetail } from "../lib/bol.js";
+import { fetchBolDetail, fetchCustodyEvents, logCustodyEvent } from "../lib/bol.js";
 
 const PRINT_STYLE = `
   @media print {
@@ -19,6 +19,18 @@ const STATUS_LABEL = {
   void: "Void",
 };
 
+const EVENT_TYPE_LABEL = {
+  pickup: "Pickup",
+  checkpoint: "Checkpoint",
+  handoff: "Handoff",
+  delivery: "Delivery",
+  incident_action: "Incident Action",
+};
+
+// Manual entries only — pickup/delivery are logged automatically by the
+// submit-bol / submit-bol-delivery endpoints, not offered here.
+const MANUAL_EVENT_TYPES = ["checkpoint", "handoff", "incident_action"];
+
 const Section = ({ label, children }) => (
   <div className="mb-6 break-inside-avoid">
     <p className="text-xs font-bold text-gray-500 uppercase tracking-widest border-b border-gray-300 pb-1.5 mb-3">{label}</p>
@@ -33,12 +45,46 @@ const Row = ({ label, value }) => (
   </div>
 );
 
-export default function BolPacketModal({ bolId, session, onClose }) {
+export default function BolPacketModal({ bolId, session, currentUser, onClose }) {
   const [bol, setBol] = useState(undefined); // undefined = loading, null = not found
+  const [custodyEvents, setCustodyEvents] = useState([]);
+  const [newEventType, setNewEventType] = useState("checkpoint");
+  const [newEventDesc, setNewEventDesc] = useState("");
+  const [loggingEvent, setLoggingEvent] = useState(false);
+  const [custodyError, setCustodyError] = useState("");
 
   useEffect(() => {
     fetchBolDetail(session.access_token, bolId).then(setBol);
   }, [bolId, session]);
+
+  const refreshCustody = useCallback((missionId) => {
+    fetchCustodyEvents(session.access_token, missionId).then(setCustodyEvents);
+  }, [session]);
+
+  useEffect(() => {
+    if (bol?.mission_id) refreshCustody(bol.mission_id);
+  }, [bol?.mission_id, refreshCustody]);
+
+  const handleAddEvent = async (e) => {
+    e.preventDefault();
+    if (!newEventDesc.trim()) return;
+    setLoggingEvent(true);
+    setCustodyError("");
+    try {
+      await logCustodyEvent(session.access_token, {
+        missionId: bol.mission_id,
+        actorUserId: currentUser.id,
+        eventType: newEventType,
+        description: newEventDesc.trim(),
+      });
+      setNewEventDesc("");
+      refreshCustody(bol.mission_id);
+    } catch (err) {
+      setCustodyError(err.message || "Failed to log event");
+    } finally {
+      setLoggingEvent(false);
+    }
+  };
 
   const pickupSig = bol?.bol_signatures?.find((s) => s.signer_type === "driver");
   const deliverySig = bol?.bol_signatures?.find((s) => s.signer_type === "receiver");
@@ -129,6 +175,50 @@ export default function BolPacketModal({ bolId, session, onClose }) {
             ) : (
               <p className="text-sm text-gray-400">Awaiting delivery.</p>
             )}
+          </Section>
+
+          <Section label="Chain of Custody">
+            {custodyEvents.length === 0 ? (
+              <p className="text-sm text-gray-400">No custody events recorded yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {custodyEvents.map((ev) => (
+                  <div key={ev.id} className="flex gap-4 text-sm">
+                    <span className="font-mono text-gray-400 flex-shrink-0 w-32">{fmtDate(ev.occurred_at)}</span>
+                    <span className="text-gray-700 flex-1">
+                      <span className="font-semibold">{EVENT_TYPE_LABEL[ev.event_type] || ev.event_type}</span> — {ev.description}
+                    </span>
+                    <span className="text-gray-400 flex-shrink-0 capitalize">{ev.actor_type}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {currentUser && (
+              <form onSubmit={handleAddEvent} className="no-print mt-4 pt-4 border-t border-gray-200 flex gap-2 items-start">
+                <select
+                  value={newEventType}
+                  onChange={(e) => setNewEventType(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-700"
+                >
+                  {MANUAL_EVENT_TYPES.map((t) => <option key={t} value={t}>{EVENT_TYPE_LABEL[t]}</option>)}
+                </select>
+                <input
+                  value={newEventDesc}
+                  onChange={(e) => setNewEventDesc(e.target.value)}
+                  placeholder="Describe what happened…"
+                  className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-700"
+                />
+                <button
+                  type="submit"
+                  disabled={loggingEvent || !newEventDesc.trim()}
+                  className="bg-gray-900 hover:bg-gray-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {loggingEvent ? "Adding…" : "Add"}
+                </button>
+              </form>
+            )}
+            {custodyError && <p className="no-print text-red-500 text-xs mt-2">{custodyError}</p>}
           </Section>
 
           <div className="border-t border-gray-300 pt-4 mt-6 text-xs text-gray-400 flex items-center justify-between">

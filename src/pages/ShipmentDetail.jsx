@@ -113,7 +113,7 @@ export default function ShipmentDetail({ shipmentId, alerts, companyInfo, onBack
       )}
 
       {showBolPacket && bol && (
-        <BolPacketModal bolId={bol.id} session={session} onClose={() => setShowBolPacket(false)} />
+        <BolPacketModal bolId={bol.id} session={session} currentUser={currentUser} onClose={() => setShowBolPacket(false)} />
       )}
 
       <div className="grid grid-cols-3 gap-5">
