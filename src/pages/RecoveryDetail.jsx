@@ -162,7 +162,7 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
     ].join("\n");
     window.location.href = `mailto:${encodeURIComponent(contact.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     logCustody(`Carrier follow-up email drafted to ${s.carrier} dispatch`);
-    showToast(`Emailing ${s.carrier} dispatch (${contact.email})`);
+    showToast(`Email drafted for ${s.carrier} dispatch — send it from your mail app`);
   };
 
   const contactAgency = async () => {
@@ -171,8 +171,11 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
     if (le.contactPhone && le.contactPhone !== "—") {
       const tel = le.contactPhone.replace(/[^\d+]/g, "");
       window.location.href = `tel:${tel}`;
-      logCustody(`Called ${le.contactName} (${le.agency}) — ${le.contactPhone}`);
-      showToast(`Calling ${le.contactName} — ${le.contactPhone}`);
+      // "Dialer opened", not "Called" — a tel: link only hands off to the
+      // phone app, there's no way to confirm the call actually connected,
+      // and this log is the case's tamper-evident record.
+      logCustody(`Phone dialer opened for ${le.contactName} (${le.agency}) — ${le.contactPhone}`);
+      showToast(`Dialer opened for ${le.contactName} — place the call from your phone`);
       return;
     }
 
@@ -217,7 +220,7 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
     const to = matched?.email || "";
     window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     logCustody(matched ? `Law enforcement email drafted to ${matched.agency}` : "Law enforcement email drafted — no contact configured for this jurisdiction");
-    showToast(matched ? `Emailing ${matched.agency} directly (${placeLabel})` : `Email drafted for ${placeLabel} — no contact configured, pick the recipient in your mail app`);
+    showToast(matched ? `Email drafted for ${matched.agency} — send it from your mail app` : `Email drafted for ${placeLabel} — no contact configured, pick the recipient in your mail app`);
   };
 
   const contactAdjuster = () => {
@@ -244,7 +247,7 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
     ].join("\n");
     window.location.href = `mailto:${encodeURIComponent(ins.adjusterEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     logCustody(`Insurance claim follow-up email drafted to ${ins.adjusterName}`);
-    showToast(`Emailing ${ins.adjusterName} (${ins.adjusterEmail})`);
+    showToast(`Email drafted for ${ins.adjusterName} — send it from your mail app`);
   };
 
   return (
