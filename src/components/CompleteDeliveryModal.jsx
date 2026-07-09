@@ -1,39 +1,35 @@
 import { useState, useRef, useEffect } from "react";
-import { fmtCurrency } from "../lib/utils.js";
-import { hashDataUrl, submitBol } from "../lib/bol.js";
+import { hashDataUrl, submitBolDelivery } from "../lib/bol.js";
 import SignaturePad from "./SignaturePad.jsx";
-
-const US_STATES = [
-  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA",
-  "ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK",
-  "OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY",
-];
 
 const inputClass = "w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:border-blue-600";
 const labelClass = "block text-gray-400 text-xs font-semibold mb-1";
 
+const VERIFICATION_TYPES = [
+  { value: "signature", label: "Signature only" },
+  { value: "government_id", label: "Government ID" },
+  { value: "biometric_face", label: "Biometric (face)" },
+  { value: "qr_code", label: "QR code scan" },
+];
+
 function StepDots({ step }) {
   return (
     <div className="flex items-center gap-1.5 mb-4">
-      {[1, 2, 3, 4].map((n) => (
+      {[1, 2, 3].map((n) => (
         <div key={n} className={`h-1.5 flex-1 rounded-full ${n <= step ? "bg-blue-600" : "bg-gray-800"}`} />
       ))}
     </div>
   );
 }
 
-export default function CreateBolModal({ shipment, session, onClose, onCreated }) {
+export default function CompleteDeliveryModal({ bol, session, onClose, onCompleted }) {
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const [bol, setBol] = useState({
-    pickupLocation: shipment.originPort || "",
-    deliveryLocation: shipment.destination || "",
-    cargoDescription: shipment.cargoType || "",
-    declaredValue: shipment.cargoValue || "",
-  });
-  const [driver, setDriver] = useState({ fullName: "", phone: "", email: "", licenseNumber: "", licenseState: "" });
+  const [receiverName, setReceiverName] = useState("");
+  const [receiverPhone, setReceiverPhone] = useState("");
+  const [verificationType, setVerificationType] = useState("signature");
 
   const [consentGiven, setConsentGiven] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -43,7 +39,6 @@ export default function CreateBolModal({ shipment, session, onClose, onCreated }
   const streamRef = useRef(null);
 
   const [signatureDataUrl, setSignatureDataUrl] = useState(null);
-  const [result, setResult] = useState(null);
 
   const stopCamera = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -59,10 +54,9 @@ export default function CreateBolModal({ shipment, session, onClose, onCreated }
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
-      // Simulated pass after a short "scan" — the live camera feed is only
-      // ever shown to the operator locally; it is never captured to an
-      // image, uploaded, or sent to any API, and the stream is stopped
-      // immediately below.
+      // Same guarantee as pickup verification: the live preview is shown
+      // only to the operator locally and is never captured, uploaded, or
+      // sent to any API. The stream is stopped immediately below.
       setTimeout(() => {
         stopCamera();
         setVerifying(false);
@@ -92,41 +86,32 @@ export default function CreateBolModal({ shipment, session, onClose, onCreated }
     setError("");
     try {
       const signatureHash = await hashDataUrl(signatureDataUrl);
-      const data = await submitBol(session.access_token, {
-        shipmentId: shipment.id,
-        shipment: {
-          containerNumber: shipment.containerNumber,
-          cargoType: shipment.cargoType,
-          cargoValue: shipment.cargoValue,
-          originPort: shipment.originPort,
-          destination: shipment.destination,
-          carrier: shipment.carrier,
-        },
-        bol,
-        driver,
+      const data = await submitBolDelivery(session.access_token, {
+        bolId: bol.id,
+        receiverName,
+        receiverPhone,
+        verificationType,
         signatureHash,
         consentGiven,
       });
-      setResult(data);
-      setStep(5);
-      onCreated?.(data);
+      onCompleted?.(data);
+      onClose();
     } catch (err) {
-      setError(err.message || "Failed to submit BOL");
+      setError(err.message || "Failed to complete delivery");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const canContinueStep1 = bol.pickupLocation.trim() && bol.deliveryLocation.trim() && bol.declaredValue;
-  const canContinueStep2 = driver.fullName.trim() && driver.licenseNumber.trim() && driver.licenseState;
+  const canContinueStep1 = receiverName.trim().length > 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
       <div className="w-full max-w-md bg-gray-900 border border-gray-800 rounded-xl shadow-2xl p-6">
         <div className="flex items-start justify-between mb-2">
           <div>
-            <h2 className="text-white text-sm font-bold">Create Digital BOL</h2>
-            <p className="text-gray-500 text-xs mt-0.5">{shipment.id} · {shipment.carrier}</p>
+            <h2 className="text-white text-sm font-bold">Complete Delivery</h2>
+            <p className="text-gray-500 text-xs mt-0.5 font-mono">{bol.bol_number}</p>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-300 -mt-1 -mr-1 p-1" aria-label="Close">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -135,26 +120,24 @@ export default function CreateBolModal({ shipment, session, onClose, onCreated }
           </button>
         </div>
 
-        {step <= 4 && <StepDots step={step} />}
+        <StepDots step={step} />
         {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
 
         {step === 1 && (
           <div className="space-y-3">
             <div>
-              <label className={labelClass}>Pickup Location</label>
-              <input className={inputClass} value={bol.pickupLocation} onChange={(e) => setBol((b) => ({ ...b, pickupLocation: e.target.value }))} />
+              <label className={labelClass}>Receiver Full Name</label>
+              <input className={inputClass} value={receiverName} onChange={(e) => setReceiverName(e.target.value)} placeholder="Warehouse contact name" />
             </div>
             <div>
-              <label className={labelClass}>Delivery Location</label>
-              <input className={inputClass} value={bol.deliveryLocation} onChange={(e) => setBol((b) => ({ ...b, deliveryLocation: e.target.value }))} />
+              <label className={labelClass}>Receiver Phone (optional)</label>
+              <input className={inputClass} value={receiverPhone} onChange={(e) => setReceiverPhone(e.target.value)} placeholder="+1 210 555 0000" />
             </div>
             <div>
-              <label className={labelClass}>Cargo Description</label>
-              <input className={inputClass} value={bol.cargoDescription} onChange={(e) => setBol((b) => ({ ...b, cargoDescription: e.target.value }))} />
-            </div>
-            <div>
-              <label className={labelClass}>Declared Value (USD)</label>
-              <input type="number" className={inputClass} value={bol.declaredValue} onChange={(e) => setBol((b) => ({ ...b, declaredValue: e.target.value }))} />
+              <label className={labelClass}>Verification Type</label>
+              <select className={inputClass} value={verificationType} onChange={(e) => setVerificationType(e.target.value)}>
+                {VERIFICATION_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
             </div>
             <div className="flex gap-2 pt-2">
               <button type="button" onClick={onClose} className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-semibold rounded-lg py-2 transition-colors">Cancel</button>
@@ -164,57 +147,13 @@ export default function CreateBolModal({ shipment, session, onClose, onCreated }
                 onClick={() => setStep(2)}
                 className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg py-2 transition-colors disabled:opacity-50"
               >
-                Next: Driver Info
+                Next: Verify Receiver
               </button>
             </div>
           </div>
         )}
 
         {step === 2 && (
-          <div className="space-y-3">
-            <div>
-              <label className={labelClass}>Driver Full Name</label>
-              <input className={inputClass} value={driver.fullName} onChange={(e) => setDriver((d) => ({ ...d, fullName: e.target.value }))} placeholder="Jane Rodriguez" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass}>Phone</label>
-                <input className={inputClass} value={driver.phone} onChange={(e) => setDriver((d) => ({ ...d, phone: e.target.value }))} placeholder="+1 210 555 0000" />
-              </div>
-              <div>
-                <label className={labelClass}>Email</label>
-                <input className={inputClass} value={driver.email} onChange={(e) => setDriver((d) => ({ ...d, email: e.target.value }))} placeholder="driver@carrier.com" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass}>License Number</label>
-                <input className={inputClass} value={driver.licenseNumber} onChange={(e) => setDriver((d) => ({ ...d, licenseNumber: e.target.value }))} placeholder="Hashed before storage" />
-              </div>
-              <div>
-                <label className={labelClass}>License State</label>
-                <select className={inputClass} value={driver.licenseState} onChange={(e) => setDriver((d) => ({ ...d, licenseState: e.target.value }))}>
-                  <option value="">—</option>
-                  {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-            </div>
-            <p className="text-gray-600 text-xs">The license number is hashed before it's ever stored — the raw number isn't kept.</p>
-            <div className="flex gap-2 pt-2">
-              <button type="button" onClick={() => setStep(1)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-semibold rounded-lg py-2 transition-colors">Back</button>
-              <button
-                type="button"
-                disabled={!canContinueStep2}
-                onClick={() => setStep(3)}
-                className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg py-2 transition-colors disabled:opacity-50"
-              >
-                Next: Verify Identity
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
           <div className="space-y-3">
             <div className="bg-amber-950/40 border border-amber-800/40 rounded-lg p-3">
               <p className="text-amber-300 text-xs font-semibold mb-1">Simulated demo verification</p>
@@ -225,7 +164,7 @@ export default function CreateBolModal({ shipment, session, onClose, onCreated }
 
             <label className="flex items-start gap-2 text-xs text-gray-300 cursor-pointer">
               <input type="checkbox" checked={consentGiven} onChange={(e) => setConsentGiven(e.target.checked)} className="mt-0.5" />
-              <span>{driver.fullName || "The driver"} consents to this identity verification step.</span>
+              <span>{receiverName || "The receiver"} consents to this identity verification step.</span>
             </label>
 
             {!verified && (
@@ -242,7 +181,7 @@ export default function CreateBolModal({ shipment, session, onClose, onCreated }
               <div className="bg-emerald-950/40 border border-emerald-800/40 rounded-lg p-4 flex items-center gap-3">
                 <span className="text-emerald-400 text-xl">✓</span>
                 <div>
-                  <p className="text-emerald-300 text-sm font-semibold">Identity Verified (simulated)</p>
+                  <p className="text-emerald-300 text-sm font-semibold">Receiver Verified (simulated)</p>
                   <p className="text-emerald-200/70 text-xs">Result recorded — provider: simulated</p>
                 </div>
               </div>
@@ -274,11 +213,11 @@ export default function CreateBolModal({ shipment, session, onClose, onCreated }
             )}
 
             <div className="flex gap-2 pt-2">
-              <button type="button" onClick={() => setStep(2)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-semibold rounded-lg py-2 transition-colors">Back</button>
+              <button type="button" onClick={() => setStep(1)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-semibold rounded-lg py-2 transition-colors">Back</button>
               <button
                 type="button"
                 disabled={!verified}
-                onClick={() => setStep(4)}
+                onClick={() => setStep(3)}
                 className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg py-2 transition-colors disabled:opacity-50"
               >
                 Next: Signature
@@ -287,32 +226,22 @@ export default function CreateBolModal({ shipment, session, onClose, onCreated }
           </div>
         )}
 
-        {step === 4 && (
+        {step === 3 && (
           <div className="space-y-3">
-            <label className={labelClass}>Driver Signature</label>
+            <label className={labelClass}>Receiver Signature</label>
             <SignaturePad onChange={setSignatureDataUrl} />
             <p className="text-gray-600 text-xs">Only a hash of this signature is stored — the image itself is never sent anywhere.</p>
             <div className="flex gap-2 pt-2">
-              <button type="button" onClick={() => setStep(3)} disabled={submitting} className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-semibold rounded-lg py-2 transition-colors disabled:opacity-50">Back</button>
+              <button type="button" onClick={() => setStep(2)} disabled={submitting} className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-semibold rounded-lg py-2 transition-colors disabled:opacity-50">Back</button>
               <button
                 type="button"
                 disabled={!signatureDataUrl || submitting}
                 onClick={handleSubmit}
                 className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg py-2 transition-colors disabled:opacity-50"
               >
-                {submitting ? "Submitting…" : "Submit BOL"}
+                {submitting ? "Submitting…" : "Complete Delivery"}
               </button>
             </div>
-          </div>
-        )}
-
-        {step === 5 && result && (
-          <div className="space-y-3 text-center py-2">
-            <span className="text-emerald-400 text-3xl">✓</span>
-            <p className="text-white text-sm font-bold">BOL Created</p>
-            <p className="text-gray-400 text-xs font-mono">{result.bolNumber}</p>
-            <p className="text-gray-500 text-xs">Signed at pickup by {driver.fullName} · {fmtCurrency(Number(bol.declaredValue) || 0)} declared value</p>
-            <button onClick={onClose} className="w-full bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg py-2 transition-colors mt-2">Done</button>
           </div>
         )}
       </div>

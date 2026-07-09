@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { SHIPMENTS } from "../data/shipments.js";
 import { COMPANY_SHIPMENT_ROUTES } from "../data/companyFleets.js";
 import { fmtCurrency, fmtDate, ALERT_STATUS_STYLES } from "../lib/utils.js";
@@ -6,6 +6,16 @@ import { Badge, RiskBadge, StatusBadge, SeverityBadge } from "../components/Badg
 import RouteMap from "../components/RouteMap.jsx";
 import CasePacketModal from "../components/CasePacketModal.jsx";
 import CreateBolModal from "../components/CreateBolModal.jsx";
+import CompleteDeliveryModal from "../components/CompleteDeliveryModal.jsx";
+import { fetchLatestBolForShipment } from "../lib/bol.js";
+
+const BOL_STATUS_LABEL = {
+  draft: "Draft",
+  issued: "Issued",
+  signed_pickup: "Awaiting Delivery",
+  signed_delivery: "Delivered",
+  void: "Void",
+};
 
 export default function ShipmentDetail({ shipmentId, alerts, companyInfo, onBack, onCreateIncident, session, currentUser }) {
   const s = SHIPMENTS.find((x) => x.id === shipmentId);
@@ -14,7 +24,20 @@ export default function ShipmentDetail({ shipmentId, alerts, companyInfo, onBack
   const routeCoords = (COMPANY_SHIPMENT_ROUTES[companyInfo?.id] || []).find((r) => r.id === shipmentId);
   const [showCaseFile, setShowCaseFile] = useState(false);
   const [showBolModal, setShowBolModal] = useState(false);
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [bol, setBol] = useState(undefined); // undefined = loading, null = none found
   const canCreateBol = currentUser?.role === "admin" || currentUser?.role === "dispatcher";
+
+  const refreshBol = useCallback(() => {
+    if (!session?.access_token) {
+      setBol(null);
+      return;
+    }
+    setBol(undefined);
+    fetchLatestBolForShipment(session.access_token, shipmentId).then(setBol);
+  }, [session, shipmentId]);
+
+  useEffect(() => { refreshBol(); }, [refreshBol]);
 
   return (
     <div className="p-8 space-y-6">
@@ -32,11 +55,6 @@ export default function ShipmentDetail({ shipmentId, alerts, companyInfo, onBack
           <button onClick={() => setShowCaseFile(true)} className="border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
             Export Case File
           </button>
-          {canCreateBol && (
-            <button onClick={() => setShowBolModal(true)} className="border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
-              Create Digital BOL
-            </button>
-          )}
           <button onClick={() => onCreateIncident(shipmentId)} className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
             Create Incident
           </button>
@@ -48,7 +66,41 @@ export default function ShipmentDetail({ shipmentId, alerts, companyInfo, onBack
       )}
 
       {showBolModal && (
-        <CreateBolModal shipment={s} session={session} onClose={() => setShowBolModal(false)} />
+        <CreateBolModal shipment={s} session={session} onClose={() => setShowBolModal(false)} onCreated={refreshBol} />
+      )}
+
+      {showDeliveryModal && bol && (
+        <CompleteDeliveryModal bol={bol} session={session} onClose={() => setShowDeliveryModal(false)} onCompleted={refreshBol} />
+      )}
+
+      {canCreateBol && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900">Digital BOL</h2>
+            {bol === undefined && <p className="text-xs text-gray-400 mt-1">Loading…</p>}
+            {bol === null && <p className="text-xs text-gray-400 mt-1">No Digital BOL created yet for this shipment.</p>}
+            {bol && (
+              <p className="text-xs text-gray-500 mt-1 font-mono">
+                {bol.bol_number} · <span className="font-sans font-medium text-gray-700">{BOL_STATUS_LABEL[bol.status] || bol.status}</span>
+              </p>
+            )}
+          </div>
+          {bol === null && (
+            <button onClick={() => setShowBolModal(true)} className="border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors flex-shrink-0">
+              Create Digital BOL
+            </button>
+          )}
+          {bol?.status === "signed_pickup" && (
+            <button onClick={() => setShowDeliveryModal(true)} className="border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors flex-shrink-0">
+              Complete Delivery — Receiver Verification
+            </button>
+          )}
+          {bol?.status === "signed_delivery" && (
+            <span className="text-emerald-600 text-sm font-semibold flex items-center gap-1.5 flex-shrink-0">
+              <span>✓</span> Delivered
+            </span>
+          )}
+        </div>
       )}
 
       <div className="grid grid-cols-3 gap-5">
