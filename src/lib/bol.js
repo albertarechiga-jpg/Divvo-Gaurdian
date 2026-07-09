@@ -65,7 +65,7 @@ export async function fetchBolDetail(accessToken, bolId) {
   const headers = authHeaders(accessToken);
   const select = [
     "id,bol_number,status,mission_id,pickup_location,delivery_location,cargo_description,declared_value_cents,issued_at",
-    "missions(status,drivers(full_name,phone,email,license_state),carriers(name))",
+    "missions(status,guardian_id,drivers(full_name,phone,email,license_state),carriers(name))",
     "bol_signatures(signer_type,signature_hash,signed_at," +
       "driver_verifications(provider,result,confidence_score,verified_at,consent_given)," +
       "receiver_verifications(receiver_name,receiver_phone,verification_type,provider,result,verified_at,consent_given))",
@@ -107,4 +107,29 @@ export async function logCustodyEvent(accessToken, { missionId, actorUserId, eve
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || data.error || "Failed to log custody event");
   return Array.isArray(data) ? data[0] : data;
+}
+
+// Lock/unlock audit log — guardian-scoped. Unlike chain_of_custody_events,
+// lock_events has no client-facing insert policy at all (device/service-role
+// only, by design), so writes go through api/log-lock-event.js, not a
+// direct table insert.
+export async function fetchLockEvents(accessToken, guardianId) {
+  const headers = authHeaders(accessToken);
+  const res = await fetch(
+    `${SB_URL}/rest/v1/lock_events?select=id,event_type,triggered_by,occurred_at&guardian_id=eq.${guardianId}&order=occurred_at.asc`,
+    { headers }
+  );
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function logLockEvent(accessToken, payload) {
+  const res = await fetch("/api/log-lock-event", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to log lock event");
+  return data;
 }

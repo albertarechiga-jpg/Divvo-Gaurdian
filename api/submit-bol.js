@@ -190,6 +190,42 @@ export default async function handler(req, res) {
     }
     const [mission] = await missionRes.json();
 
+    // 6b. Find-or-create the Guardian hardware unit for this mission's
+    //     trailer, using a serial synthesized from the mock shipment id —
+    //     one Guardian per monitored trailer, matching the real product
+    //     model. Reused across repeat missions for the same shipment.
+    const deviceSerial = `GRD-${shipmentId}`;
+    let guardian = await findOne(
+      `${SUPABASE_URL}/rest/v1/guardians?select=id&device_serial=eq.${encodeURIComponent(deviceSerial)}`,
+      serviceHeaders
+    );
+    if (!guardian) {
+      const guardianRes = await fetch(`${SUPABASE_URL}/rest/v1/guardians`, {
+        method: "POST",
+        headers: serviceHeaders,
+        body: JSON.stringify({
+          organization_id: organizationId,
+          device_serial: deviceSerial,
+          status: "active",
+          last_heartbeat_at: new Date().toISOString(),
+        }),
+      });
+      if (!guardianRes.ok) {
+        const err = await guardianRes.json().catch(() => ({}));
+        return res.status(500).json({ error: `Failed to create guardian record: ${err.message || guardianRes.status}` });
+      }
+      [guardian] = await guardianRes.json();
+    }
+    const missionGuardianRes = await fetch(`${SUPABASE_URL}/rest/v1/missions?id=eq.${mission.id}`, {
+      method: "PATCH",
+      headers: serviceHeaders,
+      body: JSON.stringify({ guardian_id: guardian.id, updated_at: new Date().toISOString() }),
+    });
+    if (!missionGuardianRes.ok) {
+      const err = await missionGuardianRes.json().catch(() => ({}));
+      return res.status(500).json({ error: `Failed to assign guardian to mission: ${err.message || missionGuardianRes.status}` });
+    }
+
     // 7. Record the (simulated) identity verification result. Never claims
     //    to be a real vendor — provider is always "simulated" here.
     const verificationRes = await fetch(`${SUPABASE_URL}/rest/v1/driver_verifications`, {

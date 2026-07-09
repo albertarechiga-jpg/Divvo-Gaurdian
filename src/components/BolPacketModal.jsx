@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { fmtCurrency, fmtDate } from "../lib/utils.js";
-import { fetchBolDetail, fetchCustodyEvents, logCustodyEvent } from "../lib/bol.js";
+import { fetchBolDetail, fetchCustodyEvents, logCustodyEvent, fetchLockEvents, logLockEvent } from "../lib/bol.js";
 
 const PRINT_STYLE = `
   @media print {
@@ -53,6 +53,10 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
   const [loggingEvent, setLoggingEvent] = useState(false);
   const [custodyError, setCustodyError] = useState("");
   const [confirmingIncident, setConfirmingIncident] = useState(false);
+  const [lockEvents, setLockEvents] = useState([]);
+  const [loggingLock, setLoggingLock] = useState(false);
+  const [lockError, setLockError] = useState("");
+  const [pendingLockAction, setPendingLockAction] = useState(null); // null | "tamper_detected" | "forced_open"
 
   useEffect(() => {
     fetchBolDetail(session.access_token, bolId).then(setBol);
@@ -65,6 +69,41 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
   useEffect(() => {
     if (bol?.mission_id) refreshCustody(bol.mission_id);
   }, [bol?.mission_id, refreshCustody]);
+
+  const guardianId = bol?.missions?.guardian_id;
+
+  const refreshLockEvents = useCallback((gId) => {
+    fetchLockEvents(session.access_token, gId).then(setLockEvents);
+  }, [session]);
+
+  useEffect(() => {
+    if (guardianId) refreshLockEvents(guardianId);
+  }, [guardianId, refreshLockEvents]);
+
+  const doLogLockEvent = async (eventType) => {
+    setLoggingLock(true);
+    setLockError("");
+    try {
+      await logLockEvent(session.access_token, { missionId: bol.mission_id, eventType });
+      setPendingLockAction(null);
+      refreshLockEvents(guardianId);
+    } catch (err) {
+      setLockError(err.message || "Failed to log lock event");
+    } finally {
+      setLoggingLock(false);
+    }
+  };
+
+  // Tamper/forced-open get the same confirm gate as Incident Action custody
+  // entries — lock_events is append-only, and these represent a serious,
+  // permanent claim rather than a routine remote lock/unlock.
+  const handleLockAction = (eventType) => {
+    if ((eventType === "tamper_detected" || eventType === "forced_open") && pendingLockAction !== eventType) {
+      setPendingLockAction(eventType);
+      return;
+    }
+    doLogLockEvent(eventType);
+  };
 
   const doLogEvent = async () => {
     setLoggingEvent(true);
@@ -261,6 +300,71 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
               </form>
             )}
             {custodyError && <p className="no-print text-red-500 text-xs mt-2">{custodyError}</p>}
+          </Section>
+
+          <Section label="Lock / Unlock Audit Log">
+            {!guardianId ? (
+              <p className="text-sm text-gray-400">No Guardian device assigned to this mission yet.</p>
+            ) : (
+              <>
+                {lockEvents.length === 0 ? (
+                  <p className="text-sm text-gray-400 mb-4">No lock events recorded yet.</p>
+                ) : (
+                  <div className="space-y-2 mb-4">
+                    {lockEvents.map((ev) => (
+                      <div key={ev.id} className="flex gap-4 text-sm">
+                        <span className="font-mono text-gray-400 flex-shrink-0 w-32">{fmtDate(ev.occurred_at)}</span>
+                        <span className="text-gray-700 flex-1 font-semibold capitalize">{ev.event_type.replace(/_/g, " ")}</span>
+                        <span className="text-gray-400 flex-shrink-0 capitalize">{ev.triggered_by.replace(/_/g, " ")}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {currentUser && (
+                  <div className="no-print flex gap-2 pt-4 border-t border-gray-200 flex-wrap">
+                    <button type="button" onClick={() => handleLockAction("locked")} disabled={loggingLock} className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50">
+                      Lock
+                    </button>
+                    <button type="button" onClick={() => handleLockAction("unlocked")} disabled={loggingLock} className="bg-gray-700 hover:bg-gray-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50">
+                      Unlock
+                    </button>
+                    <button type="button" onClick={() => handleLockAction("tamper_detected")} disabled={loggingLock} className="border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50">
+                      Simulate Tamper Detected
+                    </button>
+                    <button type="button" onClick={() => handleLockAction("forced_open")} disabled={loggingLock} className="border border-red-300 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50">
+                      Simulate Forced Open
+                    </button>
+                  </div>
+                )}
+
+                {pendingLockAction && (
+                  <div className="no-print mt-3 bg-red-50 border border-red-300 rounded-lg p-3 flex items-center justify-between gap-3">
+                    <span className="text-sm text-red-700 font-medium">
+                      This will permanently log a {pendingLockAction === "tamper_detected" ? "Tamper Detected" : "Forced Open"} event — it cannot be edited or deleted afterward. Continue?
+                    </span>
+                    <div className="flex gap-2 flex-shrink-0">
+                      <button
+                        type="button"
+                        disabled={loggingLock}
+                        onClick={() => doLogLockEvent(pendingLockAction)}
+                        className="bg-red-600 hover:bg-red-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        {loggingLock ? "Logging…" : "Yes, Log It"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPendingLockAction(null)}
+                        className="border border-gray-300 bg-white text-gray-600 text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {lockError && <p className="no-print text-red-500 text-xs mt-2">{lockError}</p>}
+              </>
+            )}
           </Section>
 
           <div className="border-t border-gray-300 pt-4 mt-6 text-xs text-gray-400 flex items-center justify-between">
