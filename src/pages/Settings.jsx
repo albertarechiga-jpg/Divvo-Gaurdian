@@ -12,12 +12,20 @@ async function loadSettings(companyId) {
 // ── Team (Architecture v2.0 auth) ────────────────────────────────────────────
 async function loadTeam(accessToken) {
   try {
+    // user_roles has two FKs to users (user_id, granted_by) — the "!user_id"
+    // hint tells PostgREST which relationship to embed; without it the
+    // request 400s (PGRST201, ambiguous embed) and silently comes back as
+    // an empty list below (this was previously unfixed here, unlike the
+    // identical case already handled in fetchCurrentUser in lib/auth.js).
     const res = await fetch(
-      SB_URL + "/rest/v1/users?select=id,full_name,email,status,user_roles(role)&order=created_at.asc",
+      SB_URL + "/rest/v1/users?select=id,full_name,email,status,user_roles!user_id(role)&order=created_at.asc",
       { headers: authHeaders(accessToken) }
     );
     const rows = await res.json();
-    if (!Array.isArray(rows)) return [];
+    if (!Array.isArray(rows)) {
+      console.error("loadTeam failed:", res.status, rows);
+      return [];
+    }
     return rows.map((r) => ({
       id: r.id,
       fullName: r.full_name,
@@ -25,7 +33,8 @@ async function loadTeam(accessToken) {
       status: r.status,
       role: r.user_roles?.[0]?.role || "—",
     }));
-  } catch {
+  } catch (err) {
+    console.error("loadTeam threw:", err);
     return [];
   }
 }
