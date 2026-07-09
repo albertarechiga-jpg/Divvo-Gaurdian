@@ -5,13 +5,16 @@ import { fmtCurrency, fmtDate, ALERT_STATUS_STYLES } from "../lib/utils.js";
 import { Badge, RiskBadge, StatusBadge, SeverityBadge } from "../components/Badges.jsx";
 import RouteMap from "../components/RouteMap.jsx";
 import CasePacketModal from "../components/CasePacketModal.jsx";
+import CreateBolModal from "../components/CreateBolModal.jsx";
 
-export default function ShipmentDetail({ shipmentId, alerts, companyInfo, onBack, onCreateIncident }) {
+export default function ShipmentDetail({ shipmentId, alerts, companyInfo, onBack, onCreateIncident, session, currentUser }) {
   const s = SHIPMENTS.find((x) => x.id === shipmentId);
   if (!s) return null;
   const shipAlerts = alerts.filter((a) => a.shipmentId === shipmentId);
   const routeCoords = (COMPANY_SHIPMENT_ROUTES[companyInfo?.id] || []).find((r) => r.id === shipmentId);
   const [showCaseFile, setShowCaseFile] = useState(false);
+  const [showBolModal, setShowBolModal] = useState(false);
+  const canCreateBol = currentUser?.role === "admin" || currentUser?.role === "dispatcher";
 
   return (
     <div className="p-8 space-y-6">
@@ -29,6 +32,11 @@ export default function ShipmentDetail({ shipmentId, alerts, companyInfo, onBack
           <button onClick={() => setShowCaseFile(true)} className="border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
             Export Case File
           </button>
+          {canCreateBol && (
+            <button onClick={() => setShowBolModal(true)} className="border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+              Create Digital BOL
+            </button>
+          )}
           <button onClick={() => onCreateIncident(shipmentId)} className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
             Create Incident
           </button>
@@ -37,6 +45,10 @@ export default function ShipmentDetail({ shipmentId, alerts, companyInfo, onBack
 
       {showCaseFile && (
         <CasePacketModal onClose={() => setShowCaseFile(false)} shipment={s} alerts={shipAlerts} />
+      )}
+
+      {showBolModal && (
+        <CreateBolModal shipment={s} session={session} onClose={() => setShowBolModal(false)} />
       )}
 
       <div className="grid grid-cols-3 gap-5">

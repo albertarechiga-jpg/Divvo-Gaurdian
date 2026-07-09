@@ -273,6 +273,8 @@ export default function App() {
           companyInfo={companyInfo}
           onBack={() => handleNav("shipments")}
           onCreateIncident={handleCreateIncidentForShipment}
+          session={session}
+          currentUser={currentUser}
         />
       );
 
