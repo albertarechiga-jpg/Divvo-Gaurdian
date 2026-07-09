@@ -241,6 +241,33 @@ async function saveSettings(id, data) {
   });
 }
 
+// alert_settings has no RLS (v1 table, same as the existing PATCH above) —
+// a direct anon-key insert is consistent with how api/add-company.js already
+// creates this row for companies added through that flow. This covers the
+// gap for any company that doesn't have one yet (e.g. the alert_settings
+// insert failed during add-company and wasn't rolled back, or a company was
+// seeded directly in the DB).
+async function createSettings(companyId, companyName) {
+  const res = await fetch(SB_URL + "/rest/v1/alert_settings", {
+    method: "POST",
+    headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=representation" }),
+    body: JSON.stringify({
+      company_id: companyId,
+      client_name: companyName,
+      emails: [],
+      phones: [],
+      sms_critical: true,
+      sms_warning: false,
+      email_critical: true,
+      email_warning: true,
+      browser_all: true,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error((Array.isArray(data) ? data[0]?.message : data.message) || "Failed to create settings");
+  return Array.isArray(data) ? data[0] : data;
+}
+
 const Toggle = ({ checked, onChange, label, sub }) => (
   <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #111827", cursor: "pointer" }}>
     <div>
@@ -255,6 +282,28 @@ const Toggle = ({ checked, onChange, label, sub }) => (
     </div>
   </label>
 );
+
+function normalizeSettings(s, fallbackName) {
+  return {
+    client_name:    s.client_name || fallbackName,
+    emails:         Array.isArray(s.emails) ? s.emails : [],
+    phones:         Array.isArray(s.phones) ? s.phones : [],
+    sms_critical:   s.sms_critical ?? true,
+    sms_warning:    s.sms_warning ?? false,
+    email_critical: s.email_critical ?? true,
+    email_warning:  s.email_warning ?? true,
+    browser_all:    s.browser_all ?? true,
+    critical_response_minutes: s.critical_response_minutes ?? 5,
+    warning_response_minutes:  s.warning_response_minutes ?? 15,
+    le_contacts: Array.isArray(s.le_contacts) ? s.le_contacts : [],
+    route_deviation_miles:     s.route_deviation_miles ?? 0.5,
+    unauthorized_stop_minutes: s.unauthorized_stop_minutes ?? 20,
+    low_battery_pct:           s.low_battery_pct ?? 35,
+    critical_risk_score:       s.critical_risk_score ?? 80,
+    imu_impact_g:              s.imu_impact_g ?? 3.2,
+    angular_tilt_deg:          s.angular_tilt_deg ?? 12.0,
+  };
+}
 
 const Section = ({ title, children }) => (
   <div style={{ background: "#0a0f1a", border: "1px solid #1f2937", borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
@@ -276,35 +325,23 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
   const [newPhone, setNewPhone]   = useState("");
   const [newLE, setNewLE] = useState({ match: "", agency: "", email: "", phone: "" });
   const [testLoading, setTestLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [creatingSettings, setCreatingSettings] = useState(false);
 
   useEffect(() => {
     setLoading(true);
+    setLoadError("");
     setSettings(null);
     loadSettings(company).then((s) => {
       if (s) {
         setSettingsId(s.id);
-        setSettings({
-          client_name:    s.client_name || companyInfo.name,
-          emails:         Array.isArray(s.emails) ? s.emails : [],
-          phones:         Array.isArray(s.phones) ? s.phones : [],
-          sms_critical:   s.sms_critical ?? true,
-          sms_warning:    s.sms_warning ?? false,
-          email_critical: s.email_critical ?? true,
-          email_warning:  s.email_warning ?? true,
-          browser_all:    s.browser_all ?? true,
-          critical_response_minutes: s.critical_response_minutes ?? 5,
-          warning_response_minutes:  s.warning_response_minutes ?? 15,
-          le_contacts: Array.isArray(s.le_contacts) ? s.le_contacts : [],
-          route_deviation_miles:     s.route_deviation_miles ?? 0.5,
-          unauthorized_stop_minutes: s.unauthorized_stop_minutes ?? 20,
-          low_battery_pct:           s.low_battery_pct ?? 35,
-          critical_risk_score:       s.critical_risk_score ?? 80,
-          imu_impact_g:              s.imu_impact_g ?? 3.2,
-          angular_tilt_deg:          s.angular_tilt_deg ?? 12.0,
-        });
+        setSettings(normalizeSettings(s, companyInfo.name));
       } else {
         setSettingsId(null);
       }
+      setLoading(false);
+    }).catch((err) => {
+      setLoadError(err.message || "Failed to load settings");
       setLoading(false);
     });
   }, [company]);
@@ -312,6 +349,19 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
   const showToast = (msg, color = "#22c55e") => {
     setToast({ msg, color });
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleCreateSettings = async () => {
+    setCreatingSettings(true);
+    setLoadError("");
+    try {
+      const row = await createSettings(company, companyInfo.name);
+      setSettingsId(row.id);
+      setSettings(normalizeSettings(row, companyInfo.name));
+    } catch (err) {
+      setLoadError(err.message || "Failed to create settings");
+    }
+    setCreatingSettings(false);
   };
 
   const handleSave = async () => {
@@ -353,69 +403,90 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
     setSettings((s) => ({ ...s, le_contacts: s.le_contacts.filter((_, idx) => idx !== i) }));
   };
 
+  // Tracks a real per-channel outcome instead of assuming success — a
+  // channel that's enabled but has no recipients configured is reported as
+  // "skipped", not silently folded into a blanket "sent".
   const sendTestAlert = async () => {
     setTestLoading(true);
+    const results = [];
+
     try {
-      // Browser notification
       if (settings.browser_all) {
         if (Notification.permission === "default") await Notification.requestPermission();
         if (Notification.permission === "granted") {
           new Notification("🚨 Divvo Guardian — Test Alert", {
             body: "This is a test notification from Divvo Guardian. All systems operational.",
           });
+          results.push({ channel: "browser", ok: true });
+        } else {
+          results.push({ channel: "browser", ok: false, reason: "permission not granted" });
         }
-      }
-      // Test SMS (non-blocking — errors don't stop email)
-      if (settings.sms_critical && settings.phones?.length) {
-        try {
-          await fetch("/api/send-sms", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              to: settings.phones,
-              message: "DIVVO GUARDIAN ALERT: This is a test notification from Divvo Guardian. All systems operational. divvo-guardian.vercel.app",
-            }),
-          });
-        } catch (e) { console.warn("SMS failed:", e); }
-      }
-      // Test email
-      if (settings.email_critical && settings.emails?.length) {
-        try {
-          const emailRes = await fetch("/api/send-email", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              to: settings.emails,
-              subject: "[TEST] Divvo Guardian — Alert Notification Test",
-              alertType: "Test Notification",
-              deviceId: "TEST-001",
-              location: "System Test",
-              severity: "Critical",
-              details: [
-                ["Alert Type", "Test Notification"],
-                ["Device ID", "TEST-001"],
-                ["Status", "All systems operational"],
-                ["Time", new Date().toLocaleString("en-US")],
-              ],
-            }),
-          });
-          const emailData = await emailRes.json();
-          if (emailData.error) {
-            showToast("Email error: " + emailData.error, "#ef4444");
-            setTestLoading(false);
-            return;
-          }
-          showToast("Test alert sent — check your WhatsApp and email");
-        } catch (e) {
-          showToast("Email failed: " + e.message, "#ef4444");
-        }
-      } else {
-        showToast("Test alert sent");
       }
     } catch (e) {
-      showToast("Test failed: " + e.message, "#ef4444");
+      results.push({ channel: "browser", ok: false, reason: e.message });
     }
+
+    if (settings.sms_critical && settings.phones?.length) {
+      try {
+        const smsRes = await fetch("/api/send-sms", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to: settings.phones,
+            message: "DIVVO GUARDIAN ALERT: This is a test notification from Divvo Guardian. All systems operational. divvo-guardian.vercel.app",
+          }),
+        });
+        const smsData = await smsRes.json().catch(() => ({}));
+        if (!smsRes.ok || smsData.error) throw new Error(smsData.error || `HTTP ${smsRes.status}`);
+        results.push({ channel: "SMS", ok: true });
+      } catch (e) {
+        results.push({ channel: "SMS", ok: false, reason: e.message });
+      }
+    }
+
+    if (settings.email_critical && settings.emails?.length) {
+      try {
+        const emailRes = await fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to: settings.emails,
+            subject: "[TEST] Divvo Guardian — Alert Notification Test",
+            alertType: "Test Notification",
+            deviceId: "TEST-001",
+            location: "System Test",
+            severity: "Critical",
+            details: [
+              ["Alert Type", "Test Notification"],
+              ["Device ID", "TEST-001"],
+              ["Status", "All systems operational"],
+              ["Time", new Date().toLocaleString("en-US")],
+            ],
+          }),
+        });
+        const emailData = await emailRes.json().catch(() => ({}));
+        if (!emailRes.ok || emailData.error) throw new Error(emailData.error || `HTTP ${emailRes.status}`);
+        results.push({ channel: "email", ok: true });
+      } catch (e) {
+        results.push({ channel: "email", ok: false, reason: e.message });
+      }
+    }
+
     setTestLoading(false);
+
+    if (results.length === 0) {
+      showToast("No alert channels are enabled to test — turn one on above first", "#f59e0b");
+      return;
+    }
+    const failed = results.filter((r) => !r.ok);
+    const succeeded = results.filter((r) => r.ok);
+    if (failed.length === 0) {
+      showToast(`Test alert sent via ${succeeded.map((r) => r.channel).join(" + ")}`);
+    } else if (succeeded.length === 0) {
+      showToast(`Test alert failed: ${failed.map((r) => `${r.channel} — ${r.reason}`).join("; ")}`, "#ef4444");
+    } else {
+      showToast(`${succeeded.map((r) => r.channel).join(" + ")} sent — ${failed.map((r) => `${r.channel} failed`).join(", ")}`, "#f59e0b");
+    }
   };
 
   if (loading) return (
@@ -424,8 +495,32 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
     </div>
   );
 
+  if (loadError) return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 12, padding: 32, textAlign: "center" }}>
+      <p style={{ color: "#ef4444", fontSize: 13 }}>{loadError}</p>
+      <button
+        onClick={() => { setLoadError(""); setLoading(true); loadSettings(company).then((s) => {
+          if (s) { setSettingsId(s.id); setSettings(normalizeSettings(s, companyInfo.name)); }
+          setLoading(false);
+        }).catch((err) => { setLoadError(err.message || "Failed to load settings"); setLoading(false); }); }}
+        style={{ background: "#1e3a8a", border: "1px solid #2563eb", color: "#93c5fd", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+      >
+        Retry
+      </button>
+    </div>
+  );
+
   if (!settings) return (
-    <div style={{ padding: 32, color: "#ef4444" }}>Failed to load settings.</div>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 12, padding: 32, textAlign: "center" }}>
+      <p style={{ color: "#d1d5db", fontSize: 13 }}>No alert settings configured yet for {companyInfo.name}.</p>
+      <button
+        onClick={handleCreateSettings}
+        disabled={creatingSettings}
+        style={{ background: "#2563eb", border: "none", color: "white", borderRadius: 8, padding: "8px 20px", fontSize: 12, fontWeight: 700, cursor: creatingSettings ? "not-allowed" : "pointer" }}
+      >
+        {creatingSettings ? "Creating…" : "Create Alert Settings"}
+      </button>
+    </div>
   );
 
   return (

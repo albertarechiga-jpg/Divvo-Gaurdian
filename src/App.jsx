@@ -370,7 +370,7 @@ export default function App() {
         return <CameraView key={company} companyInfo={companyInfo} />;
 
       case "reports":
-        return <ReportsPage companyInfo={companyInfo} alerts={alerts} incidents={incidents} />;
+        return <ReportsPage companyInfo={companyInfo} alerts={alerts} incidents={incidents} onViewIncident={handleViewIncident} />;
 
       case "settings":
         return <SettingsPage companyInfo={companyInfo} session={session} currentUser={currentUser} />;

@@ -11,7 +11,27 @@ const LANE_STATUS_STYLES = {
 
 const RISK_RANK = { Critical: 4, High: 3, Medium: 2, Low: 1 };
 
-export default function ReportsPage({ companyInfo, alerts: allAlerts = [], incidents: allIncidents = [] }) {
+function toCsv(headers, rows) {
+  const esc = (v) => {
+    const s = String(v ?? "");
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  return [headers, ...rows].map((row) => row.map(esc).join(",")).join("\n");
+}
+
+function downloadCsv(filename, csv) {
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+export default function ReportsPage({ companyInfo, alerts: allAlerts = [], incidents: allIncidents = [], onViewIncident }) {
   const companyShipments = SHIPMENTS.filter((s) => s.customer === companyInfo.name);
   const shipmentIds = new Set(companyShipments.map((s) => s.id));
   const alerts = allAlerts.filter((a) => shipmentIds.has(a.shipmentId));
@@ -62,20 +82,66 @@ export default function ReportsPage({ companyInfo, alerts: allAlerts = [], incid
     onTimeRate: Math.round((c.onTimeCount / c.shipments) * 100) + "%",
   }));
 
+  const today = new Date().toISOString().slice(0, 10);
+
   const docs = [
-    { title: `${companyInfo.name} Portfolio — Full Summary`, desc: `All shipments, alerts, incidents, and recovery cases for the ${companyInfo.name} pilot program`, date: "Jun 19, 2026", type: "PDF" },
+    {
+      title: `${companyInfo.name} Portfolio — Full Summary`,
+      desc: `All shipments for the ${companyInfo.name} pilot program — status, risk, and cargo value`,
+      date: today,
+      type: "CSV",
+      onDownload: () => downloadCsv(
+        `${companyInfo.name.replace(/\s+/g, "-").toLowerCase()}-portfolio-summary-${today}.csv`,
+        toCsv(
+          ["Shipment ID", "Route", "Carrier", "Status", "Risk Level", "Risk Score", "Cargo Value"],
+          companyShipments.map((s) => [s.id, s.route, s.carrier, s.status, s.riskLevel, s.riskScore, s.cargoValue])
+        )
+      ),
+    },
     ...criticalIncidents.map((i) => ({
       title: `${i.id} Law Enforcement Packet`,
       desc: `Evidence package for suspected cargo theft — ${i.shipmentId}`,
-      date: "Jun 19, 2026",
+      date: today,
       type: "PDF",
+      onDownload: onViewIncident ? () => onViewIncident(i.id) : null,
+      hint: "Opens the case, where the real LE packet is generated",
     })),
-    { title: "Monthly Risk Report — June 2026", desc: "Risk score trends, alert frequency, threat pattern analysis, and carrier benchmarks", date: "Jun 15, 2026", type: "PDF" },
-    { title: "Carrier Performance Benchmark", desc: `${carrierRisk.map((c) => c.carrier).join(", ")} — on-time rate, incident rate, alert frequency`, date: "Jun 1, 2026", type: "XLSX" },
+    {
+      title: "Risk Report — Lane Analysis",
+      desc: "Risk score, incident count, and cargo value by route corridor",
+      date: today,
+      type: "CSV",
+      onDownload: () => downloadCsv(
+        `${companyInfo.name.replace(/\s+/g, "-").toLowerCase()}-risk-report-${today}.csv`,
+        toCsv(
+          ["Lane / Route", "Incidents", "Avg Risk Score", "Cargo Value", "Lane Status"],
+          highRiskLanes.map((l) => [l.lane, l.incidents, l.avgRisk, l.cargoValue, l.status])
+        )
+      ),
+    },
+    {
+      title: "Carrier Performance Benchmark",
+      desc: `${carrierRisk.map((c) => c.carrier).join(", ")} — on-time rate, incident rate, alert frequency`,
+      date: today,
+      type: "CSV",
+      onDownload: () => downloadCsv(
+        `${companyInfo.name.replace(/\s+/g, "-").toLowerCase()}-carrier-benchmark-${today}.csv`,
+        toCsv(
+          ["Carrier", "Shipments", "Incidents", "Alerts", "On-Time Rate", "Risk Level"],
+          carrierRisk.map((c) => [c.carrier, c.shipments, c.incidents, c.alertsTotal, c.onTimeRate, c.riskLevel])
+        )
+      ),
+    },
   ];
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          body { background: white; }
+        }
+      `}</style>
       <div className="bg-white border-b border-gray-200 px-8 py-6">
         <div className="flex items-start justify-between">
           <div>
@@ -85,10 +151,13 @@ export default function ReportsPage({ companyInfo, alerts: allAlerts = [], incid
               <span className="text-xs text-gray-400">{companyInfo.name} Pilot Program</span>
             </div>
             <h1 className="text-2xl font-bold text-gray-900">Reports &amp; Analytics</h1>
-            <p className="text-gray-400 text-sm mt-0.5">Operational intelligence for the {companyInfo.name} supply chain — June 2026</p>
+            <p className="text-gray-400 text-sm mt-0.5">Operational intelligence for the {companyInfo.name} supply chain</p>
           </div>
-          <button className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors">
-            Generate Report
+          <button
+            onClick={() => window.print()}
+            className="no-print bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors"
+          >
+            Export Report (PDF)
           </button>
         </div>
       </div>
@@ -216,12 +285,17 @@ export default function ReportsPage({ companyInfo, alerts: allAlerts = [], incid
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold ${r.type === "PDF" ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"}`}>
                     {r.type}
                   </div>
-                  <button className="text-xs text-blue-600 hover:text-blue-700 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                    Download →
+                  <button
+                    onClick={r.onDownload || undefined}
+                    disabled={!r.onDownload}
+                    className="text-xs text-blue-600 hover:text-blue-700 font-semibold opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-0 disabled:cursor-not-allowed"
+                  >
+                    {r.type === "PDF" ? "Open Case →" : "Download →"}
                   </button>
                 </div>
                 <p className="text-sm font-bold text-gray-900">{r.title}</p>
                 <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">{r.desc}</p>
+                {r.hint && <p className="text-xs text-blue-500 mt-1">{r.hint}</p>}
                 <p className="text-xs text-gray-300 mt-3">Generated {r.date}</p>
               </div>
             ))}
