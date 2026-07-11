@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { fmtCurrency, fmtDate } from "../lib/utils.js";
-import { fetchBolDetail, fetchCustodyEvents, logCustodyEvent, fetchLockEvents, logLockEvent } from "../lib/bol.js";
+import { fetchBolDetail, fetchCustodyEvents, logCustodyEvent, fetchLockEvents, logLockEvent, getDriverVerificationUrls } from "../lib/bol.js";
 import { captureEvidence, fetchEvidenceFiles, getEvidenceUrl } from "../lib/evidence.js";
 import { fetchInsuranceClaim, upsertInsuranceClaim } from "../lib/insurance.js";
 
@@ -73,6 +73,8 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
   const [loggingLock, setLoggingLock] = useState(false);
   const [lockError, setLockError] = useState("");
   const [pendingLockAction, setPendingLockAction] = useState(null); // null | "tamper_detected" | "forced_open"
+  const [pickupVerificationUrls, setPickupVerificationUrls] = useState(null);
+  const [pickupVerificationUrlsError, setPickupVerificationUrlsError] = useState("");
 
   useEffect(() => {
     setBolError("");
@@ -80,6 +82,18 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
       .then(setBol)
       .catch((err) => { setBolError(err.message || "Failed to load this BOL"); setBol(null); });
   }, [bolId, session]);
+
+  // The durable record's photos — fetched once the verification id is
+  // known. Read-only; approving/rejecting happens in
+  // DriverVerificationReviewModal, not here.
+  useEffect(() => {
+    const verificationId = bol?.bol_signatures?.find((s) => s.signer_type === "driver")?.driver_verifications?.id;
+    if (!verificationId) return;
+    setPickupVerificationUrlsError("");
+    getDriverVerificationUrls(session.access_token, verificationId)
+      .then(setPickupVerificationUrls)
+      .catch((err) => setPickupVerificationUrlsError(err.message || "Failed to load verification photos"));
+  }, [bol, session]);
 
   const refreshCustody = useCallback((missionId) => {
     setCustodyError("");
@@ -377,11 +391,33 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
               <>
                 <Row label="Result" value={pickupSig.driver_verifications?.result} />
                 <Row label="Provider" value={pickupSig.driver_verifications?.provider} />
-                <Row label="Confidence Score" value={pickupSig.driver_verifications?.confidence_score} />
                 <Row label="Consent Given" value={pickupSig.driver_verifications?.consent_given ? "Yes" : "No"} />
+                <Row label="Reviewed By" value={pickupSig.driver_verifications?.users?.full_name || "—"} />
+                <Row label="Reviewed At" value={pickupSig.driver_verifications?.reviewed_at ? fmtDate(pickupSig.driver_verifications.reviewed_at) : "—"} />
+                {pickupSig.driver_verifications?.review_notes && (
+                  <Row label="Review Notes" value={pickupSig.driver_verifications.review_notes} />
+                )}
                 <Row label="Verified At" value={pickupSig.driver_verifications?.verified_at ? fmtDate(pickupSig.driver_verifications.verified_at) : "—"} />
                 <Row label="Signed At" value={fmtDate(pickupSig.signed_at)} />
                 <Row label="Signature Hash" value={<span className="font-mono text-xs">{pickupSig.signature_hash?.slice(0, 24)}…</span>} />
+
+                {pickupVerificationUrlsError && <p className="no-print text-xs text-red-600 mt-2">{pickupVerificationUrlsError}</p>}
+                {pickupVerificationUrls && (
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">ID Photo</p>
+                      {pickupVerificationUrls.idPhotoUrl
+                        ? <img src={pickupVerificationUrls.idPhotoUrl} alt="Captured ID" className="w-full aspect-video object-cover rounded-lg border border-gray-200" />
+                        : <p className="text-xs text-gray-400">Unavailable</p>}
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Selfie at Pickup</p>
+                      {pickupVerificationUrls.selfieUrl
+                        ? <img src={pickupVerificationUrls.selfieUrl} alt="Captured selfie" className="w-full aspect-video object-cover rounded-lg border border-gray-200" />
+                        : <p className="text-xs text-gray-400">Unavailable</p>}
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               <p className="text-sm text-gray-400">Not yet signed.</p>

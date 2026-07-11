@@ -36,11 +36,16 @@ export default function CreateBolModal({ shipment, session, onClose, onCreated }
   const [driver, setDriver] = useState({ fullName: "", phone: "", email: "", licenseNumber: "", licenseState: "" });
 
   const [consentGiven, setConsentGiven] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-  const [verified, setVerified] = useState(false);
+  // 'id' -> capturing the ID photo, 'selfie' -> capturing the selfie,
+  // 'done' -> both captured, ready to move on.
+  const [captureStage, setCaptureStage] = useState("id");
+  const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState(false);
+  const [idPhotoDataUrl, setIdPhotoDataUrl] = useState(null);
+  const [selfieDataUrl, setSelfieDataUrl] = useState(null);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+  const canvasRef = useRef(null);
 
   const [signatureDataUrl, setSignatureDataUrl] = useState(null);
   const [result, setResult] = useState(null);
@@ -48,49 +53,58 @@ export default function CreateBolModal({ shipment, session, onClose, onCreated }
   const stopCamera = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    setCameraActive(false);
   };
 
   useEffect(() => () => stopCamera(), []);
 
-  // The <video> element only exists once `verifying` is true (it's behind
+  // The <video> element only exists once cameraActive is true (it's behind
   // that conditional below), so attaching the stream has to happen in an
-  // effect that runs after that render commits, not inline in
-  // runVerification right after getUserMedia resolves — videoRef.current
-  // isn't guaranteed to be populated at that point.
+  // effect that runs after that render commits, not inline in startCamera
+  // right after getUserMedia resolves — videoRef.current isn't guaranteed
+  // to be populated at that point.
   useEffect(() => {
-    if (verifying && videoRef.current && streamRef.current) {
+    if (cameraActive && videoRef.current && streamRef.current) {
       videoRef.current.srcObject = streamRef.current;
     }
-  }, [verifying]);
+  }, [cameraActive]);
 
-  const runVerification = async () => {
+  const startCamera = async () => {
     setCameraError(false);
-    setVerifying(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       streamRef.current = stream;
-      // Simulated pass after a short "scan" — the live camera feed is only
-      // ever shown to the operator locally; it is never captured to an
-      // image, uploaded, or sent to any API, and the stream is stopped
-      // immediately below.
-      setTimeout(() => {
-        stopCamera();
-        setVerifying(false);
-        setVerified(true);
-      }, 2500);
+      setCameraActive(true);
     } catch {
-      stopCamera();
       setCameraError(true);
-      setVerifying(false);
     }
   };
 
-  const simulateWithoutCamera = () => {
-    setVerifying(true);
-    setTimeout(() => {
-      setVerifying(false);
-      setVerified(true);
-    }, 1200);
+  // Freezes the current video frame to a real image — this is an actual
+  // photo now, not a timed fake pass. It's uploaded and reviewed by an
+  // admin before this pickup is authorized (see api/submit-bol.js /
+  // api/review-driver-verification.js) — there's no simulated fallback,
+  // since faking this defeats the reason it exists.
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+    stopCamera();
+    if (captureStage === "id") {
+      setIdPhotoDataUrl(dataUrl);
+      setCaptureStage("selfie");
+    } else {
+      setSelfieDataUrl(dataUrl);
+      setCaptureStage("done");
+    }
+  };
+
+  const retake = (which) => {
+    if (which === "id") { setIdPhotoDataUrl(null); setCaptureStage("id"); }
+    else { setSelfieDataUrl(null); setCaptureStage("selfie"); }
   };
 
   const handleSubmit = async () => {
@@ -116,6 +130,8 @@ export default function CreateBolModal({ shipment, session, onClose, onCreated }
         driver,
         signatureHash,
         consentGiven,
+        idPhotoDataUrl,
+        selfieDataUrl,
       });
       setResult(data);
       setStep(5);
@@ -226,60 +242,84 @@ export default function CreateBolModal({ shipment, session, onClose, onCreated }
 
         {step === 3 && (
           <div className="space-y-3">
-            <div className="bg-amber-950/40 border border-amber-800/40 rounded-lg p-3">
-              <p className="text-amber-300 text-xs font-semibold mb-1">Simulated demo verification</p>
-              <p className="text-amber-200/80 text-xs leading-relaxed">
-                No photo or biometric data is transmitted or stored — everything in this step stays in your browser and is discarded immediately. This is not a real identity check.
+            <div className="bg-blue-950/30 border border-blue-800/30 rounded-lg p-3">
+              <p className="text-blue-300 text-xs font-semibold mb-1">Reviewed by an admin before pickup is authorized</p>
+              <p className="text-blue-200/70 text-xs leading-relaxed">
+                Both photos are uploaded and stored. Submitting this form does not release the cargo — an admin has to review the photos and approve first.
               </p>
             </div>
 
             <label className="flex items-start gap-2 text-xs text-gray-300 cursor-pointer">
               <input type="checkbox" checked={consentGiven} onChange={(e) => setConsentGiven(e.target.checked)} className="mt-0.5" />
-              <span>{driver.fullName || "The driver"} consents to this identity verification step.</span>
+              <span>{driver.fullName || "The driver"} consents to photo capture for identity verification.</span>
             </label>
 
-            {!verified && (
-              <div className="bg-black rounded-lg overflow-hidden aspect-video flex items-center justify-center">
-                {verifying ? (
-                  <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-gray-600 text-xs">Camera preview will appear here</span>
-                )}
+            <canvas ref={canvasRef} className="hidden" />
+
+            {idPhotoDataUrl && (
+              <div className="flex items-center gap-3 bg-gray-800/60 border border-gray-700 rounded-lg p-2">
+                <img src={idPhotoDataUrl} alt="Captured ID" className="w-16 h-12 object-cover rounded flex-shrink-0" />
+                <p className="text-emerald-400 text-xs font-semibold flex-1">✓ ID photo captured</p>
+                <button type="button" onClick={() => retake("id")} className="text-gray-400 hover:text-gray-200 text-xs font-medium">Retake</button>
               </div>
             )}
 
-            {verified && (
-              <div className="bg-emerald-950/40 border border-emerald-800/40 rounded-lg p-4 flex items-center gap-3">
+            {selfieDataUrl && (
+              <div className="flex items-center gap-3 bg-gray-800/60 border border-gray-700 rounded-lg p-2">
+                <img src={selfieDataUrl} alt="Captured selfie" className="w-16 h-12 object-cover rounded flex-shrink-0" />
+                <p className="text-emerald-400 text-xs font-semibold flex-1">✓ Selfie captured</p>
+                <button type="button" onClick={() => retake("selfie")} className="text-gray-400 hover:text-gray-200 text-xs font-medium">Retake</button>
+              </div>
+            )}
+
+            {captureStage !== "done" && (
+              <>
+                <p className="text-gray-400 text-xs font-semibold">
+                  {captureStage === "id" ? "Step 1: Photograph the driver's license" : "Step 2: Take a live selfie of the driver"}
+                </p>
+                <div className="bg-black rounded-lg overflow-hidden aspect-video flex items-center justify-center">
+                  {cameraActive ? (
+                    <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-gray-600 text-xs">Camera preview will appear here</span>
+                  )}
+                </div>
+
+                {cameraError && (
+                  <p className="text-red-400 text-xs">
+                    Camera unavailable or permission denied — camera access is required to capture verification photos.{" "}
+                    <button type="button" onClick={startCamera} className="underline hover:text-red-300">Retry</button>
+                  </p>
+                )}
+
+                {!cameraActive ? (
+                  <button
+                    type="button"
+                    disabled={!consentGiven}
+                    onClick={startCamera}
+                    className="w-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg py-2 transition-colors disabled:opacity-50"
+                  >
+                    Start Camera
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={capturePhoto}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg py-2 transition-colors"
+                  >
+                    {captureStage === "id" ? "Capture ID Photo" : "Capture Selfie"}
+                  </button>
+                )}
+              </>
+            )}
+
+            {captureStage === "done" && (
+              <div className="bg-emerald-950/40 border border-emerald-800/40 rounded-lg p-3 flex items-center gap-3">
                 <span className="text-emerald-400 text-xl">✓</span>
                 <div>
-                  <p className="text-emerald-300 text-sm font-semibold">Identity Verified (simulated)</p>
-                  <p className="text-emerald-200/70 text-xs">Result recorded — provider: simulated</p>
+                  <p className="text-emerald-300 text-sm font-semibold">Both photos captured</p>
+                  <p className="text-emerald-200/70 text-xs">Ready to submit for admin review — not yet authorized.</p>
                 </div>
-              </div>
-            )}
-
-            {cameraError && !verified && (
-              <p className="text-gray-500 text-xs">Camera unavailable or permission denied — you can still simulate the result below.</p>
-            )}
-
-            {!verified && (
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  disabled={!consentGiven || verifying}
-                  onClick={runVerification}
-                  className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg py-2 transition-colors disabled:opacity-50"
-                >
-                  {verifying ? "Scanning…" : "Start Camera Verification"}
-                </button>
-                <button
-                  type="button"
-                  disabled={!consentGiven || verifying}
-                  onClick={simulateWithoutCamera}
-                  className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold rounded-lg py-2 transition-colors disabled:opacity-50"
-                >
-                  Simulate Verification
-                </button>
               </div>
             )}
 
@@ -287,7 +327,7 @@ export default function CreateBolModal({ shipment, session, onClose, onCreated }
               <button type="button" onClick={() => setStep(2)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-semibold rounded-lg py-2 transition-colors">Back</button>
               <button
                 type="button"
-                disabled={!verified}
+                disabled={captureStage !== "done"}
                 onClick={() => setStep(4)}
                 className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg py-2 transition-colors disabled:opacity-50"
               >
@@ -318,10 +358,12 @@ export default function CreateBolModal({ shipment, session, onClose, onCreated }
 
         {step === 5 && result && (
           <div className="space-y-3 text-center py-2">
-            <span className="text-emerald-400 text-3xl">✓</span>
-            <p className="text-white text-sm font-bold">BOL Created</p>
+            <span className="text-blue-400 text-3xl">⏳</span>
+            <p className="text-white text-sm font-bold">BOL Submitted — Pending Verification</p>
             <p className="text-gray-400 text-xs font-mono">{result.bolNumber}</p>
-            <p className="text-gray-500 text-xs">Signed at pickup by {driver.fullName} · {fmtCurrency(Number(bol.declaredValue) || 0)} declared value</p>
+            <p className="text-gray-500 text-xs">
+              Captured for {driver.fullName} · {fmtCurrency(Number(bol.declaredValue) || 0)} declared value. An admin needs to review the photos and approve before this pickup is authorized and cargo can be released.
+            </p>
             <button onClick={onClose} className="w-full bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg py-2 transition-colors mt-2">Done</button>
           </div>
         )}

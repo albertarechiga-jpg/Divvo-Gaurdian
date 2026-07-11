@@ -9,20 +9,22 @@
 // RLS policies on driver_verifications (no client-facing insert policy at
 // all — service_role only, by design) and bol_signatures (insertable only
 // by the driver's own auth session) assume a real driver login this pilot
-// doesn't have. A staff member runs the whole verification+signature
-// capture from inside the dashboard, and this endpoint is the one place
-// that's allowed to write the result of that on the driver's behalf.
+// doesn't have. A staff member runs the whole capture+signature step from
+// inside the dashboard, and this endpoint is the one place that's allowed
+// to write the result of that on the driver's behalf.
 //
-// The identity "verification" itself is simulated — no real biometric
-// provider is configured. It is always recorded as provider: "simulated",
-// never as if it came from a real vendor. The driver's signature image
-// itself is NEVER sent here or stored anywhere — only its SHA-256 hash
-// (computed client-side, see src/lib/bol.js), matching the schema's own
-// comment that a retained signature artifact belongs in evidence_files
-// with its own storage/retention policy, which this feature doesn't use.
+// The identity check is REAL capture (an ID photo + a live selfie, both
+// uploaded here), but NOT an automated pass/fail — no biometric vendor is
+// configured. The BOL is created as "pending_verification", not
+// "signed_pickup": pickup isn't authorized until an admin visually reviews
+// both photos and approves via api/review-driver-verification.js. Provider
+// is recorded as "manual_review", never implying an automated vendor result.
+// The driver's signature image itself is NEVER sent here or stored anywhere
+// — only its SHA-256 hash (computed client-side, see src/lib/bol.js).
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
+const VERIFICATION_BUCKET = "driver-verification";
 
 import crypto from "node:crypto";
 
@@ -36,6 +38,40 @@ async function findOne(url, headers) {
   if (!res.ok) return null;
   const rows = await res.json();
   return Array.isArray(rows) && rows[0] ? rows[0] : null;
+}
+
+async function ensureBucketExists(bucket, authHeaders) {
+  const checkRes = await fetch(`${SUPABASE_URL}/storage/v1/bucket/${bucket}`, { headers: authHeaders });
+  if (checkRes.ok) return;
+  await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
+    method: "POST",
+    headers: { ...authHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify({ id: bucket, name: bucket, public: false }),
+  });
+}
+
+// Decodes a data URL and uploads it to the private driver-verification
+// bucket, returning the storage path. Throws with a clear message on any
+// failure — both photos are required for a real verification, so a partial
+// upload should fail the whole request rather than silently proceeding.
+async function uploadVerificationPhoto(dataUrl, driverId, label, authHeaders) {
+  const match = /^data:(image\/\w+);base64,(.+)$/.exec(dataUrl || "");
+  if (!match) throw new Error(`${label} must be a base64 image data URL`);
+  const [, mimeType, base64Data] = match;
+  const buffer = Buffer.from(base64Data, "base64");
+  if (buffer.length > 4_000_000) throw new Error(`${label} is too large (max ~4MB)`);
+  const ext = mimeType.split("/")[1] || "jpg";
+  const path = `${driverId}/${crypto.randomUUID()}.${ext}`;
+  const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/${VERIFICATION_BUCKET}/${path}`, {
+    method: "POST",
+    headers: { ...authHeaders, "Content-Type": mimeType },
+    body: buffer,
+  });
+  if (!uploadRes.ok) {
+    const err = await uploadRes.json().catch(() => ({}));
+    throw new Error(`Failed to upload ${label}: ${err.message || uploadRes.status}`);
+  }
+  return path;
 }
 
 export default async function handler(req, res) {
@@ -56,7 +92,7 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: "Missing Authorization bearer token" });
   }
 
-  const { shipmentId, shipment, bol, driver, signatureHash, consentGiven } = req.body || {};
+  const { shipmentId, shipment, bol, driver, signatureHash, consentGiven, selfieDataUrl, idPhotoDataUrl } = req.body || {};
   if (!shipmentId || !shipment || !bol || !driver || !signatureHash) {
     return res.status(400).json({ error: "Missing shipmentId, shipment, bol, driver, or signatureHash" });
   }
@@ -65,6 +101,9 @@ export default async function handler(req, res) {
   }
   if (!driver.fullName || !driver.licenseNumber || !driver.licenseState) {
     return res.status(400).json({ error: "Driver full name, license number, and license state are required" });
+  }
+  if (!selfieDataUrl || !idPhotoDataUrl) {
+    return res.status(400).json({ error: "Both a selfie and an ID photo are required to submit for verification" });
   }
 
   try {
@@ -226,21 +265,29 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: `Failed to assign guardian to mission: ${err.message || missionGuardianRes.status}` });
     }
 
-    // 7. Record the (simulated) identity verification result. Never claims
-    //    to be a real vendor — provider is always "simulated" here.
+    // 7. Upload both real captured photos to the private verification
+    //    bucket, then record a PENDING verification — no automated result,
+    //    no vendor. An admin has to actually look at these before this
+    //    means anything (api/review-driver-verification.js).
+    const serviceAuthHeaders = { apikey: SERVICE_ROLE_KEY, Authorization: `Bearer ${SERVICE_ROLE_KEY}` };
+    await ensureBucketExists(VERIFICATION_BUCKET, serviceAuthHeaders);
+    const selfiePath = await uploadVerificationPhoto(selfieDataUrl, driverRow.id, "selfie", serviceAuthHeaders);
+    const idPhotoPath = await uploadVerificationPhoto(idPhotoDataUrl, driverRow.id, "ID photo", serviceAuthHeaders);
+
     const verificationRes = await fetch(`${SUPABASE_URL}/rest/v1/driver_verifications`, {
       method: "POST",
       headers: serviceHeaders,
       body: JSON.stringify({
         driver_id: driverRow.id,
-        verification_type: "biometric_face",
-        provider: "simulated",
+        verification_type: "government_id",
+        provider: "manual_review",
         provider_reference_id: null,
-        result: "passed",
-        confidence_score: 0.97,
+        result: "pending",
+        confidence_score: null,
         consent_given: true,
         consent_recorded_at: new Date().toISOString(),
-        verified_at: new Date().toISOString(),
+        selfie_storage_path: selfiePath,
+        id_photo_storage_path: idPhotoPath,
       }),
     });
     if (!verificationRes.ok) {
@@ -249,7 +296,9 @@ export default async function handler(req, res) {
     }
     const [verification] = await verificationRes.json();
 
-    // 8. The Digital BOL itself.
+    // 8. The Digital BOL itself — created as pending_verification, NOT
+    //    signed_pickup. It only becomes signed_pickup once an admin
+    //    approves the verification above.
     const bolNumber = `BOL-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
     const bolRes = await fetch(`${SUPABASE_URL}/rest/v1/digital_bols`, {
       method: "POST",
@@ -263,7 +312,7 @@ export default async function handler(req, res) {
         delivery_location: bol.deliveryLocation || null,
         cargo_description: bol.cargoDescription || null,
         declared_value_cents: centsFromDollars(bol.declaredValue),
-        status: "signed_pickup",
+        status: "pending_verification",
       }),
     });
     if (!bolRes.ok) {
@@ -289,24 +338,27 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: `Failed to record signature: ${err.message || signatureRes.status}` });
     }
 
-    // 10. Chain-of-custody entry for the pickup event. Not fatal if this
-    //     fails — the BOL itself is already fully recorded — so this is
-    //     logged but doesn't block the response.
+    // 10. Chain-of-custody entry — this is a submission, not a pickup yet.
+    //     "pickup" is reserved for the actual admin-approved authorization
+    //     event (see api/review-driver-verification.js) — logging outcome,
+    //     not intent, same principle as the RecoveryDetail contact-log fix.
+    //     Not fatal if this fails — the BOL itself is already fully
+    //     recorded — so this is logged but doesn't block the response.
     const coCRes = await fetch(`${SUPABASE_URL}/rest/v1/chain_of_custody_events`, {
       method: "POST",
       headers: serviceHeaders,
       body: JSON.stringify({
         mission_id: mission.id,
-        event_type: "pickup",
+        event_type: "checkpoint",
         actor_type: "driver",
         actor_driver_id: driverRow.id,
-        description: `BOL ${bolNumber} signed at pickup by ${driver.fullName}`,
+        description: `BOL ${bolNumber} submitted by ${driver.fullName} — pending identity verification`,
         occurred_at: new Date().toISOString(),
       }),
     });
     if (!coCRes.ok) {
       const err = await coCRes.json().catch(() => ({}));
-      console.error("Failed to log pickup chain-of-custody event:", err.message || coCRes.status);
+      console.error("Failed to log submission chain-of-custody event:", err.message || coCRes.status);
     }
 
     return res.status(201).json({

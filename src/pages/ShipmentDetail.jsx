@@ -8,13 +8,16 @@ import CasePacketModal from "../components/CasePacketModal.jsx";
 import CreateBolModal from "../components/CreateBolModal.jsx";
 import CompleteDeliveryModal from "../components/CompleteDeliveryModal.jsx";
 import BolPacketModal from "../components/BolPacketModal.jsx";
+import DriverVerificationReviewModal from "../components/DriverVerificationReviewModal.jsx";
 import { fetchLatestBolForShipment } from "../lib/bol.js";
 
 const BOL_STATUS_LABEL = {
   draft: "Draft",
   issued: "Issued",
+  pending_verification: "Pending Verification",
   signed_pickup: "Awaiting Delivery",
   signed_delivery: "Delivered",
+  verification_rejected: "Verification Rejected",
   void: "Void",
 };
 
@@ -27,8 +30,10 @@ export default function ShipmentDetail({ shipmentId, alerts, companyInfo, onBack
   const [showBolModal, setShowBolModal] = useState(false);
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [showBolPacket, setShowBolPacket] = useState(false);
+  const [showVerificationReview, setShowVerificationReview] = useState(false);
   const [bol, setBol] = useState(undefined); // undefined = loading, null = none found
   const canCreateBol = currentUser?.role === "admin" || currentUser?.role === "dispatcher";
+  const canReviewVerification = currentUser?.role === "admin";
 
   const refreshBol = useCallback(() => {
     if (!session?.access_token) {
@@ -75,6 +80,10 @@ export default function ShipmentDetail({ shipmentId, alerts, companyInfo, onBack
         <CompleteDeliveryModal bol={bol} session={session} onClose={() => setShowDeliveryModal(false)} onCompleted={refreshBol} />
       )}
 
+      {showVerificationReview && bol && (
+        <DriverVerificationReviewModal bolId={bol.id} session={session} onClose={() => setShowVerificationReview(false)} onReviewed={refreshBol} />
+      )}
+
       {canCreateBol && (
         <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center justify-between">
           <div>
@@ -86,12 +95,26 @@ export default function ShipmentDetail({ shipmentId, alerts, companyInfo, onBack
                 {bol.bol_number} · <span className="font-sans font-medium text-gray-700">{BOL_STATUS_LABEL[bol.status] || bol.status}</span>
               </p>
             )}
+            {bol?.status === "pending_verification" && (
+              <p className="text-xs text-blue-600 mt-1">Photos captured — not yet authorized. An admin needs to review before pickup is final.</p>
+            )}
+            {bol?.status === "verification_rejected" && (
+              <p className="text-xs text-red-600 mt-1">This pickup attempt was rejected — start a new Digital BOL to try again.</p>
+            )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            {bol === null && (
+            {(bol === null || bol?.status === "verification_rejected") && (
               <button onClick={() => setShowBolModal(true)} className="border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
-                Create Digital BOL
+                {bol === null ? "Create Digital BOL" : "Create New Digital BOL"}
               </button>
+            )}
+            {bol?.status === "pending_verification" && canReviewVerification && (
+              <button onClick={() => setShowVerificationReview(true)} className="border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+                Review Driver Verification
+              </button>
+            )}
+            {bol?.status === "pending_verification" && !canReviewVerification && (
+              <span className="text-blue-600 text-sm font-semibold">Awaiting admin review</span>
             )}
             {bol?.status === "signed_pickup" && (
               <button onClick={() => setShowDeliveryModal(true)} className="border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors">

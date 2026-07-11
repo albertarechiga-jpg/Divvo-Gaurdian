@@ -67,9 +67,10 @@ export async function fetchBolDetail(accessToken, bolId) {
   const headers = authHeaders(accessToken);
   const select = [
     "id,bol_number,status,mission_id,pickup_location,delivery_location,cargo_description,declared_value_cents,issued_at",
-    "missions(status,guardian_id,drivers(full_name,phone,email,license_state),carriers(name))",
+    "missions(status,guardian_id,drivers(id,full_name,phone,email,license_state),carriers(name))",
     "bol_signatures(signer_type,signature_hash,signed_at," +
-      "driver_verifications(provider,result,confidence_score,verified_at,consent_given)," +
+      "driver_verifications(id,driver_id,provider,result,confidence_score,verified_at,consent_given," +
+      "selfie_storage_path,id_photo_storage_path,reviewed_by,reviewed_at,review_notes,users(full_name))," +
       "receiver_verifications(receiver_name,receiver_phone,verification_type,provider,result,verified_at,consent_given))",
   ].join(",");
   const res = await fetch(`${SB_URL}/rest/v1/digital_bols?select=${select}&id=eq.${bolId}`, { headers });
@@ -134,6 +135,48 @@ export async function logLockEvent(accessToken, payload) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Failed to log lock event");
   return data;
+}
+
+// Real driver verification (capture + mandatory admin review) — see
+// api/submit-bol.js, api/review-driver-verification.js,
+// api/get-driver-verification-url.js.
+export async function reviewDriverVerification(accessToken, { verificationId, decision, notes }) {
+  const res = await fetch("/api/review-driver-verification", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ verificationId, decision, notes }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to record review decision");
+  return data;
+}
+
+export async function getDriverVerificationUrls(accessToken, verificationId) {
+  const res = await fetch("/api/get-driver-verification-url", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ verificationId }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to load verification photos");
+  return data;
+}
+
+// The driver's most recent PASSED verification other than the one being
+// reviewed — lets a reviewing admin compare "does this look like the same
+// person who picked up for this carrier last time," not just "does this
+// person look like their ID." Binds authorization to the specific
+// individual, not just the carrier name (see the driver-verification plan).
+// Returns null for a first-time driver, which is the common case.
+export async function fetchPriorPassedVerification(accessToken, driverId, excludeVerificationId) {
+  const headers = authHeaders(accessToken);
+  const res = await fetch(
+    `${SB_URL}/rest/v1/driver_verifications?select=id,selfie_storage_path,verified_at&driver_id=eq.${driverId}&result=eq.passed&id=neq.${excludeVerificationId}&order=verified_at.desc&limit=1`,
+    { headers }
+  );
+  if (!res.ok) return null;
+  const [row] = await res.json();
+  return row || null;
 }
 
 // Orchestrates every mission-scoped record tied to a shipment into one
