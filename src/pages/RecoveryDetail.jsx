@@ -204,6 +204,20 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
       }
     }
 
+    // A jurisdiction match with a phone on file is a one-tap call, same as
+    // the already-on-file fast path above — and it's saved onto the case so
+    // the next click here goes straight to that fast path, no re-lookup.
+    if (matched?.phone) {
+      const tel = matched.phone.replace(/[^\d+]/g, "");
+      window.location.href = `tel:${tel}`;
+      onUpdateRecoveryDetail(inc.id, {
+        lawEnforcement: { ...le, agency: matched.agency, contactName: "Non-Emergency Dispatch", contactPhone: matched.phone },
+      });
+      logCustody(`Phone dialer opened for ${matched.agency} (matched to ${placeLabel} via GPS) — ${matched.phone}`);
+      showToast(`Dialer opened for ${matched.agency} — place the call from your phone`);
+      return;
+    }
+
     const subject = `URGENT — Cargo Theft In Progress — ${inc.id} — ${placeLabel}`;
     const body = [
       "Divvo Guardian cargo theft alert — requesting immediate law enforcement response.",
