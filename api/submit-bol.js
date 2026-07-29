@@ -17,7 +17,7 @@
 // uploaded here), but NOT an automated pass/fail — no biometric vendor is
 // configured. The BOL is created as "pending_verification", not
 // "signed_pickup": pickup isn't authorized until an admin visually reviews
-// both photos and approves via api/review-driver-verification.js. Provider
+// both photos and approves via api/driver-verification.js. Provider
 // is recorded as "manual_review", never implying an automated vendor result.
 // The driver's signature image itself is NEVER sent here or stored anywhere
 // — only its SHA-256 hash (computed client-side, see src/lib/bol.js).
@@ -268,7 +268,7 @@ export default async function handler(req, res) {
     // 7. Upload both real captured photos to the private verification
     //    bucket, then record a PENDING verification — no automated result,
     //    no vendor. An admin has to actually look at these before this
-    //    means anything (api/review-driver-verification.js).
+    //    means anything (api/driver-verification.js).
     const serviceAuthHeaders = { apikey: SERVICE_ROLE_KEY, Authorization: `Bearer ${SERVICE_ROLE_KEY}` };
     await ensureBucketExists(VERIFICATION_BUCKET, serviceAuthHeaders);
     const selfiePath = await uploadVerificationPhoto(selfieDataUrl, driverRow.id, "selfie", serviceAuthHeaders);
@@ -340,7 +340,7 @@ export default async function handler(req, res) {
 
     // 10. Chain-of-custody entry — this is a submission, not a pickup yet.
     //     "pickup" is reserved for the actual admin-approved authorization
-    //     event (see api/review-driver-verification.js) — logging outcome,
+    //     event (see api/driver-verification.js) — logging outcome,
     //     not intent, same principle as the RecoveryDetail contact-log fix.
     //     Not fatal if this fails — the BOL itself is already fully
     //     recorded — so this is logged but doesn't block the response.

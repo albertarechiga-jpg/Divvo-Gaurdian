@@ -83,7 +83,7 @@ export default function CreateBolModal({ shipment, session, onClose, onCreated }
   // Freezes the current video frame to a real image — this is an actual
   // photo now, not a timed fake pass. It's uploaded and reviewed by an
   // admin before this pickup is authorized (see api/submit-bol.js /
-  // api/review-driver-verification.js) — there's no simulated fallback,
+  // api/driver-verification.js) — there's no simulated fallback,
   // since faking this defeats the reason it exists.
   const capturePhoto = () => {
     const video = videoRef.current;

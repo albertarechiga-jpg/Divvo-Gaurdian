@@ -138,13 +138,13 @@ export async function logLockEvent(accessToken, payload) {
 }
 
 // Real driver verification (capture + mandatory admin review) — see
-// api/submit-bol.js, api/review-driver-verification.js,
-// api/get-driver-verification-url.js.
+// api/submit-bol.js and api/driver-verification.js (both actions combined
+// into one function to stay under Vercel's Hobby-plan function cap).
 export async function reviewDriverVerification(accessToken, { verificationId, decision, notes }) {
-  const res = await fetch("/api/review-driver-verification", {
+  const res = await fetch("/api/driver-verification", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-    body: JSON.stringify({ verificationId, decision, notes }),
+    body: JSON.stringify({ action: "review", verificationId, decision, notes }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Failed to record review decision");
@@ -152,10 +152,10 @@ export async function reviewDriverVerification(accessToken, { verificationId, de
 }
 
 export async function getDriverVerificationUrls(accessToken, verificationId) {
-  const res = await fetch("/api/get-driver-verification-url", {
+  const res = await fetch("/api/driver-verification", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-    body: JSON.stringify({ verificationId }),
+    body: JSON.stringify({ action: "get-url", verificationId }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Failed to load verification photos");

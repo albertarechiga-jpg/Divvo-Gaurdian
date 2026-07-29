@@ -5,7 +5,7 @@ import { fetchBolDetail, getDriverVerificationUrls, fetchPriorPassedVerification
 // The action-oriented counterpart to BolPacketModal's read-only verification
 // section — this is where an admin actually looks at the two captured
 // photos and decides. Approving here is the single action that authorizes
-// real-world cargo release (see api/review-driver-verification.js) — it's
+// real-world cargo release (see api/driver-verification.js) — it's
 // the one moment in this whole feature that matters most, so it's the one
 // gated behind an explicit second confirmation, same pattern as
 // BolPacketModal's tamper/forced-open confirm.
