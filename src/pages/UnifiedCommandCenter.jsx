@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { dispatchAlert, fetchAlertSettings } from "../lib/notifications.js";
 import { COMPANY_DEVICES, COMPANY_SHIPMENT_ROUTES, COMPANY_DEVICE_CONTEXT } from "../data/companyFleets.js";
 import { SB_URL, sbHeaders } from "../lib/supabase.js";
@@ -881,11 +881,16 @@ function LiveMap({ devices, onSelect, selectedId, fullscreen, onFullscreen, save
       const color = device.severity === "Critical" ? "#ef4444" : device.severity === "Warning" ? "#f59e0b" : "#22c55e";
       const isSelected = device.id === selectedId;
       if (markersRef.current[device.id]) {
-        const el = markersRef.current[device.id]._element;
+        const marker = markersRef.current[device.id];
+        const el = marker._element;
         el.style.width = isSelected ? "24px" : "14px";
         el.style.height = isSelected ? "24px" : "14px";
         el.style.boxShadow = isSelected ? `0 0 0 3px ${color}55, 0 0 20px ${color}77` : `0 0 6px ${color}55`;
         el.style.border = isSelected ? "3px solid white" : "2px solid white";
+        const current = marker.getLngLat();
+        if (current.lng !== device.lon || current.lat !== device.lat) {
+          marker.setLngLat([device.lon, device.lat]);
+        }
       } else {
         const el = document.createElement("div");
         el.style.cssText = `width:14px;height:14px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 0 6px ${color}55;cursor:pointer;transition:all 0.2s;`;
@@ -1427,6 +1432,19 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
     return () => clearInterval(iv);
   }, []);
 
+  // Live phone GPS overrides a device's scripted demo position on the map —
+  // whichever device has a fresh ping (see the poll above, <300s old) shows
+  // its real reported location instead of the static mock coordinates.
+  const mapDevices = useMemo(() => {
+    if (!liveGPS.length) return devices;
+    const liveById = {};
+    for (const p of liveGPS) liveById[p.deviceId] = p;
+    return devices.map(d => {
+      const live = liveById[d.id];
+      return live ? { ...d, lat: live.lat, lon: live.lon } : d;
+    });
+  }, [devices, liveGPS]);
+
   const handleRouteShipment = (ctx) => {
     setAiRoutePrefill(ctx);
     // Trigger map to show AI route panel — dispatch event
@@ -1527,7 +1545,7 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
             </div>
           </div>
           <div style={{ flex: 1, position: "relative" }}>
-            <LiveMap devices={devices} onSelect={handleSelectDevice} selectedId={selectedDevice?.id} fullscreen={true} onFullscreen={() => setMapFullscreen(false)} savedRoutes={savedRoutes} onRouteSave={handleRouteSave} onRouteDelete={handleRouteDelete} routeDeviations={routeDeviations} shipmentRoutes={SHIPMENT_ROUTES} deviceShipmentContext={DEVICE_SHIPMENT_CONTEXT} mapCenter={companyInfo.mapCenter} mapZoom={companyInfo.mapZoom}/>
+            <LiveMap devices={mapDevices} onSelect={handleSelectDevice} selectedId={selectedDevice?.id} fullscreen={true} onFullscreen={() => setMapFullscreen(false)} savedRoutes={savedRoutes} onRouteSave={handleRouteSave} onRouteDelete={handleRouteDelete} routeDeviations={routeDeviations} shipmentRoutes={SHIPMENT_ROUTES} deviceShipmentContext={DEVICE_SHIPMENT_CONTEXT} mapCenter={companyInfo.mapCenter} mapZoom={companyInfo.mapZoom}/>
             {selectedDevice && (
               <div style={{ position: "absolute", top: 12, right: 12, bottom: 12, width: 360, zIndex: 30 }}>
                 <AIResponsePanel device={selectedDevice} onDismiss={() => setSelectedDevice(null)} onNav={onNav} company={company}/>
@@ -1604,7 +1622,7 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
             </div>
           </div>
           <div style={{ flex: 1 }}>
-            <LiveMap devices={devices} onSelect={handleSelectDevice} selectedId={selectedDevice?.id} fullscreen={false} onFullscreen={() => setMapFullscreen(true)} savedRoutes={savedRoutes} onRouteSave={handleRouteSave} onRouteDelete={handleRouteDelete} routeDeviations={routeDeviations} shipmentRoutes={SHIPMENT_ROUTES} deviceShipmentContext={DEVICE_SHIPMENT_CONTEXT} mapCenter={companyInfo.mapCenter} mapZoom={companyInfo.mapZoom}/>
+            <LiveMap devices={mapDevices} onSelect={handleSelectDevice} selectedId={selectedDevice?.id} fullscreen={false} onFullscreen={() => setMapFullscreen(true)} savedRoutes={savedRoutes} onRouteSave={handleRouteSave} onRouteDelete={handleRouteDelete} routeDeviations={routeDeviations} shipmentRoutes={SHIPMENT_ROUTES} deviceShipmentContext={DEVICE_SHIPMENT_CONTEXT} mapCenter={companyInfo.mapCenter} mapZoom={companyInfo.mapZoom}/>
           </div>
           {/* Live GPS ticker */}
           {liveGPS.length > 0 && (
