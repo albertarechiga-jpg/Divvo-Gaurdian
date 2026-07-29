@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <title>Divvo Guardian — Field Test</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #070d17; color: #f9fafb; font-family: ui-sans-serif, system-ui, sans-serif; min-height: 100vh; padding: 20px 16px 40px; }
+    .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .logo-icon { width: 34px; height: 34px; background: #2563eb; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .logo-text { font-size: 15px; font-weight: 800; }
+    .logo-sub { font-size: 11px; color: #6b7280; }
+    .card { background: #0a0f1a; border: 1px solid #1f2937; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+    .label { font-size: 10px; font-weight: 700; color: #6b7280; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+    .value { font-size: 18px; font-weight: 700; font-family: monospace; color: #f9fafb; }
+    .value.green { color: #22c55e; }
+    .value.small { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+    .btn { width: 100%; padding: 16px; border-radius: 12px; border: 2px solid #2563eb; background: #1e3a8a; color: #93c5fd; font-size: 15px; font-weight: 800; cursor: pointer; margin-bottom: 12px; }
+    .btn.active { background: #7f1d1d; border-color: #ef4444; color: #fca5a5; }
+    .btn.connecting { background: #1c1917; border-color: #374151; color: #6b7280; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; flex-shrink: 0; }
+    .dot.green { background: #22c55e; animation: pulse 1.5s infinite; }
+    .dot.gray { background: #374151; }
+    .dot.amber { background: #f59e0b; animation: pulse 1s infinite; }
+    .dot.red { background: #ef4444; animation: pulse 1s infinite; }
+    .dot.blue { background: #3b82f6; animation: pulse 1s infinite; }
+    .ticker { background: #030712; border: 1px solid #1f2937; border-radius: 8px; padding: 10px; max-height: 160px; overflow-y: auto; }
+    .ticker-item { font-size: 11px; font-family: monospace; padding: 4px 0; border-bottom: 1px solid #111827; }
+    .ticker-item:last-child { border-bottom: none; }
+    .ticker-item .time { color: #4b5563; margin-right: 6px; }
+    .error { background: #450a0a; border: 1px solid #ef4444; border-radius: 10px; padding: 12px; color: #fca5a5; font-size: 13px; margin-bottom: 12px; display: none; line-height: 1.5; }
+    .success { background: #052e16; border: 1px solid #22c55e; border-radius: 10px; padding: 12px; color: #86efac; font-size: 13px; margin-bottom: 12px; display: none; }
+    .alert-banner { background: #450a0a; border: 1px solid #ef4444; border-radius: 10px; padding: 12px; color: #fca5a5; font-size: 13px; margin-bottom: 12px; display: none; font-weight: 700; }
+    .select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #1f2937; background: #0a0f1a; color: #f9fafb; font-size: 14px; font-weight: 600; }
+    select option { background: #0a0f1a; }
+    .speed-alert { color: #ef4444; }
+    .tabbar { display: flex; gap: 8px; margin-bottom: 14px; background: #0a0f1a; border: 1px solid #1f2937; border-radius: 12px; padding: 4px; }
+    .tab-btn { flex: 1; padding: 10px; border: none; border-radius: 9px; background: transparent; color: #6b7280; font-size: 13px; font-weight: 800; cursor: pointer; }
+    .tab-btn.active { background: #1e3a8a; color: #93c5fd; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .arm-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px 12px; text-align: center; }
+    .arm-sub { font-size: 12px; color: #6b7280; line-height: 1.6; max-width: 280px; }
+    .status-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid #111827; font-size: 13px; }
+    .status-row:last-child { border-bottom: none; }
+    .preview { position: relative; background: #000; border-radius: 12px; overflow: hidden; aspect-ratio: 16/9; margin-bottom: 14px; }
+    video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .rec-badge { position: absolute; top: 10px; left: 10px; background: rgba(127,29,29,0.9); border: 1px solid #ef4444; border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 700; color: #fca5a5; display: none; align-items: center; gap: 5px; }
+    .conn-badge { position: absolute; top: 10px; right: 10px; background: rgba(5,46,22,0.9); border: 1px solid #22c55e; border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 700; color: #86efac; display: none; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  </style>
+</head>
+<body>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-text">Divvo Guardian</div>
+      <div class="logo-sub">Field Test — GPS + Camera</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="label" style="margin-bottom:6px;">Device (shared by GPS &amp; Camera)</div>
+    <select id="device-select" class="select">
+      <optgroup label="Owlet">
+        <option value="DG-1028">DG-1028 — I-35 N near Laredo, TX</option>
+        <option value="DG-1041">DG-1041 — US-281 near Corpus Christi, TX</option>
+        <option value="DG-0994">DG-0994 — I-10 W near San Antonio, TX</option>
+      </optgroup>
+      <optgroup label="Meridian Freight">
+        <option value="MR-2031">MR-2031 — I-5 S near Tacoma, WA</option>
+        <option value="MR-2044">MR-2044 — I-84 near Portland, OR</option>
+        <option value="MR-1987">MR-1987 — US-101 near Olympia, WA</option>
+      </optgroup>
+      <optgroup label="Coastal Logistics">
+        <option value="CL-3041">CL-3041 — I-16 W near Savannah, GA</option>
+        <option value="CL-3059">CL-3059 — I-95 near Jacksonville, FL</option>
+        <option value="CL-3020">CL-3020 — US-17 near Charleston, SC</option>
+      </optgroup>
+    </select>
+    <div style="font-size:11px;color:#6b7280;margin-top:8px;line-height:1.5;">
+      One phone stands in for both the GPS tracker and the camera during this pilot — production hardware uses a dedicated tracker with its own cellular IMEI, so GPS won't compete with the camera for the phone's connection like it can here.
+    </div>
+  </div>
+
+  <div class="tabbar">
+    <button class="tab-btn active" id="tab-btn-gps" onclick="showTab('gps')">📍 GPS</button>
+    <button class="tab-btn" id="tab-btn-camera" onclick="showTab('camera')">🎥 Camera</button>
+  </div>
+
+  <!-- GPS TAB -->
+  <div class="tab-panel active" id="tab-gps">
+    <div id="alert-banner" class="alert-banner">⚠ SPEED ALERT — Threshold exceeded</div>
+    <div id="error-box" class="error"></div>
+    <div id="success-box" class="success">✓ Broadcasting live to dashboard map</div>
+
+    <button id="gps-btn" class="btn" onclick="toggleGPS()">📍 Start Broadcasting</button>
+
+    <div class="card">
+      <div style="display:flex;align-items:center;margin-bottom:14px;">
+        <span class="dot gray" id="status-dot"></span>
+        <span id="status-text" style="font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">Waiting for GPS</span>
+      </div>
+      <div class="grid">
+        <div><div class="label">Latitude</div><div class="value green" id="lat">—</div></div>
+        <div><div class="label">Longitude</div><div class="value green" id="lon">—</div></div>
+        <div><div class="label">Speed</div><div class="value" id="speed">— mph</div></div>
+        <div><div class="label">Accuracy</div><div class="value" id="accuracy">—</div></div>
+        <div><div class="label">Altitude</div><div class="value" id="altitude">—</div></div>
+        <div><div class="label">Heading</div><div class="value" id="heading">—</div></div>
+      </div>
+      <div style="margin-top:12px;">
+        <div class="label">Last Broadcast</div>
+        <div class="value small" id="updated">—</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label" style="margin-bottom:8px;">Speed Alert Threshold</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input type="range" id="speed-threshold" min="5" max="100" value="25" style="flex:1;" oninput="document.getElementById('threshold-val').textContent=this.value+' mph'">
+        <span id="threshold-val" style="font-size:13px;color:#9ca3af;min-width:60px;">25 mph</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label" style="margin-bottom:8px;">Broadcast Feed</div>
+      <div class="ticker" id="ticker">
+        <div class="ticker-item" style="color:#4b5563;">Waiting for GPS signal...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CAMERA TAB -->
+  <div class="tab-panel" id="tab-camera">
+    <div id="arm-screen" class="card arm-screen">
+      <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.5">
+        <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+      </svg>
+      <div>
+        <div style="font-size:18px;font-weight:800;margin-bottom:8px;">Arm Camera</div>
+        <div class="arm-sub">Tap to activate this phone's camera. Once armed, the dashboard can connect and view it at any time — GPS broadcasting (if running) keeps going in the background.</div>
+      </div>
+      <div style="width:100%;max-width:320px;">
+        <div class="label" style="margin-bottom:6px;">Camera Facing</div>
+        <select id="camera-select-arm" class="select" style="margin-bottom:16px;">
+          <option value="environment">Back Camera (Recommended)</option>
+          <option value="user">Front Camera</option>
+        </select>
+        <button class="btn" style="margin-bottom:0;" onclick="armDevice()">🎥 Arm Device</button>
+      </div>
+    </div>
+
+    <div id="main-content" style="display:none;">
+      <div class="card">
+        <div class="status-row">
+          <div class="dot green" id="dot-cam"></div>
+          <span id="txt-cam" style="color:#22c55e">Camera active</span>
+        </div>
+        <div class="status-row">
+          <div class="dot green" id="dot-listen"></div>
+          <span id="txt-listen" style="color:#22c55e">Listening for dashboard</span>
+        </div>
+        <div class="status-row">
+          <div class="dot gray" id="dot-conn"></div>
+          <span id="txt-conn" style="color:#6b7280">No dashboard connected</span>
+        </div>
+      </div>
+
+      <div class="preview">
+        <video id="local-video" autoplay muted playsinline></video>
+        <div id="rec-badge" class="rec-badge">
+          <span style="width:6px;height:6px;border-radius:50%;background:#ef4444;display:inline-block;"></span> STREAMING
+        </div>
+        <div id="conn-badge" class="conn-badge">● DASHBOARD CONNECTED</div>
+      </div>
+
+      <div class="card">
+        <div class="label" style="margin-bottom:10px;">Zoom Control</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:11px;color:#6b7280;min-width:20px;">1x</span>
+          <input type="range" id="zoom-slider" min="1" max="4" step="0.1" value="1"
+            style="flex:1;accent-color:#2563eb;"
+            oninput="applyZoom(this.value)">
+          <span style="font-size:11px;color:#6b7280;min-width:30px;">4x</span>
+          <span id="zoom-label" style="font-size:12px;font-weight:700;color:#93c5fd;min-width:36px;">1.0x</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button onclick="setZoom(1)" style="flex:1;background:#111827;border:1px solid #1f2937;color:#9ca3af;border-radius:8px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;">1x</button>
+          <button onclick="setZoom(2)" style="flex:1;background:#111827;border:1px solid #1f2937;color:#9ca3af;border-radius:8px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;">2x</button>
+          <button onclick="setZoom(3)" style="flex:1;background:#111827;border:1px solid #1f2937;color:#9ca3af;border-radius:8px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;">3x</button>
+          <button onclick="setZoom(4)" style="flex:1;background:#111827;border:1px solid #1f2937;color:#9ca3af;border-radius:8px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;">4x</button>
+        </div>
+      </div>
+
+      <div class="card" style="font-size:11px;color:#6b7280;line-height:1.6;">
+        Keep this page open and your screen on. The dashboard will connect automatically. Device: <strong style="color:#93c5fd" id="device-label">DG-1028</strong>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SB_URL = 'https://vnywjwncanldpsffiwtn.supabase.co';
+    const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZueXdqd25jYW5sZHBzZmZpd3RuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MjExMjAsImV4cCI6MjA5ODQ5NzEyMH0.J-5KjItWTEgolONGOHhLORJNh5K6rla19vJnASl2ay4';
+    const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
+
+    // ---------- Shared ----------
+    function getSharedDeviceId() { return document.getElementById('device-select').value; }
+    function getSharedDeviceName() { return document.getElementById('device-select').options[document.getElementById('device-select').selectedIndex].text.split(' — ')[0]; }
+
+    function showTab(name) {
+      document.getElementById('tab-gps').classList.toggle('active', name === 'gps');
+      document.getElementById('tab-camera').classList.toggle('active', name === 'camera');
+      document.getElementById('tab-btn-gps').classList.toggle('active', name === 'gps');
+      document.getElementById('tab-btn-camera').classList.toggle('active', name === 'camera');
+    }
+
+    function refreshDeviceLockState() {
+      const locked = watchId !== null || localStream !== null;
+      document.getElementById('device-select').disabled = locked;
+    }
+
+    // ---------- GPS ----------
+    let watchId = null;
+    let pingCount = 0;
+    const SPEED_ALERT_COOLDOWN = 30000;
+    let lastSpeedAlert = 0;
+
+    function getSpeedThreshold() { return parseFloat(document.getElementById('speed-threshold').value); }
+
+    async function sendToSupabase(coords) {
+      const deviceId = getSharedDeviceId();
+      const deviceName = getSharedDeviceName();
+      try {
+        await fetch(SB_URL + '/rest/v1/gps_pings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SB_KEY,
+            'Authorization': 'Bearer ' + SB_KEY,
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({
+            lat: coords.latitude,
+            lon: coords.longitude,
+            speed: coords.speed ?? 0,
+            accuracy: coords.accuracy,
+            heading: coords.heading,
+            altitude: coords.altitude,
+            device_label: deviceName,
+            device_id: deviceId,
+            device_name: deviceName
+          })
+        });
+      } catch(e) { console.error('Send failed:', e); }
+    }
+
+    function toggleGPS() {
+      if (watchId !== null) { stopGPS(); } else { startGPS(); }
+    }
+
+    function startGPS() {
+      if (!navigator.geolocation) { showError('Geolocation not supported.'); return; }
+      document.getElementById('gps-btn').textContent = 'Connecting...';
+      document.getElementById('gps-btn').className = 'btn connecting';
+      refreshDeviceLockState();
+      watchId = navigator.geolocation.watchPosition(onSuccess, onError, {
+        enableHighAccuracy: true, timeout: 15000, maximumAge: 0
+      });
+      refreshDeviceLockState();
+    }
+
+    function stopGPS() {
+      if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+      document.getElementById('gps-btn').textContent = '📍 Start Broadcasting';
+      document.getElementById('gps-btn').className = 'btn';
+      document.getElementById('status-dot').className = 'dot gray';
+      document.getElementById('status-text').textContent = 'Disconnected';
+      document.getElementById('success-box').style.display = 'none';
+      refreshDeviceLockState();
+    }
+
+    async function onSuccess(pos) {
+      pingCount++;
+      const c = pos.coords;
+      const now = new Date().toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      const mph = ((c.speed ?? 0) * 2.237);
+
+      document.getElementById('lat').textContent = c.latitude.toFixed(6) + '°';
+      document.getElementById('lon').textContent = c.longitude.toFixed(6) + '°';
+      document.getElementById('speed').textContent = mph.toFixed(1) + ' mph';
+      document.getElementById('speed').className = 'value' + (mph > getSpeedThreshold() ? ' speed-alert' : '');
+      document.getElementById('accuracy').textContent = '±' + c.accuracy.toFixed(0) + 'm';
+      document.getElementById('altitude').textContent = c.altitude ? c.altitude.toFixed(0) + 'm' : '—';
+      document.getElementById('heading').textContent = c.heading ? c.heading.toFixed(0) + '°' : '—';
+      document.getElementById('updated').textContent = now + ' · Ping #' + pingCount;
+      document.getElementById('status-dot').className = 'dot green';
+      document.getElementById('status-text').textContent = getSharedDeviceName() + ' · Broadcasting · Ping #' + pingCount;
+      document.getElementById('gps-btn').textContent = '⬛ Stop Broadcasting';
+      document.getElementById('gps-btn').className = 'btn active';
+      document.getElementById('success-box').style.display = 'block';
+
+      if (mph > getSpeedThreshold() && Date.now() - lastSpeedAlert > SPEED_ALERT_COOLDOWN) {
+        lastSpeedAlert = Date.now();
+        const banner = document.getElementById('alert-banner');
+        banner.textContent = '⚠ SPEED ALERT — ' + mph.toFixed(1) + ' mph exceeds ' + getSpeedThreshold() + ' mph threshold';
+        banner.style.display = 'block';
+        setTimeout(() => { banner.style.display = 'none'; }, 8000);
+      }
+
+      await sendToSupabase(c);
+
+      const ticker = document.getElementById('ticker');
+      const item = document.createElement('div');
+      item.className = 'ticker-item';
+      item.style.color = mph > getSpeedThreshold() ? '#ef4444' : '#22c55e';
+      item.innerHTML = '<span class="time">' + now + '</span>' + c.latitude.toFixed(4) + 'N ' + Math.abs(c.longitude).toFixed(4) + 'W · ' + mph.toFixed(1) + ' mph · ±' + c.accuracy.toFixed(0) + 'm';
+      ticker.insertBefore(item, ticker.firstChild);
+      hideError();
+    }
+
+    function onError(err) {
+      const msgs = {
+        1: 'Location permission denied. Tap the lock icon in your browser and allow location access.',
+        2: 'Position unavailable. Move near a window or go outside.',
+        3: 'Request timed out. Make sure location services are enabled.'
+      };
+      showError(msgs[err.code] || 'Unknown GPS error.');
+      stopGPS();
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('error-box');
+      el.textContent = '⚠ ' + msg;
+      el.style.display = 'block';
+    }
+    function hideError() { document.getElementById('error-box').style.display = 'none'; }
+
+    // ---------- Camera ----------
+    let localStream = null;
+    let pc = null;
+    let pollInterval = null;
+    let lastOfferId = null;
+
+    function setStatus(id, color, text) {
+      document.getElementById('dot-' + id).className = 'dot ' + color;
+      const el = document.getElementById('txt-' + id);
+      el.textContent = text;
+      el.style.color = color === 'green' ? '#22c55e' : color === 'red' ? '#ef4444' : color === 'amber' ? '#f59e0b' : color === 'blue' ? '#93c5fd' : '#6b7280';
+    }
+
+    async function sendSignal(type, payload) {
+      await fetch(SB_URL + '/rest/v1/webrtc_signals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, Prefer: 'return=minimal' },
+        body: JSON.stringify({ device_id: getSharedDeviceId() + '-cam', type, payload }),
+      });
+    }
+
+    async function handleOffer(row) {
+      if (row.id === lastOfferId) return;
+      lastOfferId = row.id;
+
+      if (pc) { pc.close(); pc = null; }
+
+      setStatus('conn', 'blue', 'Dashboard connecting — auto-accepting...');
+
+      pc = new RTCPeerConnection(ICE);
+      if (localStream) localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+      pc.onicecandidate = async (e) => {
+        if (e.candidate) await sendSignal('ice-camera', { candidate: e.candidate });
+      };
+
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'connected') {
+          setStatus('conn', 'green', 'Dashboard connected — streaming live');
+          document.getElementById('rec-badge').style.display = 'flex';
+          document.getElementById('conn-badge').style.display = 'block';
+        } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+          setStatus('conn', 'gray', 'Dashboard disconnected — waiting...');
+          document.getElementById('rec-badge').style.display = 'none';
+          document.getElementById('conn-badge').style.display = 'none';
+          pc = null;
+        }
+      };
+
+      await pc.setRemoteDescription(new RTCSessionDescription(row.payload.sdp));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      await sendSignal('answer', { sdp: answer });
+
+      let iceCount = 0;
+      const iceInterval = setInterval(async () => {
+        if (++iceCount > 20) { clearInterval(iceInterval); return; }
+        try {
+          const res = await fetch(
+            SB_URL + '/rest/v1/webrtc_signals?device_id=eq.' + getSharedDeviceId() + '-viewer&type=eq.ice-viewer&order=created_at.desc&limit=1',
+            { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY } }
+          );
+          const rows = await res.json();
+          if (rows?.[0]?.payload?.candidate) {
+            try { await pc.addIceCandidate(new RTCIceCandidate(rows[0].payload.candidate)); } catch {}
+          }
+        } catch {}
+      }, 1000);
+    }
+
+    async function pollForOffer() {
+      try {
+        const res = await fetch(
+          SB_URL + '/rest/v1/webrtc_signals?device_id=eq.' + getSharedDeviceId() + '-viewer&type=eq.offer&order=created_at.desc&limit=1',
+          { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY } }
+        );
+        const rows = await res.json();
+        if (rows?.length) await handleOffer(rows[0]);
+      } catch {}
+    }
+
+    async function armDevice() {
+      const facing = document.getElementById('camera-select-arm').value;
+      document.getElementById('device-label').textContent = getSharedDeviceName();
+
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        });
+
+        document.getElementById('local-video').srcObject = localStream;
+        document.getElementById('local-video').play();
+
+        document.getElementById('arm-screen').style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
+
+        setStatus('cam', 'green', 'Camera active — ' + (facing === 'environment' ? 'Back' : 'Front'));
+        setStatus('listen', 'green', 'Listening for dashboard');
+        refreshDeviceLockState();
+
+        try { if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); } catch {}
+
+        pollInterval = setInterval(pollForOffer, 1500);
+
+      } catch (err) {
+        alert('Camera error: ' + err.message + '\n\nPlease allow camera access and try again.');
+      }
+    }
+
+    async function applyZoom(val) {
+      document.getElementById('zoom-label').textContent = parseFloat(val).toFixed(1) + 'x';
+      document.getElementById('zoom-slider').value = val;
+      if (!localStream) return;
+      const track = localStream.getVideoTracks()[0];
+      if (!track) return;
+      try {
+        const caps = track.getCapabilities();
+        if (caps.zoom) {
+          const min = caps.zoom.min;
+          const max = caps.zoom.max;
+          const zoom = min + (val - 1) / 3 * (max - min);
+          await track.applyConstraints({ advanced: [{ zoom: Math.min(max, Math.max(min, zoom)) }] });
+        }
+      } catch (e) {
+        console.warn('Zoom not supported:', e.message);
+      }
+    }
+
+    function setZoom(val) {
+      document.getElementById('zoom-slider').value = val;
+      applyZoom(val);
+    }
+
+    window.addEventListener('beforeunload', () => {
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      if (localStream) localStream.getTracks().forEach(t => t.stop());
+      if (pc) pc.close();
+      if (pollInterval) clearInterval(pollInterval);
+    });
+  </script>
+</body>
+</html>
