@@ -66,6 +66,11 @@ Write a 1-2 sentence professional audit log entry confirming this deletion. Note
   }
 }
 
+// A saved corridor is only worth drawing on the map when the selected
+// device is actually near it — ~50 miles, generous enough to cover a device
+// traveling along the lane without showing corridors nowhere near it.
+const RELEVANT_ROUTE_RADIUS_METERS = 80000;
+
 function distanceMeters(lat1, lon1, lat2, lon2) {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -918,12 +923,31 @@ function LiveMap({ devices, onSelect, selectedId, fullscreen, onFullscreen, save
     });
   }, [loaded, devices, selectedId, deviceShipmentContext]);
 
-  // Draw saved routes on map
+  // Draw saved routes on map — scoped to the selected device. Every saved
+  // corridor is assigned_device "all" in practice (it exists to catch any
+  // device that strays near it), so showing every one of them regardless of
+  // what's clicked reads as unrelated "other shipments" cluttering the map.
+  // Only render a corridor when it's actually near the selected device, or
+  // when it's currently in an active deviation (that's alert-worthy
+  // regardless of selection, same as the banner elsewhere on this page).
   useEffect(() => {
-    if (!loaded || !savedRoutes?.length) return;
-    savedRoutes.forEach(route => {
+    if (!loaded) return;
+    const selectedDevice = devices.find(d => d.id === selectedId);
+    (savedRoutes || []).forEach(route => {
       const srcId = "saved-route-" + route.id;
+      const layerLine = srcId + "-line";
+      const layerCorridor = srcId + "-corridor";
       const isDeviation = routeDeviations?.includes(route.id);
+      const isNearSelected = selectedDevice && distanceFromRoute(selectedDevice.lat, selectedDevice.lon, route.waypoints) <= RELEVANT_ROUTE_RADIUS_METERS;
+      const isRelevant = isDeviation || isNearSelected;
+
+      if (!isRelevant) {
+        if (map.current.getLayer(layerLine)) map.current.removeLayer(layerLine);
+        if (map.current.getLayer(layerCorridor)) map.current.removeLayer(layerCorridor);
+        if (map.current.getSource(srcId)) map.current.removeSource(srcId);
+        return;
+      }
+
       const color = isDeviation ? "#ef4444" : "#22c55e";
       const geojson = { type: "Feature", geometry: { type: "LineString", coordinates: route.waypoints } };
       try {
@@ -931,12 +955,12 @@ function LiveMap({ devices, onSelect, selectedId, fullscreen, onFullscreen, save
           map.current.getSource(srcId).setData(geojson);
         } else {
           map.current.addSource(srcId, { type: "geojson", data: geojson });
-          map.current.addLayer({ id: srcId + "-corridor", type: "line", source: srcId, paint: { "line-color": color, "line-width": (route.corridor_meters || route.corridorMeters || 500) / 40, "line-opacity": 0.15 } });
-          map.current.addLayer({ id: srcId + "-line", type: "line", source: srcId, paint: { "line-color": color, "line-width": 2 } });
+          map.current.addLayer({ id: layerCorridor, type: "line", source: srcId, paint: { "line-color": color, "line-width": (route.corridor_meters || route.corridorMeters || 500) / 40, "line-opacity": 0.15 } });
+          map.current.addLayer({ id: layerLine, type: "line", source: srcId, paint: { "line-color": color, "line-width": 2 } });
         }
       } catch {}
     });
-  }, [loaded, savedRoutes, routeDeviations]);
+  }, [loaded, savedRoutes, routeDeviations, selectedId, devices]);
 
   const clearWaypointMarkers = () => {
     waypointMarkersRef.current.forEach(m => m.remove());
@@ -1685,26 +1709,33 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
               </div>
             )}
 
-            {/* Shipment routes */}
-            <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Shipment Routes</div>
-              {SHIPMENT_ROUTES.map(route => (
-                <div key={route.id} style={{ padding: "8px 10px", background: "#0a0f1a", border: "1px solid #1f2937", borderRadius: 8, marginBottom: 6 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                    <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 700, color: route.severity === "Critical" ? "#fca5a5" : "#fcd34d" }}>{route.id}</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 9, color: "#6b7280" }}>{route.cargo}</span>
-                      <button
-                        onClick={() => handleRouteShipment({ origin: route.origin, destination: route.destination, carrier: route.carrier, cargo: route.cargo })}
-                        style={{ background: "#1e3a8a", border: "1px solid #2563eb44", color: "#93c5fd", borderRadius: 5, padding: "2px 7px", fontSize: 9, fontWeight: 700, cursor: "pointer" }}>
-                        🤖 Route
-                      </button>
+            {/* Shipment routes — a general browsing list of the company's
+                reference lanes, unrelated to any specific device. Once a
+                device is selected, the AI Response panel already shows that
+                device's full detail, so this general list is just noise
+                (e.g. an unrelated Savannah → Atlanta lane showing up while
+                looking at a Laredo alert) — hide it while something's selected. */}
+            {!selectedDevice && (
+              <div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Shipment Routes</div>
+                {SHIPMENT_ROUTES.map(route => (
+                  <div key={route.id} style={{ padding: "8px 10px", background: "#0a0f1a", border: "1px solid #1f2937", borderRadius: 8, marginBottom: 6 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                      <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 700, color: route.severity === "Critical" ? "#fca5a5" : "#fcd34d" }}>{route.id}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 9, color: "#6b7280" }}>{route.cargo}</span>
+                        <button
+                          onClick={() => handleRouteShipment({ origin: route.origin, destination: route.destination, carrier: route.carrier, cargo: route.cargo })}
+                          style={{ background: "#1e3a8a", border: "1px solid #2563eb44", color: "#93c5fd", borderRadius: 5, padding: "2px 7px", fontSize: 9, fontWeight: 700, cursor: "pointer" }}>
+                          🤖 Route
+                        </button>
+                      </div>
                     </div>
+                    <div style={{ fontSize: 10, color: "#6b7280" }}>{route.label} · {route.carrier}</div>
                   </div>
-                  <div style={{ fontSize: 10, color: "#6b7280" }}>{route.label} · {route.carrier}</div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             {/* Secure fleet summary */}
             <div style={{ marginTop: 8 }}>
