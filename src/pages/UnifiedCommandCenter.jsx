@@ -1369,6 +1369,8 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
   const [liveGPS, setLiveGPS]               = useState([]);
   const [gpsStale, setGpsStale]             = useState(false);
   const [savedRoutes, setSavedRoutes]       = useState([]);
+  const savedRoutesRef                      = useRef([]);
+  useEffect(() => { savedRoutesRef.current = savedRoutes; }, [savedRoutes]);
   const [routesError, setRoutesError]       = useState("");
   const [routeDeviations, setRouteDeviations] = useState([]);
   const [deletionTarget, setDeletionTarget] = useState(null); // route pending deletion
@@ -1411,10 +1413,14 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
           if (age < 300 && !seen[id]) { seen[id] = true; fresh.push({ ...p, deviceId: id }); }
         }
         setLiveGPS(fresh);
-        // Check route deviations
+        // Check route deviations — read from the ref, not the `savedRoutes`
+        // state directly: this effect's deps array is `[]` (it must not
+        // restart the polling interval every time a route is added), so a
+        // direct reference here would permanently close over the empty
+        // array from the very first render, before routes finish loading.
         const deviations = [];
         for (const p of fresh) {
-          for (const route of savedRoutes) {
+          for (const route of savedRoutesRef.current) {
             if (route.assigned_device !== "all" && route.assigned_device !== p.deviceId) continue;
             const dist = distanceFromRoute(p.lat, p.lon, route.waypoints);
             if (dist > (route.corridor_meters || route.corridorMeters || 500)) {
