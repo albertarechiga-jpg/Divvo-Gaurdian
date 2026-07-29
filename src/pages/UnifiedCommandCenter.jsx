@@ -38,7 +38,7 @@ async function logAuditEvent(action, operator, details, aiSummary) {
 }
 
 async function generateDeletionSummary(route, operator) {
-  const prompt = `You are a Divvo Guardian security audit AI. An operator just deleted a monitored route.
+  const prompt = `You are a Freightlock Guardian security audit AI. An operator just deleted a monitored route.
 
 Operator: ${operator}
 Route Name: ${route.name}
@@ -90,7 +90,7 @@ function distanceFromRoute(lat, lon, waypoints) {
 
 // ── AI Response Generator ─────────────────────────────────────────────────────
 async function generateAIResponse(device, windowMinutes = { critical: 5, warning: 15 }) {
-  const prompt = `You are the AI operations center for Divvo Guardian, a cargo security platform. 
+  const prompt = `You are the AI operations center for Freightlock Guardian, a cargo security platform. 
 Analyze this alert and generate a structured response for a single operator.
 
 Device: ${device.id} | Trailer: ${device.trailerId}
@@ -200,7 +200,7 @@ async function generateAIRoute(origin, destination, carrier, cargoValue) {
   const distStr = routeData ? routeData.distanceMiles + " miles" : "unknown distance";
   const durStr  = routeData ? routeData.durationHours + " hours" : "unknown duration";
 
-  const analysisPrompt = `You are a cargo security analyst for Divvo Guardian.
+  const analysisPrompt = `You are a cargo security analyst for Freightlock Guardian.
 Analyze this shipment route for security risks.
 
 Origin: ${origin}
@@ -1537,7 +1537,7 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
           <div style={{ padding: "10px 16px", background: "#060d18", borderBottom: "1px solid #1f2937", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", animation: "pulse 2s infinite", display: "inline-block" }}/>
-              <span style={{ fontSize: 13, fontWeight: 700 }}>Divvo Guardian — Full Fleet View</span>
+              <span style={{ fontSize: 13, fontWeight: 700 }}>Freightlock Guardian — Full Fleet View</span>
               <span style={{ fontSize: 11, color: "#6b7280" }}>{devices.length} devices · {companyInfo.region}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1569,7 +1569,7 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             </div>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 800, lineHeight: 1 }}>Divvo Guardian</div>
+              <div style={{ fontSize: 13, fontWeight: 800, lineHeight: 1 }}>Freightlock Guardian</div>
               <div style={{ fontSize: 10, color: "#6b7280" }}>Unified Command Center</div>
             </div>
           </div>

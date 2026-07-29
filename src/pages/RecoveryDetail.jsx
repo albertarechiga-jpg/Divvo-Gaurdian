@@ -158,7 +158,7 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
       "",
       "Please advise on driver status and any information relevant to this incident.",
       "",
-      "— Divvo Guardian Operations",
+      "— Freightlock Guardian Operations",
     ].join("\n");
     window.location.href = `mailto:${encodeURIComponent(contact.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     logCustody(`Carrier follow-up email drafted to ${s.carrier} dispatch`);
@@ -220,7 +220,7 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
 
     const subject = `URGENT — Cargo Theft In Progress — ${inc.id} — ${placeLabel}`;
     const body = [
-      "Divvo Guardian cargo theft alert — requesting immediate law enforcement response.",
+      "Freightlock Guardian cargo theft alert — requesting immediate law enforcement response.",
       "",
       `Case ID: ${inc.id}`,
       `Jurisdiction (from GPS): ${placeLabel}`,
@@ -229,7 +229,7 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
       "",
       "GPS history, camera footage, and tamper sensor logs are available on request — reply to this email or call our operations line.",
       "",
-      "— Divvo Guardian Operations",
+      "— Freightlock Guardian Operations",
     ].join("\n");
     const to = matched?.email || "";
     window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -257,7 +257,7 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
       "",
       "Please advise on next steps for this claim.",
       "",
-      "— Divvo Guardian Operations",
+      "— Freightlock Guardian Operations",
     ].join("\n");
     window.location.href = `mailto:${encodeURIComponent(ins.adjusterEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     logCustody(`Insurance claim follow-up email drafted to ${ins.adjusterName}`);

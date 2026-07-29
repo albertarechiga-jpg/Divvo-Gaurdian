@@ -2,14 +2,14 @@
 // Security entirely. This must never be exposed to the client — the browser
 // only ever talks to this endpoint, never to Supabase directly for writes here.
 //
-// Onboarding a new pilot client is a Divvo-ops action, not something any
+// Onboarding a new pilot client is a Freightlock-ops action, not something any
 // logged-in user should be able to trigger — this used to have zero caller
 // validation (it predates auth entirely). Now that real per-company tenant
 // separation exists (see the signup migration's organizations/companies
 // bridge), an unauthenticated write here would let anyone spin up an
 // unlinked "company" row, so it's gated the same way api/create-user.js
 // gates admin-only actions: validate the caller's session, then confirm
-// they're an admin of the platform org (Divvo Global staff).
+// they're an admin of the platform org (Freightlock Global staff).
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
     }
     const caller = await callerRes.json();
 
-    // 2. Confirm the caller is an admin of the platform org (Divvo Global
+    // 2. Confirm the caller is an admin of the platform org (Freightlock Global
     //    staff) — service-role read, bypasses RLS deliberately, this IS the
     //    authorization check.
     const callerRolesRes = await fetch(
@@ -77,7 +77,7 @@ export default async function handler(req, res) {
       ? callerRoles.find((r) => r.role === "admin" && r.organizations?.is_platform_org)
       : null;
     if (!adminRow) {
-      return res.status(403).json({ error: "Only Divvo Global admins can add a new company" });
+      return res.status(403).json({ error: "Only Freightlock Global admins can add a new company" });
     }
 
     // Reject duplicates up front for a clean error instead of a 409 from Postgres

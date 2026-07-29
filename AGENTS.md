@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
 ## What this is
 
@@ -8,7 +8,7 @@ Freightlock Guardian is a cargo theft prevention/recovery dashboard — a Vite +
 
 **Two Supabase schema generations coexist.** A v1 set of ad-hoc tables (`companies`, `alert_settings`, `gps_pings`, `saved_routes`, `webrtc_signals`) backs everything actually wired into the UI today. A v2 "Mission Engine" schema (`supabase_migration_001_mission_engine.sql`, 22 tables: `organizations`, `users`, `missions`, `drivers`, `digital_bols`, `chain_of_custody_events`, etc. — see `FREIGHTLOCK_ARCHITECTURE_V2.md`) is live and RLS-enforced in the same database, but **only `organizations`/`users`/`user_roles` are actually used** (by the auth system below). The other ~19 v2 tables have no UI reading or writing them yet — don't assume mission/driver/BOL data exists anywhere in the app just because the schema does.
 
-This repo also contains a `divvo-guardian` Claude Code skill (`.claude/skills/divvo-guardian/`) covering the broader Freightlock Guardian *hardware/firmware/business* project (trailer security hardware, engineering roles, product requirements, decision log, etc.). That skill's YAML foundation files are the source of truth for product/engineering questions about the physical product — consult it for anything beyond this web dashboard's code.
+This repo also contains a `divvo-guardian` Codex skill (`.Codex/skills/divvo-guardian/`) covering the broader Freightlock Guardian *hardware/firmware/business* project (trailer security hardware, engineering roles, product requirements, decision log, etc.). That skill's YAML foundation files are the source of truth for product/engineering questions about the physical product — consult it for anything beyond this web dashboard's code.
 
 ## Commands
 

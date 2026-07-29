@@ -28,7 +28,7 @@ export default async function handler(req, res) {
         <span style="color:white;font-size:18px;">🛡️</span>
       </div>
       <div>
-        <div style="color:#f9fafb;font-size:16px;font-weight:800;">Divvo Guardian</div>
+        <div style="color:#f9fafb;font-size:16px;font-weight:800;">Freightlock Guardian</div>
         <div style="color:#6b7280;font-size:11px;">Cargo Security Platform</div>
       </div>
     </div>
@@ -53,11 +53,11 @@ export default async function handler(req, res) {
     </div>
 
     <a href="https://divvo-guardian.vercel.app" style="display:block;background:#2563eb;color:white;text-align:center;padding:14px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;margin-bottom:16px;">
-      Open Divvo Guardian Dashboard →
+      Open Freightlock Guardian Dashboard →
     </a>
 
     <div style="color:#4b5563;font-size:11px;text-align:center;">
-      Divvo Guardian · Cargo Security Platform · divvo-guardian.vercel.app<br/>
+      Freightlock Guardian · Cargo Security Platform · divvo-guardian.vercel.app<br/>
       You are receiving this because you are a registered alert contact for this account.
     </div>
   </div>
@@ -72,7 +72,7 @@ export default async function handler(req, res) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Divvo Guardian <onboarding@resend.dev>",
+        from: "Freightlock Guardian <onboarding@resend.dev>",
         to: emails,
         subject,
         html,

@@ -2,7 +2,7 @@
   "name": "divvo-guardian",
   "private": true,
   "version": "1.0.0",
-  "description": "Divvo Guardian — Cargo Theft Prevention & Recovery Platform",
+  "description": "Freightlock Guardian — Cargo Theft Prevention & Recovery Platform",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

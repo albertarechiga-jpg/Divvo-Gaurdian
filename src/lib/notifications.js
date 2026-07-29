@@ -20,7 +20,7 @@ export async function sendBrowserNotification(title, body, severity) {
   }
   if (Notification.permission === "granted") {
     const icon = severity === "Critical" ? "🚨" : severity === "Warning" ? "⚠️" : "📡";
-    new Notification(`${icon} Divvo Guardian — ${title}`, {
+    new Notification(`${icon} Freightlock Guardian — ${title}`, {
       body,
       icon: "/favicon.svg",
       badge: "/favicon.svg",
@@ -60,8 +60,8 @@ export async function dispatchAlert({ alertType, deviceId, location, severity, d
   const isCritical = severity === "Critical";
   const isWarning  = severity === "Warning";
 
-  const subject = `[${severity}] Divvo Guardian — ${alertType} · ${deviceId}`;
-  const smsBody = `🚨 DIVVO GUARDIAN ${severity.toUpperCase()} ALERT\n${alertType}\nDevice: ${deviceId}\nLocation: ${location}\nView: divvo-guardian.vercel.app`;
+  const subject = `[${severity}] Freightlock Guardian — ${alertType} · ${deviceId}`;
+  const smsBody = `🚨 FREIGHTLOCK GUARDIAN ${severity.toUpperCase()} ALERT\n${alertType}\nDevice: ${deviceId}\nLocation: ${location}\nView: divvo-guardian.vercel.app`;
 
   // Browser notification — always if enabled. Wrapped so a permission-prompt
   // failure (e.g. Chrome refusing requestPermission() outside a synchronous

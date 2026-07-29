@@ -320,7 +320,7 @@ export default function CameraView({ companyInfo }) {
       setToast(label + " is now LIVE");
       setTimeout(() => setToast(null), 4000);
       if (Notification.permission === "granted") {
-        new Notification("📷 Divvo Guardian — Camera Live", { body: label + " connected and streaming" });
+        new Notification("📷 Freightlock Guardian — Camera Live", { body: label + " connected and streaming" });
       }
     } else {
       setLiveFeeds((prev) => prev.filter((id) => id !== cameraId));

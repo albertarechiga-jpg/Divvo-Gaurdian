@@ -19,7 +19,7 @@ export default function ShipmentsPage({ companyInfo, onViewShipment, session, cu
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-bold text-blue-600 uppercase tracking-widest">Divvo Guardian</span>
+              <span className="text-xs font-bold text-blue-600 uppercase tracking-widest">Freightlock Guardian</span>
               <span className="text-gray-300">·</span>
               <span className="text-xs text-gray-400">{companyInfo.name} Portfolio</span>
             </div>

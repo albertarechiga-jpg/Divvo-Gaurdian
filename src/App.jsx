@@ -133,7 +133,7 @@ export default function App() {
   // Companies now live in Supabase so new ones can be added at runtime
   // (see src/lib/companies.js + api/add-company.js) instead of requiring a
   // code change. Waits on currentUser so the tenant filter below has
-  // something to filter by: Divvo Global staff (isPlatformOrg) see every
+  // something to filter by: Freightlock Global staff (isPlatformOrg) see every
   // pilot client, same as always; a client-org signup only ever sees the
   // one company tied to their own organization_id.
   useEffect(() => {
@@ -383,7 +383,7 @@ export default function App() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-950 text-gray-500 text-sm">
-        Loading Divvo Guardian...
+        Loading Freightlock Guardian...
       </div>
     );
   }
@@ -442,7 +442,7 @@ export default function App() {
   if (companiesLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-950 text-gray-500 text-sm">
-        Loading Divvo Guardian...
+        Loading Freightlock Guardian...
       </div>
     );
   }

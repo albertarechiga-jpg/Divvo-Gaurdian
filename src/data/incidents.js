@@ -13,8 +13,8 @@ export const INITIAL_INCIDENTS = [
       "Container door breached during unauthorized stop on I-16 W. Recovery team deployed. Law enforcement package being compiled.",
     updates: [
       { time: "2026-06-19T08:14:00", text: "Door opened alert triggered" },
-      { time: "2026-06-19T08:30:00", text: "Incident case created by Divvo ops" },
-      { time: "2026-06-19T09:00:00", text: "Divvo senior analyst review initiated" },
+      { time: "2026-06-19T08:30:00", text: "Incident case created by Freightlock ops" },
+      { time: "2026-06-19T09:00:00", text: "Freightlock senior analyst review initiated" },
       { time: "2026-06-19T10:15:00", text: "Recovery team (Team Bravo) assigned" },
     ],
   },
@@ -23,7 +23,7 @@ export const INITIAL_INCIDENTS = [
     shipmentId: "OWL-HOU-1001",
     title: "Route Deviation Investigation — Houston Corridor",
     stage: 3,
-    stageLabel: "Divvo Review",
+    stageLabel: "Freightlock Review",
     priority: "High",
     createdAt: "2026-06-18T23:00:00",
     assignedTo: "Priya Chandran",
@@ -33,7 +33,7 @@ export const INITIAL_INCIDENTS = [
     updates: [
       { time: "2026-06-18T22:45:00", text: "Route deviation alert triggered" },
       { time: "2026-06-18T23:00:00", text: "Case created — escalated for review" },
-      { time: "2026-06-19T07:30:00", text: "Divvo analyst assigned for review" },
+      { time: "2026-06-19T07:30:00", text: "Freightlock analyst assigned for review" },
     ],
   },
   {
@@ -44,7 +44,7 @@ export const INITIAL_INCIDENTS = [
     stageLabel: "Recovery Complete",
     priority: "Medium",
     createdAt: "2026-06-17T14:00:00",
-    assignedTo: "Divvo Ops",
+    assignedTo: "Freightlock Ops",
     cargoValue: 1_850_000,
     description:
       "47-minute tracker blackout. Shipment confirmed intact after signal restored. Carrier confirmed maintenance issue.",
@@ -71,8 +71,8 @@ export const INITIAL_INCIDENTS = [
       "Container door breached during unauthorized stop on I-5 S. Recovery team deployed. Law enforcement package being compiled.",
     updates: [
       { time: "2026-06-20T15:10:00", text: "Door opened alert triggered" },
-      { time: "2026-06-20T15:25:00", text: "Incident case created by Divvo ops" },
-      { time: "2026-06-20T15:50:00", text: "Divvo senior analyst review initiated" },
+      { time: "2026-06-20T15:25:00", text: "Incident case created by Freightlock ops" },
+      { time: "2026-06-20T15:50:00", text: "Freightlock senior analyst review initiated" },
       { time: "2026-06-20T16:40:00", text: "Recovery team assigned" },
     ],
   },
@@ -81,7 +81,7 @@ export const INITIAL_INCIDENTS = [
     shipmentId: "MER-PDX-2002",
     title: "Route Deviation Investigation — Portland Corridor",
     stage: 3,
-    stageLabel: "Divvo Review",
+    stageLabel: "Freightlock Review",
     priority: "High",
     createdAt: "2026-06-20T09:35:00",
     assignedTo: "Alberto Arechiga",
@@ -91,7 +91,7 @@ export const INITIAL_INCIDENTS = [
     updates: [
       { time: "2026-06-20T09:20:00", text: "Route deviation alert triggered" },
       { time: "2026-06-20T09:35:00", text: "Case created — escalated for review" },
-      { time: "2026-06-20T11:00:00", text: "Divvo analyst assigned for review" },
+      { time: "2026-06-20T11:00:00", text: "Freightlock analyst assigned for review" },
     ],
   },
   {
@@ -102,7 +102,7 @@ export const INITIAL_INCIDENTS = [
     stageLabel: "Recovery Complete",
     priority: "Medium",
     createdAt: "2026-06-19T06:00:00",
-    assignedTo: "Divvo Ops",
+    assignedTo: "Freightlock Ops",
     cargoValue: 415_000,
     description:
       "39-minute tracker blackout. Shipment confirmed intact after signal restored. Carrier confirmed maintenance issue.",
@@ -129,8 +129,8 @@ export const INITIAL_INCIDENTS = [
       "Container door breached during unauthorized stop on I-16 W. Recovery team deployed. Law enforcement package being compiled.",
     updates: [
       { time: "2026-06-20T11:40:00", text: "Door opened alert triggered" },
-      { time: "2026-06-20T11:55:00", text: "Incident case created by Divvo ops" },
-      { time: "2026-06-20T12:20:00", text: "Divvo senior analyst review initiated" },
+      { time: "2026-06-20T11:55:00", text: "Incident case created by Freightlock ops" },
+      { time: "2026-06-20T12:20:00", text: "Freightlock senior analyst review initiated" },
       { time: "2026-06-20T13:15:00", text: "Recovery team assigned" },
     ],
   },
@@ -139,7 +139,7 @@ export const INITIAL_INCIDENTS = [
     shipmentId: "CST-JAX-3002",
     title: "Route Deviation Investigation — Jacksonville Corridor",
     stage: 3,
-    stageLabel: "Divvo Review",
+    stageLabel: "Freightlock Review",
     priority: "High",
     createdAt: "2026-06-20T08:25:00",
     assignedTo: "Alberto Arechiga",
@@ -149,7 +149,7 @@ export const INITIAL_INCIDENTS = [
     updates: [
       { time: "2026-06-20T08:10:00", text: "Route deviation alert triggered" },
       { time: "2026-06-20T08:25:00", text: "Case created — escalated for review" },
-      { time: "2026-06-20T09:45:00", text: "Divvo analyst assigned for review" },
+      { time: "2026-06-20T09:45:00", text: "Freightlock analyst assigned for review" },
     ],
   },
   {
@@ -160,7 +160,7 @@ export const INITIAL_INCIDENTS = [
     stageLabel: "Recovery Complete",
     priority: "Medium",
     createdAt: "2026-06-19T04:30:00",
-    assignedTo: "Divvo Ops",
+    assignedTo: "Freightlock Ops",
     cargoValue: 380_000,
     description:
       "33-minute tracker blackout. Shipment confirmed intact after signal restored. Carrier confirmed maintenance issue.",
@@ -176,7 +176,7 @@ export const INITIAL_INCIDENTS = [
 export const WORKFLOW_STAGES = [
   "Alert Received",
   "Case Created",
-  "Divvo Review",
+  "Freightlock Review",
   "Recovery Team Assigned",
   "Law Enforcement Package Prepared",
   "Asset Located",

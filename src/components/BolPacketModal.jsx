@@ -361,7 +361,7 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
         <div className="bol-packet max-w-3xl mx-auto bg-white rounded-xl shadow-2xl p-10">
           <div className="flex items-start justify-between border-b-2 border-gray-900 pb-4 mb-6">
             <div>
-              <p className="text-lg font-bold text-gray-900">Divvo Guardian</p>
+              <p className="text-lg font-bold text-gray-900">Freightlock Guardian</p>
               <p className="text-xs text-gray-500">Digital Bill of Lading</p>
             </div>
             <div className="text-right">
@@ -701,7 +701,7 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
           </Section>
 
           <div className="border-t border-gray-300 pt-4 mt-6 text-xs text-gray-400 flex items-center justify-between">
-            <span>Prepared by Divvo Guardian — Divvo Global LLC</span>
+            <span>Prepared by Freightlock Guardian — Freightlock Global LLC</span>
             <span>Identity verification is simulated for this pilot; signatures are recorded as cryptographic hashes, never raw images.</span>
           </div>
         </div>

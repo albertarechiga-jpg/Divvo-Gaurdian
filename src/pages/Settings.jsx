@@ -414,8 +414,8 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
       if (settings.browser_all) {
         if (Notification.permission === "default") await Notification.requestPermission();
         if (Notification.permission === "granted") {
-          new Notification("🚨 Divvo Guardian — Test Alert", {
-            body: "This is a test notification from Divvo Guardian. All systems operational.",
+          new Notification("🚨 Freightlock Guardian — Test Alert", {
+            body: "This is a test notification from Freightlock Guardian. All systems operational.",
           });
           results.push({ channel: "browser", ok: true });
         } else {
@@ -433,7 +433,7 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             to: settings.phones,
-            message: "DIVVO GUARDIAN ALERT: This is a test notification from Divvo Guardian. All systems operational. divvo-guardian.vercel.app",
+            message: "FREIGHTLOCK GUARDIAN ALERT: This is a test notification from Freightlock Guardian. All systems operational. divvo-guardian.vercel.app",
           }),
         });
         const smsData = await smsRes.json().catch(() => ({}));
@@ -451,7 +451,7 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             to: settings.emails,
-            subject: "[TEST] Divvo Guardian — Alert Notification Test",
+            subject: "[TEST] Freightlock Guardian — Alert Notification Test",
             alertType: "Test Notification",
             deviceId: "TEST-001",
             location: "System Test",

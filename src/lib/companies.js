@@ -29,7 +29,7 @@ export async function fetchCompanies() {
 // the anon key used everywhere else in this file can only read companies.
 // Requires the caller's access token: api/add-company.js now validates the
 // caller is an admin of a platform org (creating a new pilot client is a
-// Divvo-ops action, not something any logged-in user should be able to do).
+// Freightlock-ops action, not something any logged-in user should be able to do).
 export async function createCompany(accessToken, { name, region, mapCenter, mapZoom, primaryEmail, primaryPhone }) {
   const res = await fetch("/api/add-company", {
     method: "POST",

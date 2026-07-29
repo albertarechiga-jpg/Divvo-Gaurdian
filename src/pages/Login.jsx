@@ -131,8 +131,8 @@ export default function Login() {
             </svg>
           </div>
           <div>
-            <p className="text-white text-base font-bold tracking-tight leading-none">Divvo Guardian</p>
-            <p className="text-blue-400 text-xs mt-0.5 font-medium">by Divvo Global</p>
+            <p className="text-white text-base font-bold tracking-tight leading-none">Freightlock Guardian</p>
+            <p className="text-blue-400 text-xs mt-0.5 font-medium">by Freightlock Global</p>
           </div>
         </div>
 
@@ -140,7 +140,7 @@ export default function Login() {
           {mode === "signin" ? (
             <>
               <h1 className="text-white text-sm font-bold mb-1">Sign in</h1>
-              <p className="text-gray-500 text-xs mb-5">Welcome back to Divvo Guardian.</p>
+              <p className="text-gray-500 text-xs mb-5">Welcome back to Freightlock Guardian.</p>
 
               <form onSubmit={handleSubmit} className="space-y-3">
                 <div>
@@ -151,7 +151,7 @@ export default function Login() {
                     onChange={(e) => setEmail(e.target.value)}
                     autoComplete="email"
                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:border-blue-600"
-                    placeholder="you@divvoglobal.com"
+                    placeholder="you@freightlockglobal.com"
                   />
                 </div>
                 <div>
@@ -208,7 +208,7 @@ export default function Login() {
                     onChange={(e) => setEmail(e.target.value)}
                     autoComplete="email"
                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:border-blue-600"
-                    placeholder="you@divvoglobal.com"
+                    placeholder="you@freightlockglobal.com"
                   />
                 </div>
 
@@ -325,7 +325,7 @@ export default function Login() {
           )}
         </div>
 
-        <p className="text-gray-600 text-xs text-center mt-6">© 2026 Divvo Global LLC</p>
+        <p className="text-gray-600 text-xs text-center mt-6">© 2026 Freightlock Global LLC</p>
       </div>
     </div>
   );

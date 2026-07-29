@@ -130,7 +130,7 @@ export default function CasePacketModal({ onClose, shipment, incident, recoveryD
       <div className="case-packet max-w-3xl mx-auto bg-white rounded-xl shadow-2xl p-10">
         <div className="flex items-start justify-between border-b-2 border-gray-900 pb-4 mb-6">
           <div>
-            <p className="text-lg font-bold text-gray-900">Divvo Guardian</p>
+            <p className="text-lg font-bold text-gray-900">Freightlock Guardian</p>
             <p className="text-xs text-gray-500">{isLEPacket ? "Law Enforcement Evidence Packet" : "Shipment Case File"}</p>
           </div>
           <div className="text-right">
@@ -313,7 +313,7 @@ export default function CasePacketModal({ onClose, shipment, incident, recoveryD
         )}
 
         <div className="border-t border-gray-300 pt-4 mt-6 text-xs text-gray-400 flex items-center justify-between">
-          <span>Prepared by Divvo Guardian — Divvo Global LLC</span>
+          <span>Prepared by Freightlock Guardian — Freightlock Global LLC</span>
           <span>This document is auto-generated from live shipment telemetry and case records.</span>
         </div>
       </div>

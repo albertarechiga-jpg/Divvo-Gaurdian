@@ -39,8 +39,8 @@ export default function ResetPassword({ onDone }) {
             </svg>
           </div>
           <div>
-            <p className="text-white text-base font-bold tracking-tight leading-none">Divvo Guardian</p>
-            <p className="text-blue-400 text-xs mt-0.5 font-medium">by Divvo Global</p>
+            <p className="text-white text-base font-bold tracking-tight leading-none">Freightlock Guardian</p>
+            <p className="text-blue-400 text-xs mt-0.5 font-medium">by Freightlock Global</p>
           </div>
         </div>
 
@@ -84,7 +84,7 @@ export default function ResetPassword({ onDone }) {
           </form>
         </div>
 
-        <p className="text-gray-600 text-xs text-center mt-6">© 2026 Divvo Global LLC</p>
+        <p className="text-gray-600 text-xs text-center mt-6">© 2026 Freightlock Global LLC</p>
       </div>
     </div>
   );

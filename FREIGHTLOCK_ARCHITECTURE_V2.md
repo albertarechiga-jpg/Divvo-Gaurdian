@@ -1,4 +1,4 @@
-# Divvo Guardian — Architecture v2.0
+# Freightlock Guardian — Architecture v2.0
 
 **Status:** Draft — production database foundation for the "Mission Engine"
 **Context:** Builds on `REVIEW_PACKAGE.md` (the v1 architecture review of the current pilot dashboard). Where v1 proposed a `shipments`-centric schema, v2 introduces **Mission** as the platform's core entity per this phase's direction.
