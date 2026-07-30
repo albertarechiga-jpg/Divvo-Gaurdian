@@ -1525,6 +1525,12 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
   const criticalDevices = devices.filter(d => d.severity === "Critical");
   const warningDevices  = devices.filter(d => d.severity === "Warning");
   const secureCount     = devices.filter(d => d.severity === "Secure").length;
+  // When a device is selected, the alert feed narrows to just that one —
+  // clicking a single alert shouldn't leave every other device's row still
+  // showing. The fleet-wide counts above (criticalDevices.length etc.) stay
+  // unfiltered since those are whole-fleet stats, not this list.
+  const visibleCriticalDevices = selectedDevice ? criticalDevices.filter(d => d.id === selectedDevice.id) : criticalDevices;
+  const visibleWarningDevices  = selectedDevice ? warningDevices.filter(d => d.id === selectedDevice.id) : warningDevices;
   const totalCargo      = devices.reduce((s, d) => s + parseFloat(d.cargo.replace(/[$,]/g, "")), 0);
 
   return (
@@ -1685,25 +1691,25 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
               </div>
             )}
 
-            {criticalDevices.length > 0 && (
+            {visibleCriticalDevices.length > 0 && (
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}>
                   <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#ef4444", animation: "pulse 1s infinite", display: "inline-block" }}/>
                   Critical — Immediate Action
                 </div>
-                {criticalDevices.map(d => (
+                {visibleCriticalDevices.map(d => (
                   <AlertRow key={d.id} device={d} selected={selectedDevice?.id === d.id} onClick={() => handleSelectDevice(d.id)} onRoute={handleRouteShipment} ctx={DEVICE_SHIPMENT_CONTEXT[d.id]}/>
                 ))}
               </div>
             )}
 
-            {warningDevices.length > 0 && (
+            {visibleWarningDevices.length > 0 && (
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}>
                   <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#f59e0b", display: "inline-block" }}/>
                   Warning — Monitor
                 </div>
-                {warningDevices.map(d => (
+                {visibleWarningDevices.map(d => (
                   <AlertRow key={d.id} device={d} selected={selectedDevice?.id === d.id} onClick={() => handleSelectDevice(d.id)} onRoute={handleRouteShipment} ctx={DEVICE_SHIPMENT_CONTEXT[d.id]}/>
                 ))}
               </div>
@@ -1737,16 +1743,20 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
               </div>
             )}
 
-            {/* Secure fleet summary */}
-            <div style={{ marginTop: 8 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}>
-                <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#22c55e", display: "inline-block" }}/>
-                Secure — {secureCount} Devices
+            {/* Secure fleet summary — unrelated to any single selected
+                device, so hide it while one's selected, same as the
+                Shipment Routes list above. */}
+            {!selectedDevice && (
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#22c55e", display: "inline-block" }}/>
+                  Secure — {secureCount} Devices
+                </div>
+                <div style={{ padding: "8px 10px", background: "#0a0f1a", border: "1px solid #1f2937", borderRadius: 8, fontSize: 11, color: "#6b7280" }}>
+                  All remaining devices nominal · No action required
+                </div>
               </div>
-              <div style={{ padding: "8px 10px", background: "#0a0f1a", border: "1px solid #1f2937", borderRadius: 8, fontSize: 11, color: "#6b7280" }}>
-                All remaining devices nominal · No action required
-              </div>
-            </div>
+            )}
           </div>
         </div>
 
