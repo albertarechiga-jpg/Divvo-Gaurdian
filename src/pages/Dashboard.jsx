@@ -1,9 +1,12 @@
 import { SHIPMENTS } from "../data/shipments.js";
 import { fmtCurrency, fmtCurrencyCompact } from "../lib/utils.js";
-import { RiskBadge, StatusBadge } from "../components/Badges.jsx";
+import { RiskBadge } from "../components/Badges.jsx";
 
-const KpiCard = ({ label, value, sub, accent, icon }) => (
-  <div className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col gap-3 min-w-0">
+const KpiCard = ({ label, value, sub, accent, icon, onClick }) => (
+  <div
+    className={`bg-white rounded-2xl border border-gray-200 p-5 flex flex-col gap-3 min-w-0 ${onClick ? "cursor-pointer hover:border-blue-200 transition-colors" : ""}`}
+    onClick={onClick}
+  >
     <div className="flex items-start justify-between gap-2">
       <p className="min-w-0 text-xs font-semibold text-gray-400 uppercase tracking-wide leading-tight">{label}</p>
       <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${accent}`}>{icon}</div>
@@ -96,7 +99,7 @@ export default function Dashboard({ alerts: allAlerts, incidents: allIncidents, 
             icon={<svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>}
           />
           <KpiCard label="Active Shipments" value={companyShipments.length} sub="All carriers monitored"
-            accent="bg-gray-800"
+            accent="bg-gray-800" onClick={() => onNav("shipments")}
             icon={<svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>}
           />
           <KpiCard label="High/Critical Risk" value={highRisk} sub="Need active attention"
@@ -170,78 +173,35 @@ export default function Dashboard({ alerts: allAlerts, incidents: allIncidents, 
           </div>
         </div>
 
-        {/* Main grid */}
-        <div className="grid grid-cols-3 gap-6">
-          <div className="col-span-2 bg-white rounded-2xl border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-bold text-gray-900">Active Shipments</h2>
-                <p className="text-xs text-gray-400 mt-0.5">{companyShipments.length} shipments · {companyInfo.name} portfolio</p>
-              </div>
-              <button onClick={() => onNav("shipments")} className="text-xs text-blue-600 hover:text-blue-700 font-semibold">View all →</button>
-            </div>
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50/80 border-b border-gray-100">
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Shipment</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Route</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Risk</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Value</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {companyShipments.map((s) => (
-                  <tr key={s.id} onClick={() => onViewShipment(s.id)} className="hover:bg-blue-50/40 cursor-pointer transition-colors group">
-                    <td className="px-6 py-4">
-                      <p className="font-mono text-xs font-bold text-blue-700 group-hover:text-blue-800">{s.id}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{s.carrier}</p>
-                    </td>
-                    <td className="px-4 py-4">
-                      <p className="text-xs text-gray-700 font-medium truncate max-w-40">{s.originPort.split("(")[0].trim()}</p>
-                      <p className="text-xs text-gray-400">→ {s.destination.split(",")[0]}</p>
-                    </td>
-                    <td className="px-4 py-4"><StatusBadge status={s.status} /></td>
-                    <td className="px-4 py-4"><RiskBadge level={s.riskLevel} /></td>
-                    <td className="px-6 py-4 text-right">
-                      <p className="text-xs font-bold text-gray-900">{fmtCurrencyCompact(s.cargoValue)}</p>
-                    </td>
-                  </tr>
-                ))}
-                {companyShipments.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center">
-                      <p className="text-sm font-medium text-gray-400">No shipments tracked for {companyInfo.name} yet</p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100">
+        {/* Live Activity — the shipment table that used to sit next to this
+            duplicated the full Shipments page verbatim (same records, same
+            columns); removed in favor of just deep-linking there (see the
+            "Active Shipments" KPI card above and "View all shipments" below). */}
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div>
               <h2 className="text-sm font-bold text-gray-900">Live Activity</h2>
               <p className="text-xs text-gray-400 mt-0.5">Real-time event feed</p>
             </div>
-            <div className="divide-y divide-gray-50">
-              {recentActivity.map((a, i) => (
-                <div key={i} className="px-5 py-3 flex items-start gap-3">
-                  <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${
-                    a.type === "critical" ? "bg-red-500" : a.type === "high" ? "bg-orange-500" : a.type === "alert" ? "bg-amber-400" : a.type === "incident" ? "bg-blue-500" : "bg-emerald-400"
-                  }`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-700 leading-relaxed">{a.text}</p>
-                    <p className="text-xs text-gray-400 font-mono mt-0.5">{a.time}</p>
-                  </div>
+            <button onClick={() => onNav("shipments")} className="text-xs text-blue-600 hover:text-blue-700 font-semibold">View all shipments →</button>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {recentActivity.map((a, i) => (
+              <div key={i} className="px-5 py-3 flex items-start gap-3">
+                <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${
+                  a.type === "critical" ? "bg-red-500" : a.type === "high" ? "bg-orange-500" : a.type === "alert" ? "bg-amber-400" : a.type === "incident" ? "bg-blue-500" : "bg-emerald-400"
+                }`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-700 leading-relaxed">{a.text}</p>
+                  <p className="text-xs text-gray-400 font-mono mt-0.5">{a.time}</p>
                 </div>
-              ))}
-              {recentActivity.length === 0 && (
-                <div className="px-5 py-10 text-center">
-                  <p className="text-xs text-gray-400">No recent activity</p>
-                </div>
-              )}
-            </div>
+              </div>
+            ))}
+            {recentActivity.length === 0 && (
+              <div className="px-5 py-10 text-center">
+                <p className="text-xs text-gray-400">No recent activity</p>
+              </div>
+            )}
           </div>
         </div>
 
