@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { SB_URL, sbHeaders, authHeaders } from "../lib/supabase.js";
+import { useBrand } from "../context/BrandContext.jsx";
+import { saveBrandSettings } from "../lib/brand.js";
 
 async function loadSettings(companyId) {
   const res = await fetch(SB_URL + `/rest/v1/alert_settings?select=*&company_id=eq.${companyId}&limit=1`, {
@@ -316,10 +318,13 @@ const Section = ({ title, children }) => (
 
 export default function SettingsPage({ companyInfo, session, currentUser }) {
   const company = companyInfo.id;
+  const { brand, brandId, refreshBrand } = useBrand();
   const [settings, setSettings]   = useState(null);
   const [settingsId, setSettingsId] = useState(null);
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
+  const [savingBrand, setSavingBrand] = useState(false);
+  const [brandForm, setBrandForm] = useState(brand);
   const [toast, setToast]         = useState(null);
   const [newEmail, setNewEmail]   = useState("");
   const [newPhone, setNewPhone]   = useState("");
@@ -345,6 +350,25 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
       setLoading(false);
     });
   }, [company]);
+
+  // Keeps the Branding form in sync with the active company's brand —
+  // both on first load and when the sidebar switches companies (this page
+  // isn't remounted on company change, so this can't just be useState(brand)).
+  useEffect(() => {
+    setBrandForm(brand);
+  }, [brand, company]);
+
+  const handleSaveBrand = async () => {
+    setSavingBrand(true);
+    try {
+      await saveBrandSettings(company, brandId, brandForm);
+      refreshBrand();
+      showToast("Branding saved");
+    } catch (err) {
+      showToast(err.message || "Failed to save branding", "#ef4444");
+    }
+    setSavingBrand(false);
+  };
 
   const showToast = (msg, color = "#22c55e") => {
     setToast({ msg, color });
@@ -414,8 +438,8 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
       if (settings.browser_all) {
         if (Notification.permission === "default") await Notification.requestPermission();
         if (Notification.permission === "granted") {
-          new Notification("🚨 Freightlock Guardian — Test Alert", {
-            body: "This is a test notification from Freightlock Guardian. All systems operational.",
+          new Notification(`🚨 ${brand.appName} — Test Alert`, {
+            body: `This is a test notification from ${brand.appName}. All systems operational.`,
           });
           results.push({ channel: "browser", ok: true });
         } else {
@@ -433,7 +457,7 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             to: settings.phones,
-            message: "FREIGHTLOCK GUARDIAN ALERT: This is a test notification from Freightlock Guardian. All systems operational. divvo-guardian.vercel.app",
+            message: `${brand.appName.toUpperCase()} ALERT: This is a test notification from ${brand.appName}. All systems operational. divvo-guardian.vercel.app`,
           }),
         });
         const smsData = await smsRes.json().catch(() => ({}));
@@ -451,11 +475,12 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             to: settings.emails,
-            subject: "[TEST] Freightlock Guardian — Alert Notification Test",
+            subject: `[TEST] ${brand.appName} — Alert Notification Test`,
             alertType: "Test Notification",
             deviceId: "TEST-001",
             location: "System Test",
             severity: "Critical",
+            appName: brand.appName,
             details: [
               ["Alert Type", "Test Notification"],
               ["Device ID", "TEST-001"],
@@ -568,6 +593,70 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
               onChange={(e) => setSettings((s) => ({ ...s, client_name: e.target.value }))}
               style={{ width: "100%", background: "#111827", border: "1px solid #1f2937", borderRadius: 8, padding: "8px 12px", color: "#f9fafb", fontSize: 13 }}
             />
+          </div>
+        </Section>
+
+        {/* Branding */}
+        <Section title="Branding">
+          <div style={{ paddingTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div>
+              <label style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>App Name</label>
+              <input
+                value={brandForm.appName}
+                onChange={(e) => setBrandForm((b) => ({ ...b, appName: e.target.value }))}
+                style={{ width: "100%", background: "#111827", border: "1px solid #1f2937", borderRadius: 8, padding: "8px 12px", color: "#f9fafb", fontSize: 13 }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>Company Name</label>
+              <input
+                value={brandForm.companyName}
+                onChange={(e) => setBrandForm((b) => ({ ...b, companyName: e.target.value }))}
+                style={{ width: "100%", background: "#111827", border: "1px solid #1f2937", borderRadius: 8, padding: "8px 12px", color: "#f9fafb", fontSize: 13 }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>Tagline</label>
+              <input
+                value={brandForm.tagline}
+                onChange={(e) => setBrandForm((b) => ({ ...b, tagline: e.target.value }))}
+                style={{ width: "100%", background: "#111827", border: "1px solid #1f2937", borderRadius: 8, padding: "8px 12px", color: "#f9fafb", fontSize: 13 }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>Logo URL</label>
+              <input
+                value={brandForm.logoUrl || ""}
+                onChange={(e) => setBrandForm((b) => ({ ...b, logoUrl: e.target.value || null }))}
+                placeholder="https://…/logo.svg"
+                style={{ width: "100%", background: "#111827", border: "1px solid #1f2937", borderRadius: 8, padding: "8px 12px", color: "#f9fafb", fontSize: 13 }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>Primary Accent Color</label>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <input
+                  type="color"
+                  value={brandForm.primaryColor}
+                  onChange={(e) => setBrandForm((b) => ({ ...b, primaryColor: e.target.value }))}
+                  style={{ width: 40, height: 34, background: "#111827", border: "1px solid #1f2937", borderRadius: 8, padding: 2, cursor: "pointer" }}
+                />
+                <input
+                  value={brandForm.primaryColor}
+                  onChange={(e) => setBrandForm((b) => ({ ...b, primaryColor: e.target.value }))}
+                  style={{ flex: 1, background: "#111827", border: "1px solid #1f2937", borderRadius: 8, padding: "8px 12px", color: "#f9fafb", fontSize: 13 }}
+                />
+              </div>
+            </div>
+          </div>
+          <div style={{ paddingTop: 14 }}>
+            <button
+              onClick={handleSaveBrand}
+              disabled={savingBrand}
+              style={{ background: savingBrand ? "#1e3a8a80" : "#2563eb", border: "none", color: "white", borderRadius: 8, padding: "8px 20px", fontSize: 12, fontWeight: 700, cursor: savingBrand ? "not-allowed" : "pointer" }}
+            >
+              {savingBrand ? "Saving..." : "Save Branding"}
+            </button>
           </div>
         </Section>
 

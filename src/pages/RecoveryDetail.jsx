@@ -8,6 +8,7 @@ import RouteMap from "../components/RouteMap.jsx";
 import CasePacketModal from "../components/CasePacketModal.jsx";
 import { dispatchAlert, fetchAlertSettings } from "../lib/notifications.js";
 import { reverseGeocode } from "../lib/mapbox.js";
+import { useBrand } from "../context/BrandContext.jsx";
 
 // Parses "32.8407° N, 83.6324° W" -> [lng, lat]
 function parseCoords(str) {
@@ -32,6 +33,7 @@ const InfoRow = ({ label, value, danger }) => (
 );
 
 export default function RecoveryDetail({ incidentId, incidents, alerts, recoveryDetail, onUpdateRecoveryDetail, onAdvanceStage, onBack, companyInfo, session }) {
+  const { brand } = useBrand();
   const inc = incidents.find((i) => i.id === incidentId);
   if (!inc || !recoveryDetail) return null;
   const s = SHIPMENTS.find((x) => x.id === inc.shipmentId);
@@ -122,6 +124,7 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
       location: recoveryDetail.lastGPS.address,
       severity: inc.priority,
       companyId: companyInfo?.id || "owlet",
+      appName: brand.appName,
       details: [["Case ID", inc.id], ["Incident Type", recoveryDetail.incidentType], ["Cargo Value", fmtCurrency(inc.cargoValue)]],
     });
     logCustody("Operations center notified — case escalated");
@@ -158,7 +161,7 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
       "",
       "Please advise on driver status and any information relevant to this incident.",
       "",
-      "— Freightlock Guardian Operations",
+      `— ${brand.appName} Operations`,
     ].join("\n");
     window.location.href = `mailto:${encodeURIComponent(contact.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     logCustody(`Carrier follow-up email drafted to ${s.carrier} dispatch`);
@@ -220,7 +223,7 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
 
     const subject = `URGENT — Cargo Theft In Progress — ${inc.id} — ${placeLabel}`;
     const body = [
-      "Freightlock Guardian cargo theft alert — requesting immediate law enforcement response.",
+      `${brand.appName} cargo theft alert — requesting immediate law enforcement response.`,
       "",
       `Case ID: ${inc.id}`,
       `Jurisdiction (from GPS): ${placeLabel}`,
@@ -229,7 +232,7 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
       "",
       "GPS history, camera footage, and tamper sensor logs are available on request — reply to this email or call our operations line.",
       "",
-      "— Freightlock Guardian Operations",
+      `— ${brand.appName} Operations`,
     ].join("\n");
     const to = matched?.email || "";
     window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -257,7 +260,7 @@ export default function RecoveryDetail({ incidentId, incidents, alerts, recovery
       "",
       "Please advise on next steps for this claim.",
       "",
-      "— Freightlock Guardian Operations",
+      `— ${brand.appName} Operations`,
     ].join("\n");
     window.location.href = `mailto:${encodeURIComponent(ins.adjusterEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     logCustody(`Insurance claim follow-up email drafted to ${ins.adjusterName}`);

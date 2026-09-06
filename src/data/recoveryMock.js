@@ -107,7 +107,7 @@ export function buildDefaultRecoveryDetailForDevice(device) {
       notes: "No insurance claim filed yet.",
     },
     chainOfCustody: [
-      { time: now, actor: "Freightlock Detection Engine", action: `${device.type} alert triggered on device ${device.id}`, artifact: "AUTO-ALERT" },
+      { time: now, actor: "Nihlus Detection Engine", action: `${device.type} alert triggered on device ${device.id}`, artifact: "AUTO-ALERT" },
     ],
   };
 }
@@ -167,11 +167,11 @@ export const RECOVERY_MOCK = {
         "Claim filed under marine cargo policy. Adjuster has been briefed on the incident. Waiting on law enforcement case number confirmation and carrier liability report. Estimated processing: 14–21 business days. Deductible: $250,000.",
     },
     chainOfCustody: [
-      { time: "2026-06-19T08:14:00", actor: "Freightlock Detection Engine", action: "Door Opened alert auto-generated", artifact: "ALT-001" },
-      { time: "2026-06-19T08:18:00", actor: "Freightlock Detection Engine", action: "Geofence breach alert auto-generated", artifact: "ALT-002" },
+      { time: "2026-06-19T08:14:00", actor: "Nihlus Detection Engine", action: "Door Opened alert auto-generated", artifact: "ALT-001" },
+      { time: "2026-06-19T08:18:00", actor: "Nihlus Detection Engine", action: "Geofence breach alert auto-generated", artifact: "ALT-002" },
       { time: "2026-06-19T08:30:00", actor: "Ops Analyst — Alberto Arechiga", action: "Incident case INC-2026-0041 created", artifact: "INC-2026-0041" },
       { time: "2026-06-19T08:35:00", actor: "Ops Analyst — Alberto Arechiga", action: "GPS log evidence package exported and stored", artifact: "GPS-LOG-0041.zip" },
-      { time: "2026-06-19T09:00:00", actor: "Sr. Analyst — P. Chandran", action: "Freightlock senior review initiated, case escalated", artifact: "REVIEW-0041" },
+      { time: "2026-06-19T09:00:00", actor: "Sr. Analyst — P. Chandran", action: "Nihlus senior review initiated, case escalated", artifact: "REVIEW-0041" },
       { time: "2026-06-19T09:45:00", actor: "Ops Analyst — Alberto Arechiga", action: "Law enforcement report filed with BCSO", artifact: "BCSO-2026-04419" },
       { time: "2026-06-19T10:00:00", actor: "Client Liaison — A. Kim", action: "Insurance claim filed with Allianz AGCS", artifact: "AGC-CLM-2026-30041" },
       { time: "2026-06-19T10:15:00", actor: "Sr. Analyst — P. Chandran", action: "Recovery Team Bravo assigned and deployed", artifact: "TEAM-BRAVO-DISPATCH" },
@@ -228,14 +228,14 @@ export const RECOVERY_MOCK = {
         "Insurance claim on standby. Will file if investigation confirms theft or cargo loss. Policy covers cargo in transit for up to full declared value.",
     },
     chainOfCustody: [
-      { time: "2026-06-18T22:45:00", actor: "Freightlock Detection Engine", action: "Route deviation alert auto-generated", artifact: "ALT-004" },
+      { time: "2026-06-18T22:45:00", actor: "Nihlus Detection Engine", action: "Route deviation alert auto-generated", artifact: "ALT-004" },
       { time: "2026-06-18T23:00:00", actor: "Ops Analyst — Alberto Arechiga", action: "Incident case INC-2026-0038 created", artifact: "INC-2026-0038" },
       { time: "2026-06-19T07:30:00", actor: "Sr. Analyst — P. Chandran", action: "Senior review initiated, investigation underway", artifact: "REVIEW-0038" },
     ],
   },
   "INC-2026-0029": {
     incidentType: "Tracker Signal Loss — Resolved",
-    investigator: "Freightlock Ops",
+    investigator: "Nihlus Ops",
     investigatorPhone: "+1 (800) 555-0001",
     investigatorEmail: "ops@freightlockglobal.com",
     recoveryTeam: "N/A — No dispatch required",
@@ -282,7 +282,7 @@ export const RECOVERY_MOCK = {
         "No insurance claim filed. Shipment arrived intact. Carrier accepted responsibility for tracker failure.",
     },
     chainOfCustody: [
-      { time: "2026-06-17T14:00:00", actor: "Freightlock Detection Engine", action: "Tracker offline alert auto-generated", artifact: "ALT-006" },
+      { time: "2026-06-17T14:00:00", actor: "Nihlus Detection Engine", action: "Tracker offline alert auto-generated", artifact: "ALT-006" },
       { time: "2026-06-17T14:50:00", actor: "Ops Analyst — Alberto Arechiga", action: "Signal restored, carrier contacted for explanation", artifact: "CARRIER-CALL-0029" },
       { time: "2026-06-17T16:00:00", actor: "Carrier — COSCO Dispatch", action: "Maintenance report submitted: antenna connector failure", artifact: "COSCO-MR-2026-0617" },
       { time: "2026-06-17T16:30:00", actor: "Ops Analyst — Alberto Arechiga", action: "Case closed — no theft, no cargo loss", artifact: "CLOSE-0029" },
@@ -344,8 +344,8 @@ export const RECOVERY_MOCK = {
         "Claim filed under marine cargo policy. Adjuster briefed on the incident. Waiting on law enforcement case number confirmation and carrier liability report. Estimated processing: 14–21 business days. Deductible: $150,000.",
     },
     chainOfCustody: [
-      { time: "2026-06-20T15:10:00", actor: "Freightlock Detection Engine", action: "Door Opened alert auto-generated", artifact: "ALT-101" },
-      { time: "2026-06-20T15:20:00", actor: "Freightlock Detection Engine", action: "High-risk area stop alert auto-generated", artifact: "ALT-102" },
+      { time: "2026-06-20T15:10:00", actor: "Nihlus Detection Engine", action: "Door Opened alert auto-generated", artifact: "ALT-101" },
+      { time: "2026-06-20T15:20:00", actor: "Nihlus Detection Engine", action: "High-risk area stop alert auto-generated", artifact: "ALT-102" },
       { time: "2026-06-20T15:25:00", actor: "Ops Analyst — Alberto Arechiga", action: "Incident case INC-2026-0050 created", artifact: "INC-2026-0050" },
       { time: "2026-06-20T15:45:00", actor: "Ops Analyst — Alberto Arechiga", action: "Law enforcement report filed with LCSO", artifact: "LCSO-2026-08812" },
       { time: "2026-06-20T16:10:00", actor: "Client Liaison — A. Kim", action: "Insurance claim filed with Allianz AGCS", artifact: "AGC-CLM-2026-30050" },
@@ -403,14 +403,14 @@ export const RECOVERY_MOCK = {
         "Insurance claim on standby. Will file if investigation confirms theft or cargo loss. Policy covers cargo in transit for up to full declared value.",
     },
     chainOfCustody: [
-      { time: "2026-06-20T09:20:00", actor: "Freightlock Detection Engine", action: "Route deviation alert auto-generated", artifact: "ALT-103" },
+      { time: "2026-06-20T09:20:00", actor: "Nihlus Detection Engine", action: "Route deviation alert auto-generated", artifact: "ALT-103" },
       { time: "2026-06-20T09:35:00", actor: "Ops Analyst — Alberto Arechiga", action: "Incident case INC-2026-0051 created", artifact: "INC-2026-0051" },
       { time: "2026-06-20T11:00:00", actor: "Sr. Analyst — P. Chandran", action: "Senior review initiated, investigation underway", artifact: "REVIEW-0051" },
     ],
   },
   "INC-2026-0054": {
     incidentType: "Tracker Signal Loss — Resolved",
-    investigator: "Freightlock Ops",
+    investigator: "Nihlus Ops",
     investigatorPhone: "+1 (800) 555-0001",
     investigatorEmail: "ops@freightlockglobal.com",
     recoveryTeam: "N/A — No dispatch required",
@@ -457,7 +457,7 @@ export const RECOVERY_MOCK = {
         "No insurance claim filed. Shipment arrived intact. Carrier accepted responsibility for tracker failure.",
     },
     chainOfCustody: [
-      { time: "2026-06-19T06:00:00", actor: "Freightlock Detection Engine", action: "Tracker offline alert auto-generated", artifact: "ALT-104" },
+      { time: "2026-06-19T06:00:00", actor: "Nihlus Detection Engine", action: "Tracker offline alert auto-generated", artifact: "ALT-104" },
       { time: "2026-06-19T06:39:00", actor: "Ops Analyst — Alberto Arechiga", action: "Signal restored, carrier contacted for explanation", artifact: "CARRIER-CALL-0054" },
       { time: "2026-06-19T08:00:00", actor: "Carrier — ZIM Dispatch", action: "Maintenance report submitted: antenna connector failure", artifact: "ZIM-MR-2026-0619" },
       { time: "2026-06-19T08:30:00", actor: "Ops Analyst — Alberto Arechiga", action: "Case closed — no theft, no cargo loss", artifact: "CLOSE-0054" },
@@ -519,8 +519,8 @@ export const RECOVERY_MOCK = {
         "Claim filed under marine cargo policy. Adjuster briefed on the incident. Waiting on law enforcement case number confirmation and carrier liability report. Estimated processing: 14–21 business days. Deductible: $150,000.",
     },
     chainOfCustody: [
-      { time: "2026-06-20T11:40:00", actor: "Freightlock Detection Engine", action: "Door Opened alert auto-generated", artifact: "ALT-105" },
-      { time: "2026-06-20T11:50:00", actor: "Freightlock Detection Engine", action: "High-risk area stop alert auto-generated", artifact: "ALT-106" },
+      { time: "2026-06-20T11:40:00", actor: "Nihlus Detection Engine", action: "Door Opened alert auto-generated", artifact: "ALT-105" },
+      { time: "2026-06-20T11:50:00", actor: "Nihlus Detection Engine", action: "High-risk area stop alert auto-generated", artifact: "ALT-106" },
       { time: "2026-06-20T11:55:00", actor: "Ops Analyst — Alberto Arechiga", action: "Incident case INC-2026-0052 created", artifact: "INC-2026-0052" },
       { time: "2026-06-20T12:20:00", actor: "Ops Analyst — Alberto Arechiga", action: "Law enforcement report filed with Laurens County SO", artifact: "LAUR-2026-05521" },
       { time: "2026-06-20T12:50:00", actor: "Client Liaison — A. Kim", action: "Insurance claim filed with Allianz AGCS", artifact: "AGC-CLM-2026-30052" },
@@ -578,14 +578,14 @@ export const RECOVERY_MOCK = {
         "Insurance claim on standby. Will file if investigation confirms theft or cargo loss. Policy covers cargo in transit for up to full declared value.",
     },
     chainOfCustody: [
-      { time: "2026-06-20T08:10:00", actor: "Freightlock Detection Engine", action: "Route deviation alert auto-generated", artifact: "ALT-107" },
+      { time: "2026-06-20T08:10:00", actor: "Nihlus Detection Engine", action: "Route deviation alert auto-generated", artifact: "ALT-107" },
       { time: "2026-06-20T08:25:00", actor: "Ops Analyst — Alberto Arechiga", action: "Incident case INC-2026-0053 created", artifact: "INC-2026-0053" },
       { time: "2026-06-20T09:45:00", actor: "Sr. Analyst — P. Chandran", action: "Senior review initiated, investigation underway", artifact: "REVIEW-0053" },
     ],
   },
   "INC-2026-0055": {
     incidentType: "Tracker Signal Loss — Resolved",
-    investigator: "Freightlock Ops",
+    investigator: "Nihlus Ops",
     investigatorPhone: "+1 (800) 555-0001",
     investigatorEmail: "ops@freightlockglobal.com",
     recoveryTeam: "N/A — No dispatch required",
@@ -632,7 +632,7 @@ export const RECOVERY_MOCK = {
         "No insurance claim filed. Shipment arrived intact. Carrier accepted responsibility for tracker failure.",
     },
     chainOfCustody: [
-      { time: "2026-06-19T04:30:00", actor: "Freightlock Detection Engine", action: "Tracker offline alert auto-generated", artifact: "ALT-108" },
+      { time: "2026-06-19T04:30:00", actor: "Nihlus Detection Engine", action: "Tracker offline alert auto-generated", artifact: "ALT-108" },
       { time: "2026-06-19T05:03:00", actor: "Ops Analyst — Alberto Arechiga", action: "Signal restored, carrier contacted for explanation", artifact: "CARRIER-CALL-0055" },
       { time: "2026-06-19T06:30:00", actor: "Carrier — Wan Hai Dispatch", action: "Maintenance report submitted: antenna connector failure", artifact: "WANHAI-MR-2026-0619" },
       { time: "2026-06-19T07:00:00", actor: "Ops Analyst — Alberto Arechiga", action: "Case closed — no theft, no cargo loss", artifact: "CLOSE-0055" },
@@ -644,5 +644,5 @@ export const INVESTIGATOR_ROSTER = [
   { name: "Marcus Webb", phone: "+1 (404) 555-0193", email: "m.webb@freightlockglobal.com" },
   { name: "Priya Chandran", phone: "+1 (713) 555-0227", email: "p.chandran@freightlockglobal.com" },
   { name: "Alberto Arechiga", phone: "+1 (210) 555-0142", email: "a.arechiga@freightlockglobal.com" },
-  { name: "Freightlock Ops", phone: "+1 (800) 555-0001", email: "ops@freightlockglobal.com" },
+  { name: "Nihlus Ops", phone: "+1 (800) 555-0001", email: "ops@freightlockglobal.com" },
 ];

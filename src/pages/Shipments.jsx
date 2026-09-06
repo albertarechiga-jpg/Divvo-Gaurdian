@@ -3,8 +3,10 @@ import { SHIPMENTS } from "../data/shipments.js";
 import { fmtCurrencyCompact } from "../lib/utils.js";
 import { RiskBadge, StatusBadge } from "../components/Badges.jsx";
 import AddShipmentModal from "../components/AddShipmentModal.jsx";
+import { useBrand } from "../context/BrandContext.jsx";
 
 export default function ShipmentsPage({ companyInfo, onViewShipment, session, currentUser, onShipmentCreated }) {
+  const { brand } = useBrand();
   const [filter, setFilter] = useState("All");
   const [showAddShipment, setShowAddShipment] = useState(false);
   const companyShipments = SHIPMENTS.filter((s) => s.customer === companyInfo.name);
@@ -19,7 +21,7 @@ export default function ShipmentsPage({ companyInfo, onViewShipment, session, cu
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-bold text-blue-600 uppercase tracking-widest">Freightlock Guardian</span>
+              <span className="text-xs font-bold text-blue-600 uppercase tracking-widest">{brand.appName}</span>
               <span className="text-gray-300">·</span>
               <span className="text-xs text-gray-400">{companyInfo.name} Portfolio</span>
             </div>

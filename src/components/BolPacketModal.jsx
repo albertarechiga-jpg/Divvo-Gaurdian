@@ -3,6 +3,7 @@ import { fmtCurrency, fmtDate } from "../lib/utils.js";
 import { fetchBolDetail, fetchCustodyEvents, logCustodyEvent, fetchLockEvents, logLockEvent, getDriverVerificationUrls } from "../lib/bol.js";
 import { captureEvidence, fetchEvidenceFiles, getEvidenceUrl } from "../lib/evidence.js";
 import { fetchInsuranceClaim, upsertInsuranceClaim } from "../lib/insurance.js";
+import { useBrand } from "../context/BrandContext.jsx";
 
 const PRINT_STYLE = `
   @media print {
@@ -61,6 +62,7 @@ const Row = ({ label, value }) => (
 );
 
 export default function BolPacketModal({ bolId, session, currentUser, onClose }) {
+  const { brand } = useBrand();
   const [bol, setBol] = useState(undefined); // undefined = loading, null = not found
   const [bolError, setBolError] = useState("");
   const [custodyEvents, setCustodyEvents] = useState([]);
@@ -361,7 +363,7 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
         <div className="bol-packet max-w-3xl mx-auto bg-white rounded-xl shadow-2xl p-10">
           <div className="flex items-start justify-between border-b-2 border-gray-900 pb-4 mb-6">
             <div>
-              <p className="text-lg font-bold text-gray-900">Freightlock Guardian</p>
+              <p className="text-lg font-bold text-gray-900">{brand.appName}</p>
               <p className="text-xs text-gray-500">Digital Bill of Lading</p>
             </div>
             <div className="text-right">
@@ -701,7 +703,7 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
           </Section>
 
           <div className="border-t border-gray-300 pt-4 mt-6 text-xs text-gray-400 flex items-center justify-between">
-            <span>Prepared by Freightlock Guardian — Freightlock Global LLC</span>
+            <span>Prepared by {brand.appName} — {brand.companyName}</span>
             <span>Identity verification is simulated for this pilot; signatures are recorded as cryptographic hashes, never raw images.</span>
           </div>
         </div>

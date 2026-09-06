@@ -1,5 +1,6 @@
 import { useState } from "react";
 import AddCompanyModal from "./AddCompanyModal.jsx";
+import { useBrand } from "../context/BrandContext.jsx";
 
 const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard" },
@@ -55,6 +56,7 @@ const NAV_ICONS = {
 };
 
 export default function Sidebar({ active, onNav, openAlerts, companies, selectedCompany, onCompanyChange, onCompanyCreated, currentUser, onLogout, session }) {
+  const { brand } = useBrand();
   const current = companies?.find(c => c.id === selectedCompany) || companies?.[0];
   const [showAddCompany, setShowAddCompany] = useState(false);
   const canAddCompany = currentUser?.isPlatformOrg && currentUser?.role === "admin";
@@ -72,14 +74,18 @@ export default function Sidebar({ active, onNav, openAlerts, companies, selected
       {/* Brand */}
       <div className="px-5 pt-6 pb-4">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            </svg>
+          <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {brand.logoUrl ? (
+              <img src={brand.logoUrl} alt={brand.appName} className="w-full h-full object-cover" />
+            ) : (
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            )}
           </div>
           <div>
-            <p className="text-white text-sm font-bold tracking-tight leading-none">Freightlock Guardian</p>
-            <p className="text-blue-400 text-xs mt-0.5 font-medium">by Freightlock Global</p>
+            <p className="text-white text-sm font-bold tracking-tight leading-none">{brand.appName}</p>
+            <p className="text-blue-400 text-xs mt-0.5 font-medium">by {brand.companyName}</p>
           </div>
         </div>
       </div>
@@ -193,7 +199,7 @@ export default function Sidebar({ active, onNav, openAlerts, companies, selected
           Log out
         </button>
         <div className="text-center">
-          <p className="text-gray-600 text-xs">Freightlock Guardian v1.0 · © 2026 Freightlock Global LLC</p>
+          <p className="text-gray-600 text-xs">{brand.appName} v1.0 · © 2026 {brand.companyName}</p>
         </div>
       </div>
 

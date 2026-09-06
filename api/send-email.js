@@ -1,4 +1,8 @@
 const RESEND_KEY = process.env.RESEND_API_KEY;
+// Matches src/config/brand.js's BRAND_DEFAULTS.appName — this serverless
+// function can't import from src/, so the fallback is duplicated here for
+// callers (or older cached clients) that don't send an appName.
+const DEFAULT_APP_NAME = "Nihlus Vision";
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -8,10 +12,13 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { to, subject, alertType, deviceId, location, severity, details } = req.body;
+  const { to, subject, alertType, deviceId, location, severity, details, appName: rawAppName } = req.body;
   if (!to || !subject) return res.status(400).json({ error: "Missing to or subject" });
 
   const emails = Array.isArray(to) ? to : [to];
+  // Strips angle brackets so an admin-set brand name can't break the
+  // "Name <email>" From header format.
+  const appName = (rawAppName || DEFAULT_APP_NAME).replace(/[<>]/g, "").trim() || DEFAULT_APP_NAME;
 
   const severityColor = severity === "Critical" ? "#ef4444" : severity === "Warning" ? "#f59e0b" : "#3b82f6";
   const severityBg    = severity === "Critical" ? "#450a0a" : severity === "Warning" ? "#1a1200" : "#1e3a8a";
@@ -28,7 +35,7 @@ export default async function handler(req, res) {
         <span style="color:white;font-size:18px;">🛡️</span>
       </div>
       <div>
-        <div style="color:#f9fafb;font-size:16px;font-weight:800;">Freightlock Guardian</div>
+        <div style="color:#f9fafb;font-size:16px;font-weight:800;">${appName}</div>
         <div style="color:#6b7280;font-size:11px;">Cargo Security Platform</div>
       </div>
     </div>
@@ -53,11 +60,11 @@ export default async function handler(req, res) {
     </div>
 
     <a href="https://divvo-guardian.vercel.app" style="display:block;background:#2563eb;color:white;text-align:center;padding:14px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;margin-bottom:16px;">
-      Open Freightlock Guardian Dashboard →
+      Open ${appName} Dashboard →
     </a>
 
     <div style="color:#4b5563;font-size:11px;text-align:center;">
-      Freightlock Guardian · Cargo Security Platform · divvo-guardian.vercel.app<br/>
+      ${appName} · Cargo Security Platform · divvo-guardian.vercel.app<br/>
       You are receiving this because you are a registered alert contact for this account.
     </div>
   </div>
@@ -72,7 +79,7 @@ export default async function handler(req, res) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Freightlock Guardian <onboarding@resend.dev>",
+        from: `${appName} <onboarding@resend.dev>`,
         to: emails,
         subject,
         html,

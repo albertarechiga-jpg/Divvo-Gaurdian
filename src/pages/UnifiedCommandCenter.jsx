@@ -4,6 +4,8 @@ import { COMPANY_DEVICES, COMPANY_SHIPMENT_ROUTES, COMPANY_DEVICE_CONTEXT } from
 import { SB_URL, sbHeaders } from "../lib/supabase.js";
 import { MAPBOX_TOKEN, geocode } from "../lib/mapbox.js";
 import { sendSignal, pollSignal } from "../lib/webrtcSignaling.js";
+import { BRAND_DEFAULTS } from "../config/brand.js";
+import { useBrand } from "../context/BrandContext.jsx";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const ICE = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }] };
@@ -37,8 +39,8 @@ async function logAuditEvent(action, operator, details, aiSummary) {
   } catch {}
 }
 
-async function generateDeletionSummary(route, operator) {
-  const prompt = `You are a Freightlock Guardian security audit AI. An operator just deleted a monitored route.
+async function generateDeletionSummary(route, operator, appName = BRAND_DEFAULTS.appName) {
+  const prompt = `You are a ${appName} security audit AI. An operator just deleted a monitored route.
 
 Operator: ${operator}
 Route Name: ${route.name}
@@ -94,8 +96,8 @@ function distanceFromRoute(lat, lon, waypoints) {
 // Live devices & shipments are company-scoped — see src/data/companyFleets.js
 
 // ── AI Response Generator ─────────────────────────────────────────────────────
-async function generateAIResponse(device, windowMinutes = { critical: 5, warning: 15 }) {
-  const prompt = `You are the AI operations center for Freightlock Guardian, a cargo security platform. 
+async function generateAIResponse(device, windowMinutes = { critical: 5, warning: 15 }, appName = BRAND_DEFAULTS.appName) {
+  const prompt = `You are the AI operations center for ${appName}, a cargo security platform.
 Analyze this alert and generate a structured response for a single operator.
 
 Device: ${device.id} | Trailer: ${device.trailerId}
@@ -178,7 +180,7 @@ async function getMapboxRoute(originCoord, destCoord) {
   };
 }
 
-async function generateAIRoute(origin, destination, carrier, cargoValue) {
+async function generateAIRoute(origin, destination, carrier, cargoValue, appName = BRAND_DEFAULTS.appName) {
   let geocodeError = null;
   let routeError = null;
   let originCoord, destCoord, routeData;
@@ -205,7 +207,7 @@ async function generateAIRoute(origin, destination, carrier, cargoValue) {
   const distStr = routeData ? routeData.distanceMiles + " miles" : "unknown distance";
   const durStr  = routeData ? routeData.durationHours + " hours" : "unknown duration";
 
-  const analysisPrompt = `You are a cargo security analyst for Freightlock Guardian.
+  const analysisPrompt = `You are a cargo security analyst for ${appName}.
 Analyze this shipment route for security risks.
 
 Origin: ${origin}
@@ -380,6 +382,7 @@ function CamFeed({ slotId, label }) {
 
 // ── Route Deletion Modal ─────────────────────────────────────────────────────
 function RouteDeletionModal({ route, operator, onConfirm, onCancel }) {
+  const { brand } = useBrand();
   const [loading, setLoading]     = useState(false);
   const [aiSummary, setAiSummary] = useState(null);
   const [reason, setReason]       = useState("");
@@ -387,7 +390,7 @@ function RouteDeletionModal({ route, operator, onConfirm, onCancel }) {
 
   useEffect(() => {
     // Pre-generate AI summary while operator reviews
-    generateDeletionSummary(route, operator).then(setAiSummary);
+    generateDeletionSummary(route, operator, brand.appName).then(setAiSummary);
   }, [route.id]);
 
   const handleConfirm = async () => {
@@ -494,6 +497,7 @@ function RouteDeletionModal({ route, operator, onConfirm, onCancel }) {
 
 // ── AI Route Simulation Panel ────────────────────────────────────────────────
 function AIRoutePanel({ onRouteGenerated, onClose, prefill }) {
+  const { brand } = useBrand();
   const [origin, setOrigin]           = useState(prefill?.origin || "Houston, TX");
   const [destination, setDestination] = useState(prefill?.destination || "San Antonio, TX");
   const [carrier, setCarrier]         = useState(prefill?.carrier || "Maersk Line");
@@ -524,7 +528,7 @@ function AIRoutePanel({ onRouteGenerated, onClose, prefill }) {
       await new Promise(r => setTimeout(r, 600));
       setStep(i + 1);
     }
-    const route = await generateAIRoute(origin, destination, carrier, cargoValue);
+    const route = await generateAIRoute(origin, destination, carrier, cargoValue, brand.appName);
     setResult(route);
     setCorridorMeters(route.corridor_meters || 800);
     setLoading(false);
@@ -1110,6 +1114,7 @@ function formatMMSS(totalSeconds) {
 }
 
 function AIResponsePanel({ device, onDismiss, onNav, company = "owlet" }) {
+  const { brand } = useBrand();
   const [aiData, setAiData]   = useState(null);
   const [loading, setLoading] = useState(true);
   const [step, setStep]       = useState(0); // 0=analyzing, 1=ready
@@ -1136,7 +1141,7 @@ function AIResponsePanel({ device, onDismiss, onNav, company = "owlet" }) {
         critical: settings?.critical_response_minutes ?? 5,
         warning: settings?.warning_response_minutes ?? 15,
       };
-      generateAIResponse(device, windowMinutes).then(data => {
+      generateAIResponse(device, windowMinutes, brand.appName).then(data => {
         setAiData(data);
         setLoading(false);
         setStep(1);
@@ -1161,6 +1166,7 @@ function AIResponsePanel({ device, onDismiss, onNav, company = "owlet" }) {
           severity: device.severity,
           details: [["Cargo", device.cargo], ["Carrier", device.carrier], ["Escalation", "Automatic — response window expired unacknowledged"]],
           companyId: company,
+          appName: brand.appName,
         });
       }
       return;
@@ -1314,7 +1320,7 @@ function AIResponsePanel({ device, onDismiss, onNav, company = "owlet" }) {
                 style={{ background: isCrit ? "#7f1d1d" : "#451a03", border: `1px solid ${borderColor}`, color: textColor, borderRadius: 8, padding: "9px 0", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                 Open Recovery Case
               </button>
-              <button onClick={() => { setActionTaken(true); dispatchAlert({ alertType: device.type, deviceId: device.id, location: device.location, severity: device.severity, details: [["Cargo", device.cargo], ["Carrier", device.carrier]], companyId: company }); }}
+              <button onClick={() => { setActionTaken(true); dispatchAlert({ alertType: device.type, deviceId: device.id, location: device.location, severity: device.severity, details: [["Cargo", device.cargo], ["Carrier", device.carrier]], companyId: company, appName: brand.appName }); }}
                 style={{ background: "#1e3a8a", border: "1px solid #2563eb", color: "#93c5fd", borderRadius: 8, padding: "9px 0", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                 Send Alert Notification
               </button>
@@ -1378,6 +1384,7 @@ function AlertRow({ device, selected, onClick, onRoute, ctx }) {
 
 // ── Main Unified Command Center ───────────────────────────────────────────────
 export default function UnifiedCommandCenter({ onNav, companyInfo }) {
+  const { brand } = useBrand();
   const company = companyInfo.id;
   // No fallback to Owlet's data here — a company with no fleet configured yet
   // (e.g. freshly onboarded, no hardware deployed) should show genuinely empty,
@@ -1567,7 +1574,7 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
           <div style={{ padding: "10px 16px", background: "#060d18", borderBottom: "1px solid #1f2937", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", animation: "pulse 2s infinite", display: "inline-block" }}/>
-              <span style={{ fontSize: 13, fontWeight: 700 }}>Freightlock Guardian — Full Fleet View</span>
+              <span style={{ fontSize: 13, fontWeight: 700 }}>{brand.appName} — Full Fleet View</span>
               <span style={{ fontSize: 11, color: "#6b7280" }}>{devices.length} devices · {companyInfo.region}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1599,7 +1606,7 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             </div>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 800, lineHeight: 1 }}>Freightlock Guardian</div>
+              <div style={{ fontSize: 13, fontWeight: 800, lineHeight: 1 }}>{brand.appName}</div>
               <div style={{ fontSize: 10, color: "#6b7280" }}>Unified Command Center</div>
             </div>
           </div>

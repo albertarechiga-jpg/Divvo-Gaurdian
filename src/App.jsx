@@ -8,6 +8,8 @@ import { fetchCompanies } from "./lib/companies.js";
 import { runTheftDetectionScan, createIncidentFromAlert, createIncidentForShipment, createIncidentForDevice, DEFAULT_THRESHOLDS } from "./lib/detectionEngine.js";
 import { fetchAlertSettings } from "./lib/notifications.js";
 import { getSession, onAuthStateChange, fetchCurrentUser, signOut } from "./lib/auth.js";
+import { BRAND_DEFAULTS } from "./config/brand.js";
+import { BrandProvider } from "./context/BrandContext.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 
 // Pages
@@ -383,7 +385,7 @@ export default function App() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-950 text-gray-500 text-sm">
-        Loading Freightlock Guardian...
+        Loading {BRAND_DEFAULTS.appName}...
       </div>
     );
   }
@@ -442,7 +444,7 @@ export default function App() {
   if (companiesLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-950 text-gray-500 text-sm">
-        Loading Freightlock Guardian...
+        Loading {BRAND_DEFAULTS.appName}...
       </div>
     );
   }
@@ -456,23 +458,25 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
-      <Sidebar
-        active={activeNav}
-        onNav={handleNav}
-        openAlerts={openAlerts}
-        companies={companies}
-        selectedCompany={company}
-        onCompanyChange={setCompany}
-        onCompanyCreated={addCompanyToList}
-        currentUser={currentUser}
-        onLogout={handleLogout}
-        session={session}
-      />
-      <main className="flex-1 overflow-auto min-w-0">
-        {renderPage()}
-      </main>
-      <ScanToast results={scanResults} onDismiss={() => setScanResults(null)} />
-    </div>
+    <BrandProvider companyId={companyInfo.id}>
+      <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
+        <Sidebar
+          active={activeNav}
+          onNav={handleNav}
+          openAlerts={openAlerts}
+          companies={companies}
+          selectedCompany={company}
+          onCompanyChange={setCompany}
+          onCompanyCreated={addCompanyToList}
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          session={session}
+        />
+        <main className="flex-1 overflow-auto min-w-0">
+          {renderPage()}
+        </main>
+        <ScanToast results={scanResults} onDismiss={() => setScanResults(null)} />
+      </div>
+    </BrandProvider>
   );
 }

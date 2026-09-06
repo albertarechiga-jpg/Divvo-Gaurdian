@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { COMPANY_DEVICES } from "../data/companyFleets.js";
 import { sendSignal, pollSignal as pollSignals } from "../lib/webrtcSignaling.js";
+import { useBrand } from "../context/BrandContext.jsx";
 
 const ICE_SERVERS = {
   iceServers: [
@@ -305,6 +306,7 @@ function CameraFeed({ camera, onStatusChange }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function CameraView({ companyInfo }) {
+  const { brand } = useBrand();
   const company = companyInfo.id;
   const CAMERAS = (COMPANY_DEVICES[company] || []).slice(0, 3).map((d) => ({
     id: d.id,
@@ -320,7 +322,7 @@ export default function CameraView({ companyInfo }) {
       setToast(label + " is now LIVE");
       setTimeout(() => setToast(null), 4000);
       if (Notification.permission === "granted") {
-        new Notification("📷 Freightlock Guardian — Camera Live", { body: label + " connected and streaming" });
+        new Notification(`📷 ${brand.appName} — Camera Live`, { body: label + " connected and streaming" });
       }
     } else {
       setLiveFeeds((prev) => prev.filter((id) => id !== cameraId));

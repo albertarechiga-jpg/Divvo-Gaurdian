@@ -1,6 +1,7 @@
 import { SHIPMENTS } from "../data/shipments.js";
 import { fmtCurrency, fmtCurrencyCompact } from "../lib/utils.js";
 import { RiskBadge } from "../components/Badges.jsx";
+import { useBrand } from "../context/BrandContext.jsx";
 
 const KpiCard = ({ label, value, sub, accent, icon, onClick }) => (
   <div
@@ -19,6 +20,7 @@ const KpiCard = ({ label, value, sub, accent, icon, onClick }) => (
 );
 
 export default function Dashboard({ alerts: allAlerts, incidents: allIncidents, companyInfo, onNav, onViewShipment }) {
+  const { brand } = useBrand();
   const companyShipments = SHIPMENTS.filter((s) => s.customer === companyInfo.name);
   const shipmentIds = new Set(companyShipments.map((s) => s.id));
   const alerts = allAlerts.filter((a) => shipmentIds.has(a.shipmentId));
@@ -80,7 +82,7 @@ export default function Dashboard({ alerts: allAlerts, incidents: allIncidents, 
               <span className="text-blue-400">&amp; Recovery Platform</span>
             </h1>
             <p className="text-gray-400 text-sm mt-2 max-w-xl leading-relaxed">
-              Freightlock Guardian monitors high-value shipments in real time — detecting threats, creating incident cases, and coordinating recovery operations for {companyInfo.name}'s national supply chain.
+              {brand.appName} monitors high-value shipments in real time — detecting threats, creating incident cases, and coordinating recovery operations for {companyInfo.name}'s national supply chain.
             </p>
           </div>
           <div className="text-right flex-shrink-0">
@@ -153,7 +155,7 @@ export default function Dashboard({ alerts: allAlerts, incidents: allIncidents, 
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <div>
               <h2 className="text-sm font-bold text-gray-900">Executive Summary</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Freightlock Guardian — {companyInfo.name} Pilot · June 2026</p>
+              <p className="text-xs text-gray-400 mt-0.5">{brand.appName} — {companyInfo.name} Pilot · June 2026</p>
             </div>
             <button onClick={() => onNav("reports")} className="text-xs text-blue-600 hover:text-blue-700 font-semibold">Full Report →</button>
           </div>

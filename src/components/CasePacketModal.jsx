@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { fmtCurrency, fmtDate } from "../lib/utils.js";
 import { fetchMissionEvidenceForShipment } from "../lib/bol.js";
 import { getEvidenceUrl } from "../lib/evidence.js";
+import { useBrand } from "../context/BrandContext.jsx";
 
 const PRINT_STYLE = `
   @media print {
@@ -46,6 +47,7 @@ function buildTimeline(alerts, incident) {
 }
 
 export default function CasePacketModal({ onClose, shipment, incident, recoveryDetail, alerts, session }) {
+  const { brand } = useBrand();
   const timeline = buildTimeline(alerts, incident);
   const gps = recoveryDetail?.lastGPS;
   const isLEPacket = !!incident;
@@ -130,7 +132,7 @@ export default function CasePacketModal({ onClose, shipment, incident, recoveryD
       <div className="case-packet max-w-3xl mx-auto bg-white rounded-xl shadow-2xl p-10">
         <div className="flex items-start justify-between border-b-2 border-gray-900 pb-4 mb-6">
           <div>
-            <p className="text-lg font-bold text-gray-900">Freightlock Guardian</p>
+            <p className="text-lg font-bold text-gray-900">{brand.appName}</p>
             <p className="text-xs text-gray-500">{isLEPacket ? "Law Enforcement Evidence Packet" : "Shipment Case File"}</p>
           </div>
           <div className="text-right">
@@ -313,7 +315,7 @@ export default function CasePacketModal({ onClose, shipment, incident, recoveryD
         )}
 
         <div className="border-t border-gray-300 pt-4 mt-6 text-xs text-gray-400 flex items-center justify-between">
-          <span>Prepared by Freightlock Guardian — Freightlock Global LLC</span>
+          <span>Prepared by {brand.appName} — {brand.companyName}</span>
           <span>This document is auto-generated from live shipment telemetry and case records.</span>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { updatePassword } from "../lib/auth.js";
+import { BRAND_DEFAULTS } from "../config/brand.js";
 
 export default function ResetPassword({ onDone }) {
   const [password, setPassword] = useState("");
@@ -39,8 +40,8 @@ export default function ResetPassword({ onDone }) {
             </svg>
           </div>
           <div>
-            <p className="text-white text-base font-bold tracking-tight leading-none">Freightlock Guardian</p>
-            <p className="text-blue-400 text-xs mt-0.5 font-medium">by Freightlock Global</p>
+            <p className="text-white text-base font-bold tracking-tight leading-none">{BRAND_DEFAULTS.appName}</p>
+            <p className="text-blue-400 text-xs mt-0.5 font-medium">by {BRAND_DEFAULTS.companyName}</p>
           </div>
         </div>
 
@@ -84,7 +85,7 @@ export default function ResetPassword({ onDone }) {
           </form>
         </div>
 
-        <p className="text-gray-600 text-xs text-center mt-6">© 2026 Freightlock Global LLC</p>
+        <p className="text-gray-600 text-xs text-center mt-6">© 2026 {BRAND_DEFAULTS.companyName}</p>
       </div>
     </div>
   );

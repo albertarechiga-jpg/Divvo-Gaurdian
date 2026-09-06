@@ -77,7 +77,7 @@ export default async function handler(req, res) {
       ? callerRoles.find((r) => r.role === "admin" && r.organizations?.is_platform_org)
       : null;
     if (!adminRow) {
-      return res.status(403).json({ error: "Only Freightlock Global admins can add a new company" });
+      return res.status(403).json({ error: "Only Nihlus admins can add a new company" });
     }
 
     // Reject duplicates up front for a clean error instead of a 409 from Postgres

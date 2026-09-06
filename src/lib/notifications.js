@@ -1,4 +1,5 @@
 import { SB_URL, sbHeaders } from "./supabase.js";
+import { BRAND_DEFAULTS } from "../config/brand.js";
 
 // ── Fetch alert settings from Supabase ────────────────────────────────────────
 export async function fetchAlertSettings(companyId = "owlet") {
@@ -13,14 +14,14 @@ export async function fetchAlertSettings(companyId = "owlet") {
 }
 
 // ── Browser push notification ─────────────────────────────────────────────────
-export async function sendBrowserNotification(title, body, severity) {
+export async function sendBrowserNotification(title, body, severity, appName = BRAND_DEFAULTS.appName) {
   if (!("Notification" in window)) return;
   if (Notification.permission === "default") {
     await Notification.requestPermission();
   }
   if (Notification.permission === "granted") {
     const icon = severity === "Critical" ? "🚨" : severity === "Warning" ? "⚠️" : "📡";
-    new Notification(`${icon} Freightlock Guardian — ${title}`, {
+    new Notification(`${icon} ${appName} — ${title}`, {
       body,
       icon: "/favicon.svg",
       badge: "/favicon.svg",
@@ -42,26 +43,29 @@ export async function sendSMS(phones, message) {
 }
 
 // ── Send email via Vercel function ────────────────────────────────────────────
-export async function sendEmail({ to, subject, alertType, deviceId, location, severity, details }) {
+export async function sendEmail({ to, subject, alertType, deviceId, location, severity, details, appName }) {
   try {
     await fetch("/api/send-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ to, subject, alertType, deviceId, location, severity, details }),
+      body: JSON.stringify({ to, subject, alertType, deviceId, location, severity, details, appName }),
     });
   } catch (e) { console.error("Email failed:", e); }
 }
 
 // ── Main alert dispatcher ─────────────────────────────────────────────────────
-export async function dispatchAlert({ alertType, deviceId, location, severity, details = [], companyId = "owlet" }) {
+// appName defaults to the config default (BRAND_DEFAULTS) for callers that
+// don't have the active company's brand on hand — pass the useBrand() value
+// (brand.appName) from a component to reflect a per-company override.
+export async function dispatchAlert({ alertType, deviceId, location, severity, details = [], companyId = "owlet", appName = BRAND_DEFAULTS.appName }) {
   const settings = await fetchAlertSettings(companyId);
   if (!settings) return;
 
   const isCritical = severity === "Critical";
   const isWarning  = severity === "Warning";
 
-  const subject = `[${severity}] Freightlock Guardian — ${alertType} · ${deviceId}`;
-  const smsBody = `🚨 FREIGHTLOCK GUARDIAN ${severity.toUpperCase()} ALERT\n${alertType}\nDevice: ${deviceId}\nLocation: ${location}\nView: divvo-guardian.vercel.app`;
+  const subject = `[${severity}] ${appName} — ${alertType} · ${deviceId}`;
+  const smsBody = `🚨 ${appName.toUpperCase()} ${severity.toUpperCase()} ALERT\n${alertType}\nDevice: ${deviceId}\nLocation: ${location}\nView: divvo-guardian.vercel.app`;
 
   // Browser notification — always if enabled. Wrapped so a permission-prompt
   // failure (e.g. Chrome refusing requestPermission() outside a synchronous
@@ -69,7 +73,7 @@ export async function dispatchAlert({ alertType, deviceId, location, severity, d
   // resolves) can't throw and abort the SMS/email sends below it.
   if (settings.browser_all) {
     try {
-      await sendBrowserNotification(alertType, `${deviceId} · ${location}`, severity);
+      await sendBrowserNotification(alertType, `${deviceId} · ${location}`, severity, appName);
     } catch (e) { console.error("Browser notification failed:", e); }
   }
 
@@ -89,6 +93,7 @@ export async function dispatchAlert({ alertType, deviceId, location, severity, d
       deviceId,
       location,
       severity,
+      appName,
       details: [
         ["Alert Type",  alertType],
         ["Device ID",   deviceId],
