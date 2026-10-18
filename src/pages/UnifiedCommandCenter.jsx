@@ -4,6 +4,7 @@ import { COMPANY_DEVICES, COMPANY_SHIPMENT_ROUTES, COMPANY_DEVICE_CONTEXT } from
 import { SB_URL, sbHeaders } from "../lib/supabase.js";
 import { MAPBOX_TOKEN, geocode } from "../lib/mapbox.js";
 import { sendSignal, pollSignal } from "../lib/webrtcSignaling.js";
+import { logPhoneEvent, fetchRecentPhoneEvents } from "../lib/phoneEvents.js";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const ICE = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }] };
@@ -1399,6 +1400,12 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
   const [routeDeviations, setRouteDeviations] = useState([]);
   const [deletionTarget, setDeletionTarget] = useState(null); // route pending deletion
   const [aiRoutePrefill, setAiRoutePrefill] = useState(null); // prefill for AI route panel
+  const [phoneEvents, setPhoneEvents]       = useState([]); // recent phone_events rows (geofence/no-signal/photo)
+  // deviceId -> { lastSeen: ms, noSignalLogged: bool } — tracks phones that
+  // have broadcast at least once, so a dropped signal can be detected and
+  // logged exactly once per outage instead of every 5s poll.
+  const liveTrackedRef  = useRef({});
+  const geofenceLogRef  = useRef({}); // deviceId -> ms of last geofence_exit log (throttled)
 
   const showToast = (msg, ok = true) => {
     setToastState({ msg, ok });
@@ -1437,22 +1444,63 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
           if (age < 300 && !seen[id]) { seen[id] = true; fresh.push({ ...p, deviceId: id }); }
         }
         setLiveGPS(fresh);
+
+        // No-signal detection — a phone that was broadcasting and then
+        // stops showing up in `fresh` for more than a few missed polls has
+        // lost signal. Logged once per outage (noSignalLogged guards
+        // against re-logging every 5s while still offline) and cleared the
+        // moment a fresh ping resumes.
+        const now = Date.now();
+        const freshIds = new Set(fresh.map(p => p.deviceId));
+        for (const p of fresh) {
+          const tracked = liveTrackedRef.current[p.deviceId] || {};
+          tracked.lastSeen = now;
+          tracked.noSignalLogged = false;
+          liveTrackedRef.current[p.deviceId] = tracked;
+        }
+        for (const [deviceId, tracked] of Object.entries(liveTrackedRef.current)) {
+          if (freshIds.has(deviceId) || tracked.noSignalLogged) continue;
+          if (now - tracked.lastSeen > 20000) {
+            tracked.noSignalLogged = true;
+            logPhoneEvent({ deviceId, eventType: "no_signal", note: "Phone GPS signal lost" }).catch(() => {});
+          }
+        }
+
         // Check route deviations — read from the ref, not the `savedRoutes`
         // state directly: this effect's deps array is `[]` (it must not
         // restart the polling interval every time a route is added), so a
         // direct reference here would permanently close over the empty
         // array from the very first render, before routes finish loading.
         const deviations = [];
+        const deviatedDeviceIds = new Set();
         for (const p of fresh) {
           for (const route of savedRoutesRef.current) {
             if (route.assigned_device !== "all" && route.assigned_device !== p.deviceId) continue;
             const dist = distanceFromRoute(p.lat, p.lon, route.waypoints);
             if (dist > (route.corridor_meters || route.corridorMeters || 500)) {
               deviations.push(route.id);
+              deviatedDeviceIds.add(p.deviceId);
             }
           }
         }
         setRouteDeviations(deviations);
+        // Persist + surface as a dashboard alert — throttled to once a
+        // minute per device so a phone sitting outside the corridor doesn't
+        // spam the events table on every 5s poll.
+        for (const deviceId of deviatedDeviceIds) {
+          const lastLog = geofenceLogRef.current[deviceId] || 0;
+          if (now - lastLog > 60000) {
+            geofenceLogRef.current[deviceId] = now;
+            const p = fresh.find(x => x.deviceId === deviceId);
+            logPhoneEvent({
+              deviceId,
+              eventType: "geofence_exit",
+              lat: p?.lat,
+              lng: p?.lon,
+              note: "Live phone GPS exited the approved corridor",
+            }).catch(() => {});
+          }
+        }
       } catch {
         setGpsStale(true);
       }
@@ -1461,6 +1509,20 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
     const iv = setInterval(poll, 5000);
     return () => clearInterval(iv);
   }, []);
+
+  // Poll the phone_events log itself (separately from gps_pings above) so
+  // the Active Alerts panel also picks up events logged from elsewhere —
+  // e.g. a photo captured on the Cameras page in another tab.
+  useEffect(() => {
+    const ids = DEVICES.map(d => d.id);
+    if (!ids.length) return;
+    const poll = () => {
+      fetchRecentPhoneEvents(ids).then(setPhoneEvents).catch(() => {});
+    };
+    poll();
+    const iv = setInterval(poll, 5000);
+    return () => clearInterval(iv);
+  }, [company]);
 
   // Live phone GPS overrides a device's scripted demo position on the map —
   // whichever device has a fresh ping (see the poll above, <300s old) shows
@@ -1474,6 +1536,50 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
       return live ? { ...d, lat: live.lat, lon: live.lon } : d;
     });
   }, [devices, liveGPS]);
+
+  // Turns recent phone_events rows into device-shaped rows the existing
+  // Active Alerts panel / AlertRow / AIResponsePanel already know how to
+  // render — one synthetic row per device+eventType, most recent only, and
+  // dropped once resolved (a no_signal row disappears again the moment that
+  // device has a fresh live ping) or older than 10 minutes.
+  const phoneAlertDevices = useMemo(() => {
+    const freshIds = new Set(liveGPS.map(p => p.deviceId));
+    const now = Date.now();
+    const latestByKey = {};
+    for (const ev of phoneEvents) {
+      const age = now - new Date(ev.created_at).getTime();
+      if (age > 10 * 60 * 1000) continue;
+      if (ev.event_type === "no_signal" && freshIds.has(ev.device_id)) continue;
+      const key = `${ev.device_id}:${ev.event_type}`;
+      if (!latestByKey[key] || new Date(ev.created_at) > new Date(latestByKey[key].created_at)) {
+        latestByKey[key] = ev;
+      }
+    }
+    return Object.values(latestByKey).map(ev => {
+      const base = devices.find(d => d.id === ev.device_id) || {};
+      const common = {
+        id: `PHONE-${ev.device_id}-${ev.event_type}`,
+        trailerId: base.trailerId || ev.device_id,
+        location: base.location || ev.device_id,
+        battery: base.battery ?? null,
+        lte: base.lte || "Strong",
+        camera: base.camera || "Online",
+        door: base.door || "Closed",
+        lock: base.lock || "Secure",
+        vibration: base.vibration || "Normal",
+        checkin: new Date(ev.created_at).toLocaleTimeString(),
+        carrier: base.carrier || "Phone Simulator",
+        cargo: base.cargo || "$0",
+      };
+      if (ev.event_type === "geofence_exit") {
+        return { ...common, severity: "Critical", type: "Route Deviation — Live Phone GPS" };
+      }
+      if (ev.event_type === "no_signal") {
+        return { ...common, severity: "Warning", type: "Phone GPS Signal Lost" };
+      }
+      return { ...common, severity: "Warning", type: "Photo Captured From Phone — Review" };
+    });
+  }, [phoneEvents, devices, liveGPS]);
 
   const handleRouteShipment = (ctx) => {
     setAiRoutePrefill(ctx);
@@ -1509,7 +1615,7 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
   };
 
   const handleSelectDevice = useCallback((id) => {
-    const device = devices.find(d => d.id === id);
+    const device = devices.find(d => d.id === id) || phoneAlertDevices.find(d => d.id === id);
     if (!device) return;
     // Secure devices only open route planner — no AI alert panel
     if (device.severity === "Secure") {
@@ -1520,10 +1626,11 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
     if (device.severity === "Critical") {
       showToast("AI analyzing critical alert — " + id);
     }
-  }, [devices]);
+  }, [devices, phoneAlertDevices]);
 
-  const criticalDevices = devices.filter(d => d.severity === "Critical");
-  const warningDevices  = devices.filter(d => d.severity === "Warning");
+  const alertableDevices = [...devices, ...phoneAlertDevices];
+  const criticalDevices = alertableDevices.filter(d => d.severity === "Critical");
+  const warningDevices  = alertableDevices.filter(d => d.severity === "Warning");
   const secureCount     = devices.filter(d => d.severity === "Secure").length;
   // When a device is selected, the alert feed narrows to just that one —
   // clicking a single alert shouldn't leave every other device's row still
