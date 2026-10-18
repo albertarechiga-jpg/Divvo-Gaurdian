@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { id: "alerts",    label: "Alerts" },
   { id: "recovery",  label: "Recovery" },
   { id: "camera",    label: "Cameras" },
+  { id: "devices",   label: "Devices" },
   { id: "reports",   label: "Reports" },
   { id: "settings",  label: "Settings" },
 ];
@@ -38,6 +39,11 @@ const NAV_ICONS = {
   camera: (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
       <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+    </svg>
+  ),
+  devices: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+      <rect x="4" y="2" width="16" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
     </svg>
   ),
   reports: (
