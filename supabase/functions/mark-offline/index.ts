@@ -4,7 +4,7 @@
 // to status='offline'. Invoked on a schedule by pg_cron (see
 // 20261018000002_mark_offline_cron.sql) rather than by a device or the
 // dashboard, so this function is deployed with verify_jwt = false
-// (supabase/config.toml) — the only thing it can do is flip stale devices
+// (supabase/config.toml) — the only thing it can do is flip stale imei_devices
 // offline, which is harmless to call repeatedly or even from the public
 // internet (idempotent, no data read/write beyond `status`).
 import { jsonResponse } from "../_shared/cors.ts";
@@ -17,7 +17,7 @@ Deno.serve(async () => {
   const cutoff = new Date(Date.now() - OFFLINE_THRESHOLD_MINUTES * 60_000).toISOString();
 
   const { data, error } = await admin
-    .from("devices")
+    .from("imei_devices")
     .update({ status: "offline" })
     .neq("status", "offline")
     .or(`last_seen.lt.${cutoff},last_seen.is.null`)

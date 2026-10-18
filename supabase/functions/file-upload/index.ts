@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ ok: false, code: 500, message: "db insert failed" }, 500);
   }
 
-  await admin.from("devices").update({ last_seen: new Date().toISOString(), status: "online" }).eq("imei", imei);
+  await admin.from("imei_devices").update({ last_seen: new Date().toISOString(), status: "online" }).eq("imei", imei);
 
   if (typeof commandId === "string" && commandId) {
     await admin

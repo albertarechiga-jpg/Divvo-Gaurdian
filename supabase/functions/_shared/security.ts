@@ -13,12 +13,12 @@ export type DeviceAuthResult =
 
 // An IMEI alone is guessable, so every endpoint keyed by IMEI runs through
 // this before doing anything else:
-//   - path A (Willfine HTTPS API): the IMEI must already exist in `devices`
-//     (the allowlist — devices are provisioned by us, never self-registered)
+//   - path A (Willfine HTTPS API): the IMEI must already exist in `imei_devices`
+//     (the allowlist — imei_devices are provisioned by us, never self-registered)
 //     and the IMEI is rate-limited using recent rows in `events`.
 //   - path B (future Nihlus BG95 firmware): callers pass `device_token`
 //     (header `x-device-token` or body field), which must match the device's
-//     stored `devices.device_token` exactly. Token-authenticated calls skip
+//     stored `imei_devices.device_token` exactly. Token-authenticated calls skip
 //     the allowlist/rate-limit check — the token itself is the proof of
 //     legitimacy.
 export async function authenticateDevice(
@@ -27,7 +27,7 @@ export async function authenticateDevice(
   deviceToken: string | null,
 ): Promise<DeviceAuthResult> {
   const { data: device, error } = await admin
-    .from("devices")
+    .from("imei_devices")
     .select("*")
     .eq("imei", imei)
     .maybeSingle();

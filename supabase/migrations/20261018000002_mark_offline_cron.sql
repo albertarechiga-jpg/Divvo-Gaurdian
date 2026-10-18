@@ -1,4 +1,4 @@
--- Schedules the `mark-offline` Edge Function (devices whose last_seen is
+-- Schedules the `mark-offline` Edge Function (imei_devices whose last_seen is
 -- stale get flipped to status='offline') to run every 5 minutes via
 -- pg_cron + pg_net.
 --
@@ -20,7 +20,7 @@ create extension if not exists pg_net;
 
 select
   cron.schedule(
-    'mark-devices-offline',
+    'mark-imei-devices-offline',
     '*/5 * * * *',
     $$
     select
@@ -32,4 +32,4 @@ select
       );
     $$
   )
-where not exists (select 1 from cron.job where jobname = 'mark-devices-offline');
+where not exists (select 1 from cron.job where jobname = 'mark-imei-devices-offline');

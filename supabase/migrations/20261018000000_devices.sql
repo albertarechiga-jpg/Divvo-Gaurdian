@@ -1,4 +1,4 @@
--- IMEI-keyed device backend (devices, events, photos, commands).
+-- IMEI-keyed device backend (imei_devices, events, photos, commands).
 --
 -- Writes to these four tables only ever happen through Edge Functions running
 -- with the service role key (supabase/functions/*) — the browser only ever
@@ -8,7 +8,7 @@
 -- see FOLLOWUPS.md in this same PR if/when multi-tenant device scoping is
 -- needed).
 
-create table devices (
+create table imei_devices (
   imei text primary key,
   model text,
   firmware text,
@@ -26,7 +26,7 @@ create table devices (
 
 create table events (
   id bigint generated always as identity primary key,
-  imei text references devices(imei),
+  imei text references imei_devices(imei),
   type text not null,           -- motion | gps_alert | status | photo
   payload jsonb,
   created_at timestamptz default now()
@@ -34,7 +34,7 @@ create table events (
 
 create table photos (
   id bigint generated always as identity primary key,
-  imei text references devices(imei),
+  imei text references imei_devices(imei),
   storage_path text not null,
   captured_at timestamptz,
   source text default 'motion', -- motion | on_demand
@@ -43,7 +43,7 @@ create table photos (
 
 create table commands (
   id bigint generated always as identity primary key,
-  imei text references devices(imei),
+  imei text references imei_devices(imei),
   command text not null,        -- take_photo | set_param
   args jsonb,
   status text default 'pending',-- pending | sent | done | failed
@@ -55,10 +55,10 @@ create index events_imei_created_at_idx on events(imei, created_at desc);
 create index photos_imei_created_at_idx on photos(imei, created_at desc);
 create index commands_imei_status_idx on commands(imei, status);
 
-insert into devices (imei, model, firmware)
+insert into imei_devices (imei, model, firmware)
 values ('869830089252035', 'T100 Pro', 'T1R1SYrEA01');
 
-alter table devices enable row level security;
+alter table imei_devices enable row level security;
 alter table events enable row level security;
 alter table photos enable row level security;
 alter table commands enable row level security;
@@ -68,7 +68,7 @@ alter table commands enable row level security;
 -- the service key to the browser. The service role bypasses RLS entirely, so
 -- no insert/update/delete policy is defined for any of these four tables —
 -- an authenticated browser session literally cannot write to them.
-create policy devices_select_authenticated on devices for select
+create policy devices_select_authenticated on imei_devices for select
   to authenticated
   using (true);
 

@@ -3,7 +3,7 @@
 // PLACEHOLDER PATH/PAYLOAD. Willfine's API sheet lists this as one of 7
 // HTTPS APIs keyed by IMEI; we know its purpose but not the real request
 // path or JSON shape yet. Swap the request-parsing below for the real
-// payload once Alberto supplies the sheet — the devices-table lookup and
+// payload once Alberto supplies the sheet — the imei_devices-table lookup and
 // response codes underneath are the real, final logic.
 //
 // Request (placeholder):  POST { imei: string }
@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
   const admin = supabaseAdmin();
 
   const { data: device, error } = await admin
-    .from("devices")
+    .from("imei_devices")
     .select("imei")
     .eq("imei", imei)
     .maybeSingle();

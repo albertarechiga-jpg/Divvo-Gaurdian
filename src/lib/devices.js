@@ -2,15 +2,15 @@ import { SB_URL, authHeaders } from "./supabase.js";
 import { supabase } from "./supabaseClient.js";
 
 // IMEI-keyed device backend (supabase/migrations/..._devices.sql). Reads go
-// through the authenticated-role REST policies on devices/events/photos/
-// commands; all writes to devices/events/photos happen only inside the
+// through the authenticated-role REST policies on imei_devices/events/photos/
+// commands; all writes to imei_devices/events/photos happen only inside the
 // Edge Functions (supabase/functions/*) using the service role — the one
 // exception is queuing a `take_photo` command, which the "commands" table's
 // `commands_insert_take_photo_authenticated` policy allows directly from the
 // dashboard (see the migration's comment on that policy).
 
 export async function fetchDevices(accessToken) {
-  const res = await fetch(`${SB_URL}/rest/v1/devices?select=*&order=imei.asc`, {
+  const res = await fetch(`${SB_URL}/rest/v1/imei_devices?select=*&order=imei.asc`, {
     headers: authHeaders(accessToken),
   });
   if (!res.ok) throw new Error(`Failed to load devices (${res.status})`);
@@ -60,14 +60,14 @@ export async function fetchCommand(accessToken, commandId) {
   return rows[0] || null;
 }
 
-// Supabase Realtime subscription on the `devices` table — the dashboard
+// Supabase Realtime subscription on the `imei_devices` table — the dashboard
 // device card uses this instead of polling so status/battery/GPS updates
 // (written by the status Edge Function) show up live. Returns an unsubscribe
 // function.
 export function subscribeToDevices(onChange) {
   const channel = supabase
-    .channel("devices-realtime")
-    .on("postgres_changes", { event: "*", schema: "public", table: "devices" }, (payload) => {
+    .channel("imei-devices-realtime")
+    .on("postgres_changes", { event: "*", schema: "public", table: "imei_devices" }, (payload) => {
       onChange(payload);
     })
     .subscribe();

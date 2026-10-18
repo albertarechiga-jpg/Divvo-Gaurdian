@@ -7,11 +7,11 @@ are meant to later serve the Nihlus BG95 board via the `device_token` path.
 ## Layout
 
 - `migrations/20261018000000_devices.sql` — the four core tables
-  (`devices`, `events`, `photos`, `commands`), seed row, RLS, and the
+  (`imei_devices`, `events`, `photos`, `commands`), seed row, RLS, and the
   `device-photos` private Storage bucket. This file is an exact, untouched
   copy of the schema in the task brief.
 - `migrations/20261018000001_device_extras.sql` — supporting infra the brief
-  doesn't give an exact schema for: a `devices.params` jsonb column (for the
+  doesn't give an exact schema for: an `imei_devices.params` jsonb column (for the
   `params` function), a `device-firmware` bucket (for `file-download`), and
   adding the four tables to the `supabase_realtime` publication (for the
   dashboard's Realtime subscription).
@@ -35,7 +35,7 @@ payload shapes yet.** Every function above implements the *behavior* the
 task brief specifies (see the table in the top-of-file comment in each
 `index.ts`) against a placeholder request/response shape. Once Alberto
 supplies the real sheet, update each function's request parsing — the
-devices-table/events-table logic underneath doesn't need to change.
+imei_devices-table/events-table logic underneath doesn't need to change.
 
 **Do not touch or decode `sfStatisticsParm.bin`** if it turns up anywhere
 in Willfine's materials — out of scope for this work, per the task brief.
@@ -45,16 +45,16 @@ in Willfine's materials — out of scope for this work, per the task brief.
 - **The service role key never reaches the browser.** The dashboard only
   ever holds the anon/authenticated key (same as the rest of this app's
   Supabase usage — see the root `CLAUDE.md`). All writes to
-  `devices`/`events`/`photos` happen inside these Edge Functions using
+  `imei_devices`/`events`/`photos` happen inside these Edge Functions using
   `SUPABASE_SERVICE_ROLE_KEY`, set as a function secret
   (`supabase secrets set`), never as a `VITE_`-prefixed env var.
 - **Path A (Willfine HTTPS API):** an IMEI alone is guessable, so every
-  IMEI-keyed function allowlists against the `devices` table (unknown IMEI →
+  IMEI-keyed function allowlists against the `imei_devices` table (unknown IMEI →
   error 1001) and rate-limits using a sliding window over that IMEI's own
   rows in `events` (`_shared/security.ts`).
 - **Path B (future Nihlus BG95 firmware):** callers pass `device_token`
   (header `x-device-token` or a body field), checked against
-  `devices.device_token`. A valid token skips the allowlist/rate-limit path
+  `imei_devices.device_token`. A valid token skips the allowlist/rate-limit path
   entirely — the token is the proof of legitimacy.
 - **`mark-offline`** is deployed with `verify_jwt = false` (see
   `config.toml`) since it's invoked by `pg_cron`, not a user session or a

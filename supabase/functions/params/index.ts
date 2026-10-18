@@ -3,7 +3,7 @@
 // PLACEHOLDER PATH/PAYLOAD. Swap for Willfine's real shape once Alberto
 // supplies the sheet. For now:
 //   GET  ?imei=<imei>                       -> { ok: true, params: {...} }
-//   POST { imei, params: { ...partial } }   -> merges into devices.params,
+//   POST { imei, params: { ...partial } }   -> merges into imei_devices.params,
 //                                              returns the merged object
 //
 // `params` is stored as a jsonb column added in
@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
     }
 
     const merged = { ...(auth.device.params as Record<string, unknown> ?? {}), ...incomingParams };
-    const { error } = await admin.from("devices").update({ params: merged }).eq("imei", imei);
+    const { error } = await admin.from("imei_devices").update({ params: merged }).eq("imei", imei);
     if (error) {
       console.error("params update failed:", error);
       return jsonResponse({ ok: false, code: 500, message: "db update failed" }, 500);

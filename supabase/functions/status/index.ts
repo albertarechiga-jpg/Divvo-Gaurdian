@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
     if (typeof value === "number" && Number.isFinite(value)) update[field] = value;
   }
 
-  const { error } = await admin.from("devices").update(update).eq("imei", imei);
+  const { error } = await admin.from("imei_devices").update(update).eq("imei", imei);
   if (error) {
     console.error("status update failed:", error);
     return jsonResponse({ ok: false, code: 500, message: "internal error" }, 500);
