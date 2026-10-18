@@ -1,0 +1,25 @@
+project_id = "divvo-guardian"
+
+[functions.device-check]
+verify_jwt = false
+
+[functions.file-upload]
+verify_jwt = false
+
+[functions.params]
+verify_jwt = false
+
+[functions.file-download]
+verify_jwt = false
+
+[functions.command]
+verify_jwt = false
+
+[functions.status]
+verify_jwt = false
+
+[functions.other]
+verify_jwt = false
+
+[functions.mark-offline]
+verify_jwt = false

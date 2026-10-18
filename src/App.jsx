@@ -23,6 +23,7 @@ import RecoveryDetail  from "./pages/RecoveryDetail.jsx";
 import ReportsPage     from "./pages/Reports.jsx";
 import SettingsPage    from "./pages/Settings.jsx";
 import CameraView      from "./pages/CameraView.jsx";
+import DevicesPage     from "./pages/Devices.jsx";
 
 // Scan-results toast (small, stays in App so it survives page transitions)
 function ScanToast({ results, onDismiss }) {
@@ -368,6 +369,9 @@ export default function App() {
 
       case "camera":
         return <CameraView key={company} companyInfo={companyInfo} />;
+
+      case "devices":
+        return <DevicesPage session={session} />;
 
       case "reports":
         return <ReportsPage companyInfo={companyInfo} alerts={alerts} incidents={incidents} onViewIncident={handleViewIncident} />;
