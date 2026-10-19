@@ -1387,7 +1387,6 @@ export default function UnifiedCommandCenter({ onNav, companyInfo, session }) {
   useEffect(() => { accessTokenRef.current = session?.access_token || null; }, [session]);
 
   const company = companyInfo.id;
-
   // No fallback to Owlet's data here — a company with no fleet configured yet
   // (e.g. freshly onboarded, no hardware deployed) should show genuinely empty,
   // not silently borrow another company's devices.
