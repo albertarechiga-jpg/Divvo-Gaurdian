@@ -57,7 +57,6 @@ v1 tables in use: `companies` (per-tenant company records, read by every page vi
 
 `public/gps.html` and `public/camera.html` are standalone, non-React HTML pages meant to be opened on a phone and act as a fake tracker/camera device for pilot demos — they push GPS pings and WebRTC offers/ICE candidates into Supabase tables that the dashboard (`CameraView.jsx`, `UnifiedCommandCenter.jsx`) polls to establish a live WebRTC connection. This is a stand-in for real device firmware, not production hardware integration.
 
-
 ### Auth: real Supabase Auth, gates the whole app
 
 The entire app is gated behind a Supabase Auth session — `App.jsx` renders only `<Login />` (or `<ResetPassword />`, if the auth event is a password-recovery landing) until a session exists, then `<Sidebar>`/pages once a matching `users`/`user_roles` row is also found via `fetchCurrentUser()`. Account creation is invite-only: there's no public signup form; admins invite teammates from Settings > Team, which calls `api/create-user.js` (validates the caller is a real, currently-logged-in admin via their bearer token before doing anything privileged, then uses Supabase's Admin API to invite-and-email the new user).
