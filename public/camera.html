@@ -80,10 +80,14 @@
         </optgroup>
       </select>
       <div class="label" style="margin-bottom:6px;">Camera Facing</div>
-      <select id="camera-select-arm" class="select" style="margin-bottom:20px;">
+      <select id="camera-select-arm" class="select" style="margin-bottom:12px;">
         <option value="environment">Back Camera (Recommended)</option>
         <option value="user">Front Camera</option>
       </select>
+      <div class="label" style="margin-bottom:6px;">Device Token (photo capture)</div>
+      <input id="token-input" class="select" type="password" autocomplete="off" autocapitalize="off" spellcheck="false"
+        placeholder="Paste the token from your admin" style="margin-bottom:6px;">
+      <div style="font-size:10px;color:#6b7280;line-height:1.5;margin-bottom:20px;">Needed for dashboard "Capture". Kept on this phone only. Without it, live video still works.</div>
       <button class="arm-btn" onclick="armDevice()">🎥 Arm Device</button>
     </div>
   </div>
@@ -102,6 +106,10 @@
       <div class="status-row">
         <div class="dot gray" id="dot-conn"></div>
         <span id="txt-conn" style="color:#6b7280">No dashboard connected</span>
+      </div>
+      <div class="status-row">
+        <div class="dot gray" id="dot-cap"></div>
+        <span id="txt-cap" style="color:#6b7280">Photo capture off</span>
       </div>
     </div>
 
@@ -236,6 +244,180 @@
       } catch {}
     }
 
+    // ── Proof-of-capture ─────────────────────────────────────────────────────
+    // The dashboard "Capture" button queues a take_photo command. This page
+    // polls the `command` Edge Function with its device token, grabs a frame
+    // from the live camera, fingerprints it (SHA-256), attaches a fresh GPS
+    // fix and uploads it through `file-upload`, which re-hashes the bytes and
+    // rejects the upload if the hash doesn't match.
+    const FN_URL = SB_URL + '/functions/v1';
+    const CMD_POLL_MS = 4000;
+    const UPLOAD_ATTEMPTS = 3;
+    let deviceToken = '';
+    let cmdTimer = null;
+    let capturing = false;
+    let lastCapture = '';
+    let lastFailed = false;
+
+    function fnHeaders(extra) {
+      return Object.assign({ apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'x-device-token': deviceToken }, extra || {});
+    }
+
+    function loadSavedToken() {
+      try { return localStorage.getItem('dg_device_token') || ''; } catch { return ''; }
+    }
+    function saveToken(t) {
+      try { localStorage.setItem('dg_device_token', t); } catch {}
+    }
+
+    async function sha256Hex(buffer) {
+      if (!(window.crypto && crypto.subtle)) return null;   // needs https
+      const digest = await crypto.subtle.digest('SHA-256', buffer);
+      return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    function getFix() {
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition(
+          (p) => resolve({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy }),
+          () => resolve(null),
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+        );
+      });
+    }
+
+    // The first poll can land right after arming, before the <video> has its
+    // first frame — wait briefly for it instead of failing the command.
+    async function waitForVideo(timeoutMs) {
+      const v = document.getElementById('local-video');
+      const start = Date.now();
+      while (!v || !v.videoWidth || !v.videoHeight || v.readyState < 2) {
+        if (Date.now() - start > timeoutMs) throw new Error('camera not ready');
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      return v;
+    }
+
+    async function grabFrame() {
+      const v = await waitForVideo(4000);
+      return new Promise((resolve, reject) => {
+        const c = document.createElement('canvas');
+        c.width = v.videoWidth;
+        c.height = v.videoHeight;
+        c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+        c.toBlob((b) => (b ? resolve(b) : reject(new Error('could not encode photo'))), 'image/jpeg', 0.92);
+      });
+    }
+
+    function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+    async function uploadPhoto(blob, meta) {
+      let lastErr = 'upload failed';
+      for (let attempt = 1; attempt <= UPLOAD_ATTEMPTS; attempt++) {
+        try {
+          const fd = new FormData();
+          fd.append('imei', deviceId);
+          fd.append('source', 'on_demand');
+          fd.append('captured_at', meta.capturedAt);
+          fd.append('command_id', String(meta.commandId));
+          if (meta.fix) {
+            fd.append('lat', String(meta.fix.lat));
+            fd.append('lon', String(meta.fix.lon));
+            fd.append('accuracy_m', String(meta.fix.acc));
+          }
+          if (meta.sha256) fd.append('sha256', meta.sha256);
+          fd.append('photo', blob, 'capture.jpg');
+          const res = await fetch(FN_URL + '/file-upload', { method: 'POST', headers: fnHeaders(), body: fd });
+          const data = await res.json().catch(() => ({}));
+          if (data.ok) return data;
+          lastErr = data.message || ('HTTP ' + res.status);
+          if (data.code === 1003 || data.code === 1001) break;   // auth problem: retrying won't help
+        } catch (e) {
+          lastErr = e.message || 'network error';
+        }
+        if (attempt < UPLOAD_ATTEMPTS) await sleep(1000 * attempt * attempt);
+      }
+      throw new Error(lastErr);
+    }
+
+    async function reportFailure(commandId, reason) {
+      try {
+        await fetch(FN_URL + '/command', {
+          method: 'POST',
+          headers: fnHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ imei: deviceId, report: { command_id: commandId, reason: String(reason).slice(0, 200) } }),
+        });
+      } catch {}
+    }
+
+    async function handleTakePhoto(cmd) {
+      capturing = true;
+      setStatus('cap', 'blue', 'Capturing…');
+      try {
+        const fixPromise = getFix();                 // fix requested at the same instant as the frame
+        const capturedAt = new Date().toISOString();
+        const blob = await grabFrame();
+        const buffer = await blob.arrayBuffer();
+        const sha256 = await sha256Hex(buffer);
+        const fix = await fixPromise;
+        setStatus('cap', 'blue', 'Uploading…');
+        const result = await uploadPhoto(blob, { commandId: cmd.id, capturedAt, fix, sha256 });
+        lastCapture = new Date().toLocaleTimeString() + (fix ? '' : ' (no GPS)') + (result.hash_verified ? '' : ' (unhashed)');
+        lastFailed = false;
+        setStatus('cap', 'green', 'Photo sent ' + lastCapture);
+      } catch (e) {
+        await reportFailure(cmd.id, e.message);
+        setStatus('cap', 'red', 'Capture failed: ' + e.message);
+        lastCapture = '';
+        lastFailed = true;
+      } finally {
+        capturing = false;
+      }
+    }
+
+    async function pollCommands() {
+      if (capturing) return;
+      try {
+        const res = await fetch(FN_URL + '/command', {
+          method: 'POST',
+          headers: fnHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ imei: deviceId }),
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          if (data.code === 1003) setStatus('cap', 'red', 'Capture off — wrong device token');
+          else if (data.code === 1001) setStatus('cap', 'red', 'Capture off — device not provisioned');
+          else setStatus('cap', 'amber', 'Command channel error — retrying');
+          return;
+        }
+        if (data.command && data.command.command === 'take_photo') {
+          await handleTakePhoto(data.command);
+        } else {
+          setStatus('cap', lastFailed ? 'amber' : 'green',
+            'Capture ready' + (lastFailed ? ' · last attempt failed' : lastCapture ? ' · last ' + lastCapture : ''));
+        }
+      } catch {
+        setStatus('cap', 'amber', 'Offline — retrying');
+      }
+    }
+
+    function startCapturePolling() {
+      deviceToken = (document.getElementById('token-input').value || '').trim();
+      if (!deviceToken) {
+        setStatus('cap', 'gray', 'Photo capture off — no device token');
+        return;
+      }
+      saveToken(deviceToken);
+      setStatus('cap', 'amber', 'Connecting…');
+      pollCommands();
+      cmdTimer = setInterval(pollCommands, CMD_POLL_MS);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('token-input').value = loadSavedToken();
+    });
+
     async function armDevice() {
       const deviceSelect = document.getElementById('device-select-arm');
       deviceId = deviceSelect.value;
@@ -265,6 +447,12 @@
 
         // Start polling for dashboard connection requests
         pollInterval = setInterval(pollForOffer, 1500);
+
+        // Ask for location now (while we have a tap) so the first Capture
+        // isn't blocked by a permission prompt; denial just means photos
+        // are sent without a GPS fix.
+        getFix();
+        startCapturePolling();
 
       } catch (err) {
         alert('Camera error: ' + err.message + '\n\nPlease allow camera access and try again.');
@@ -300,6 +488,7 @@
       if (localStream) localStream.getTracks().forEach(t => t.stop());
       if (pc) pc.close();
       if (pollInterval) clearInterval(pollInterval);
+      if (cmdTimer) clearInterval(cmdTimer);
     });
   </script>
 </body>
