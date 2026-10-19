@@ -131,7 +131,7 @@ export default function Login() {
             </svg>
           </div>
           <div>
-            <p className="text-white text-base font-bold tracking-tight leading-none">Freightlock Guardian</p>
+            <p className="text-white text-base font-bold tracking-tight leading-none">Nihlus Vision</p>
             <p className="text-blue-400 text-xs mt-0.5 font-medium">by Freightlock Global</p>
           </div>
         </div>
@@ -140,7 +140,7 @@ export default function Login() {
           {mode === "signin" ? (
             <>
               <h1 className="text-white text-sm font-bold mb-1">Sign in</h1>
-              <p className="text-gray-500 text-xs mb-5">Welcome back to Freightlock Guardian.</p>
+              <p className="text-gray-500 text-xs mb-5">Welcome back to Nihlus Vision.</p>
 
               <form onSubmit={handleSubmit} className="space-y-3">
                 <div>

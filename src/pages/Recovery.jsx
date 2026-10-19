@@ -1,9 +1,10 @@
 import { SHIPMENTS } from "../data/shipments.js";
 import { fmtCurrencyCompact } from "../lib/utils.js";
 import { RiskBadge } from "../components/Badges.jsx";
+import { shipmentBelongsToCompany } from "../lib/companyMatch.js";
 
 export default function RecoveryPage({ incidents: allIncidents, companyInfo, onViewIncident }) {
-  const companyShipmentIds = new Set(SHIPMENTS.filter((s) => s.customer === companyInfo.name).map((s) => s.id));
+  const companyShipmentIds = new Set(SHIPMENTS.filter((s) => shipmentBelongsToCompany(s, companyInfo)).map((s) => s.id));
   const incidents = allIncidents.filter((i) => companyShipmentIds.has(i.shipmentId));
   const active = incidents.filter((i) => i.stage < 7);
   const resolved = incidents.filter((i) => i.stage === 7);

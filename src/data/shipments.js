@@ -18,7 +18,7 @@ export const CARRIER_CONTACTS = {
 export const SHIPMENTS = [
   {
     id: "OWL-HOU-1001",
-    customer: "Owlet",
+    customer: "Sony",
     cargoType: "Baby Monitoring Devices",
     containerNumber: "MSCU7842310",
     originPort: "Houston, TX (Port of Houston)",
@@ -45,7 +45,7 @@ export const SHIPMENTS = [
   },
   {
     id: "OWL-LGB-1002",
-    customer: "Owlet",
+    customer: "Sony",
     cargoType: "Consumer Electronics",
     containerNumber: "COSCO4419823",
     originPort: "Long Beach, CA (Port of Long Beach)",
@@ -73,7 +73,7 @@ export const SHIPMENTS = [
   },
   {
     id: "OWL-SAV-1003",
-    customer: "Owlet",
+    customer: "Sony",
     cargoType: "Baby Monitoring Devices",
     containerNumber: "HLCU8831047",
     originPort: "Savannah, GA (Port of Savannah)",
@@ -100,7 +100,7 @@ export const SHIPMENTS = [
   },
   {
     id: "OWL-NJ-1004",
-    customer: "Owlet",
+    customer: "Sony",
     cargoType: "Consumer Electronics",
     containerNumber: "EVGU2293847",
     originPort: "Newark, NJ (Port of Newark)",

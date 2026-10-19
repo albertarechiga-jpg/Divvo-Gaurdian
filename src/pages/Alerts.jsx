@@ -2,6 +2,7 @@ import { useState } from "react";
 import { SHIPMENTS } from "../data/shipments.js";
 import { fmtCurrency, fmtDate, ALERT_STATUS_STYLES } from "../lib/utils.js";
 import { Badge, SeverityBadge } from "../components/Badges.jsx";
+import { shipmentBelongsToCompany } from "../lib/companyMatch.js";
 
 function AlertDetailModal({ alert, onClose, onConvertToIncident, onUpdateStatus }) {
   const ship = SHIPMENTS.find((s) => s.id === alert.shipmentId);
@@ -93,7 +94,7 @@ export default function AlertsPage({ alerts: allAlerts, companyInfo, onScan, onV
   const [filter, setFilter] = useState("All");
   const [severityFilter, setSeverityFilter] = useState("All");
   const [selectedAlert, setSelectedAlert] = useState(null);
-  const companyShipmentIds = new Set(SHIPMENTS.filter((s) => s.customer === companyInfo.name).map((s) => s.id));
+  const companyShipmentIds = new Set(SHIPMENTS.filter((s) => shipmentBelongsToCompany(s, companyInfo)).map((s) => s.id));
   const alerts = allAlerts.filter((a) => companyShipmentIds.has(a.shipmentId));
   const statuses = ["All", "Open", "Under Review", "Resolved"];
   const severities = ["All", "Critical", "High", "Medium"];
