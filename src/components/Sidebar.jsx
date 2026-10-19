@@ -84,7 +84,7 @@ export default function Sidebar({ active, onNav, openAlerts, companies, selected
             </svg>
           </div>
           <div>
-            <p className="text-white text-sm font-bold tracking-tight leading-none">Freightlock Guardian</p>
+            <p className="text-white text-sm font-bold tracking-tight leading-none">Nihlus Vision</p>
             <p className="text-blue-400 text-xs mt-0.5 font-medium">by Freightlock Global</p>
           </div>
         </div>
@@ -199,7 +199,7 @@ export default function Sidebar({ active, onNav, openAlerts, companies, selected
           Log out
         </button>
         <div className="text-center">
-          <p className="text-gray-600 text-xs">Freightlock Guardian v1.0 · © 2026 Freightlock Global LLC</p>
+          <p className="text-gray-600 text-xs">Nihlus Vision v1.0 · © 2026 Freightlock Global LLC</p>
         </div>
       </div>
 

@@ -26,7 +26,7 @@ security_hardening_plan:
     - "Precondition before writing any policy: confirm RLS is actually ENABLED on each table (ALTER TABLE ... ENABLE ROW LEVEL SECURITY). A written policy has no effect if RLS is off for that table."
 
   assumptions:
-    - "Single-tenant pilot (Owlet) — no multi-customer row isolation required yet."
+    - "Single-tenant pilot (Sony) — no multi-customer row isolation required yet."
     - "No Supabase Auth / login flow exists for dashboard users; the anon key represents 'any dashboard operator', not an individual identity."
     - "Vercel project already has a place to add new server-only env vars (established during the earlier credential-rotation work)."
 

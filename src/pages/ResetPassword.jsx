@@ -39,7 +39,7 @@ export default function ResetPassword({ onDone }) {
             </svg>
           </div>
           <div>
-            <p className="text-white text-base font-bold tracking-tight leading-none">Freightlock Guardian</p>
+            <p className="text-white text-base font-bold tracking-tight leading-none">Nihlus Vision</p>
             <p className="text-blue-400 text-xs mt-0.5 font-medium">by Freightlock Global</p>
           </div>
         </div>

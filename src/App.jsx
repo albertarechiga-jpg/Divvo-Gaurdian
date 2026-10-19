@@ -5,6 +5,7 @@ import { INITIAL_ALERTS } from "./data/alerts.js";
 import { INITIAL_INCIDENTS } from "./data/incidents.js";
 import { RECOVERY_MOCK, buildDefaultRecoveryDetail, buildDefaultRecoveryDetailForDevice } from "./data/recoveryMock.js";
 import { fetchCompanies } from "./lib/companies.js";
+import { shipmentBelongsToCompany } from "./lib/companyMatch.js";
 import { runTheftDetectionScan, createIncidentFromAlert, createIncidentForShipment, createIncidentForDevice, DEFAULT_THRESHOLDS } from "./lib/detectionEngine.js";
 import { fetchAlertSettings } from "./lib/notifications.js";
 import { getSession, onAuthStateChange, fetchCurrentUser, signOut } from "./lib/auth.js";
@@ -171,7 +172,7 @@ export default function App() {
   }, []);
 
   const companyInfo = companies.find((c) => c.id === company) || null;
-  const companyShipments = companyInfo ? SHIPMENTS.filter((s) => s.customer === companyInfo.name) : [];
+  const companyShipments = companyInfo ? SHIPMENTS.filter((s) => shipmentBelongsToCompany(s, companyInfo)) : [];
   const companyShipmentIds = new Set(companyShipments.map((s) => s.id));
 
   const openAlerts = alerts.filter((a) => a.status === "Open" && companyShipmentIds.has(a.shipmentId)).length;
@@ -387,7 +388,7 @@ export default function App() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-950 text-gray-500 text-sm">
-        Loading Freightlock Guardian...
+        Loading Nihlus Vision...
       </div>
     );
   }
@@ -446,7 +447,7 @@ export default function App() {
   if (companiesLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-950 text-gray-500 text-sm">
-        Loading Freightlock Guardian...
+        Loading Nihlus Vision...
       </div>
     );
   }
