@@ -14,9 +14,9 @@
 --     belongs to their own organization. Freightlock platform-org staff
 --     (organizations.is_platform_org) may access every company's row, because
 --     the dashboard lets them switch companies.
---   * INSERT / UPDATE additionally require the admin or dispatcher role.
---     viewers and analysts can still READ (dispatchAlert needs the row for
---     every user) but can no longer change where alerts go.
+--   * INSERT / UPDATE additionally require the admin role. Everyone else
+--     (dispatchers, analysts, viewers) can still READ (dispatchAlert needs the
+--     row for every user) but can no longer change where alerts go.
 --   * Nobody can DELETE through the API. service_role (api/add-company.js)
 --     bypasses RLS and is unaffected.
 --
@@ -60,8 +60,8 @@ begin
                    and column_name='is_platform_org') then
     raise exception 'organizations.is_platform_org is missing — run the signup migration first';
   end if;
-  if to_regprocedure('public.is_dispatcher_or_above()') is null then
-    raise exception 'is_dispatcher_or_above() is missing — run supabase_migration_001_mission_engine.sql first';
+  if to_regprocedure('public.is_admin()') is null then
+    raise exception 'is_admin() is missing — run supabase_migration_001_mission_engine.sql first';
   end if;
 end $$;
 
@@ -113,15 +113,15 @@ create policy alert_settings_select_own_company on public.alert_settings
 create policy alert_settings_insert_own_company on public.alert_settings
   for insert to authenticated
   with check (public.can_access_company_alerts(company_id::text)
-              and public.is_dispatcher_or_above());
+              and public.is_admin());
 
 -- WITH CHECK also stops an UPDATE from re-pointing a row at another company.
 create policy alert_settings_update_own_company on public.alert_settings
   for update to authenticated
   using (public.can_access_company_alerts(company_id::text)
-         and public.is_dispatcher_or_above())
+         and public.is_admin())
   with check (public.can_access_company_alerts(company_id::text)
-              and public.is_dispatcher_or_above());
+              and public.is_admin());
 
 -- No DELETE policy: nothing in the app deletes a settings row.
 
@@ -172,10 +172,10 @@ end $$;
 --     -H "Content-Type: application/json" -d '{"phones":[]}' -i
 --   -> expect HTTP 401/403 (permission denied), NOT 200/204.
 --
--- d) Dashboard, signed in as an admin/dispatcher: Settings loads the row and
+-- d) Dashboard, signed in as an admin: Settings loads the row and
 --    "Save" shows the success toast; reload and the change persists.
 --
--- e) Dashboard, signed in as a viewer: Settings loads, but "Save" shows an
+-- e) Dashboard, signed in as a dispatcher or viewer: Settings loads, but "Save" shows an
 --    error toast (read-only), and the row is unchanged.
 --
 -- f) Alerts still fan out: trigger a test alert from Settings ("Send test") or

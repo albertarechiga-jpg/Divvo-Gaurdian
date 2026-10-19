@@ -256,7 +256,7 @@ async function saveSettings(accessToken, id, data) {
 
 // Creates the row for any company that doesn't have one yet (e.g. the
 // alert_settings insert failed during add-company and wasn't rolled back, or a
-// company was seeded directly in the DB). Needs the admin or dispatcher role.
+// company was seeded directly in the DB). Needs the admin role.
 async function createSettings(accessToken, companyId, companyName) {
   const res = await fetch(SB_URL + "/rest/v1/alert_settings", {
     method: "POST",
