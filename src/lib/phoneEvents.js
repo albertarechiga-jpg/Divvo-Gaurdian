@@ -4,7 +4,7 @@ import { SB_URL, sbHeaders } from "./supabase.js";
 // dashboard-captured photos from the WebRTC camera feed) — see
 // supabase/migrations/20261018100000_phone_events.sql for the table.
 
-export async function logPhoneEvent({ deviceId, eventType, photoDataUrl, lat, lng, note }) {
+export async function logPhoneEvent({ deviceId, eventType, photoDataUrl, videoPath, lat, lng, note }) {
   const res = await fetch(SB_URL + "/rest/v1/phone_events", {
     method: "POST",
     headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=minimal" }),
@@ -12,6 +12,7 @@ export async function logPhoneEvent({ deviceId, eventType, photoDataUrl, lat, ln
       device_id: deviceId,
       event_type: eventType,
       photo_data_url: photoDataUrl ?? null,
+      video_path: videoPath ?? null,
       lat: lat ?? null,
       lng: lng ?? null,
       note: note ?? null,

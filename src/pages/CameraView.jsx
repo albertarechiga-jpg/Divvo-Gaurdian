@@ -13,6 +13,16 @@ const ICE_SERVERS = {
 
 const SEVERITY_COLOR = { Critical: "#ef4444", Warning: "#f59e0b", Secure: "#22c55e" };
 
+// Uploads a recorded clip to the private pilot-clips bucket and returns its storage path.
+async function uploadClip(deviceId, token, blob) {
+  if (!token) throw new Error("Not signed in");
+  const type = (blob.type || "video/webm").split(";")[0];
+  const path = deviceId + "/" + new Date().toISOString().replace(/[:.]/g, "-") + "." + (type.includes("mp4") ? "mp4" : "webm");
+  const res = await fetch(SB_URL + "/storage/v1/object/pilot-clips/" + path, { method: "POST", headers: authHeaders(token, { "Content-Type": type }), body: blob });
+  if (!res.ok) throw new Error("Clip upload failed (HTTP " + res.status + ")");
+  return path;
+}
+
 // Latest GPS ping for a device (5 minutes old or newer) so dashboard photos carry a location.
 async function latestFix(deviceId, token) {
   if (!token) return null;
@@ -44,6 +54,10 @@ function CameraFeed({ camera, onStatusChange, session }) {
   const [contrast, setContrast]   = useState(100);
   const [capturing, setCapturing] = useState(false);
   const [captureMsg, setCaptureMsg] = useState("");
+  const [recording, setRecording] = useState(false);
+  const [recSeconds, setRecSeconds] = useState(0);
+  const recorderRef = useRef(null);
+  const recTimerRef = useRef(null);
 
   // Grabs the current frame straight off the live <video> element — the
   // dashboard already has the decoded stream from the WebRTC connection, so
@@ -73,6 +87,53 @@ function CameraFeed({ camera, onStatusChange, session }) {
       setCapturing(false);
       setTimeout(() => setCaptureMsg(""), 3000);
     }
+  };
+
+  // Records the live feed (30 seconds max) and saves it to the private pilot-clips bucket,
+  // with a phone_events row so the clip is tied to the device, time and latest GPS fix.
+  const stopClip = () => {
+    if (recorderRef.current && recorderRef.current.state !== "inactive") recorderRef.current.stop();
+  };
+
+  const startClip = () => {
+    const stream = videoRef.current?.srcObject;
+    if (!stream || recording || typeof MediaRecorder === "undefined") {
+      setCaptureMsg("Recording not available");
+      setTimeout(() => setCaptureMsg(""), 3000);
+      return;
+    }
+    const chunks = [];
+    const mimeType = ["video/webm;codecs=vp8", "video/webm", "video/mp4"].find((t) => MediaRecorder.isTypeSupported(t));
+    const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    recorderRef.current = rec;
+    rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+    rec.onstop = async () => {
+      clearInterval(recTimerRef.current);
+      setRecording(false);
+      setRecSeconds(0);
+      setCapturing(true);
+      try {
+        const blob = new Blob(chunks, { type: rec.mimeType || "video/webm" });
+        const path = await uploadClip(camera.id, session?.access_token, blob);
+        const fix = await latestFix(camera.id, session?.access_token);
+        await logPhoneEvent({ deviceId: camera.id, eventType: "video", videoPath: path, lat: fix?.lat, lng: fix?.lon, note: fix ? "Clip recorded from dashboard (GPS from latest ping)" : "Clip recorded from dashboard (no recent GPS)" });
+        setCaptureMsg("Clip saved \u2713");
+      } catch (err) {
+        setCaptureMsg(err.message || "Clip failed");
+      } finally {
+        setCapturing(false);
+        setTimeout(() => setCaptureMsg(""), 3000);
+      }
+    };
+    rec.start(1000);
+    setRecording(true);
+    setRecSeconds(0);
+    recTimerRef.current = setInterval(() => {
+      setRecSeconds((s) => {
+        if (s + 1 >= 30) stopClip();
+        return s + 1;
+      });
+    }, 1000);
   };
 
   const applyFilter = (ir, bright, cont) => {
@@ -295,6 +356,13 @@ function CameraFeed({ camera, onStatusChange, session }) {
               className="flex-1 text-xs font-bold py-1.5 rounded-lg transition-colors border bg-blue-900/40 border-blue-700 text-blue-300 disabled:opacity-60"
             >
               {capturing ? "Capturing..." : "📸 Take Photo"}
+            </button>
+            <button
+              onClick={recording ? stopClip : startClip}
+              disabled={capturing}
+              className={"flex-1 text-xs font-bold py-1.5 rounded-lg transition-colors border disabled:opacity-60 " + (recording ? "bg-red-900/60 border-red-700 text-red-300" : "bg-gray-800 border-gray-700 text-gray-300")}
+            >
+              {recording ? "Stop clip (" + recSeconds + "s)" : "Record Clip"}
             </button>
             {captureMsg && (
               <span className={`text-xs font-semibold ${captureMsg.includes("✓") ? "text-emerald-400" : "text-red-400"}`}>{captureMsg}</span>
