@@ -701,7 +701,7 @@ export default function BolPacketModal({ bolId, session, currentUser, onClose })
           </Section>
 
           <div className="border-t border-gray-300 pt-4 mt-6 text-xs text-gray-400 flex items-center justify-between">
-            <span>Prepared by Nihlus Vision — Freightlock Global LLC</span>
+            <span>Prepared by Nihlus Vision</span>
             <span>Identity verification is simulated for this pilot; signatures are recorded as cryptographic hashes, never raw images.</span>
           </div>
         </div>
