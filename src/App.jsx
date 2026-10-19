@@ -327,7 +327,7 @@ export default function App() {
     switch (page) {
 
       case "unified-command":
-        return <UnifiedCommandCenter key={company} onNav={handleNav} companyInfo={companyInfo} />;
+        return <UnifiedCommandCenter key={company} onNav={handleNav} companyInfo={companyInfo} session={session} />;
 
       case "dashboard":
         return (
@@ -380,7 +380,7 @@ export default function App() {
         return <SettingsPage companyInfo={companyInfo} session={session} currentUser={currentUser} />;
 
       default:
-        return <UnifiedCommandCenter key={company} onNav={handleNav} companyInfo={companyInfo} />;
+        return <UnifiedCommandCenter key={company} onNav={handleNav} companyInfo={companyInfo} session={session} />;
     }
   };
 
