@@ -39,25 +39,36 @@ export async function sendBrowserNotification(title, body, severity) {
   }
 }
 
-// ── Send SMS via Vercel function ──────────────────────────────────────────────
-export async function sendSMS(phones, message) {
+// ── Send SMS / email via Vercel functions ─────────────────────────────────────
+// Both endpoints require a signed-in session and look the recipients up from
+// the company's alert_settings on the server, so the client sends only the
+// company and the content — never a phone number or address.
+import { supabase as alertApiClient } from "./supabaseClient.js";
+
+async function postAlertApi(path, body) {
+  const { data } = await alertApiClient.auth.getSession();
+  const accessToken = data?.session?.access_token;
+  if (!accessToken) throw new Error("Not signed in");
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+}
+
+export async function sendSMS(companyId, message) {
   try {
-    await fetch("/api/send-sms", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ to: phones, message }),
-    });
+    await postAlertApi("/api/send-sms", { companyId, message });
   } catch (e) { console.error("SMS failed:", e); }
 }
 
-// ── Send email via Vercel function ────────────────────────────────────────────
-export async function sendEmail({ to, subject, alertType, deviceId, location, severity, details }) {
+export async function sendEmail({ companyId, subject, alertType, deviceId, location, severity, details }) {
   try {
-    await fetch("/api/send-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ to, subject, alertType, deviceId, location, severity, details }),
-    });
+    await postAlertApi("/api/send-email", { companyId, subject, alertType, deviceId, location, severity, details });
   } catch (e) { console.error("Email failed:", e); }
 }
 
@@ -85,14 +96,14 @@ export async function dispatchAlert({ alertType, deviceId, location, severity, d
   // SMS — Critical always, Warning only if enabled
   const shouldSMS = (isCritical && settings.sms_critical) || (isWarning && settings.sms_warning);
   if (shouldSMS && settings.phones?.length) {
-    await sendSMS(settings.phones, smsBody);
+    await sendSMS(companyId, smsBody);
   }
 
   // Email — Critical and Warning based on settings
   const shouldEmail = (isCritical && settings.email_critical) || (isWarning && settings.email_warning);
   if (shouldEmail && settings.emails?.length) {
     await sendEmail({
-      to: settings.emails,
+      companyId,
       subject,
       alertType,
       deviceId,
