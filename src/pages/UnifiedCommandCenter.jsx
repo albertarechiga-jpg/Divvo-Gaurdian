@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { dispatchAlert, fetchAlertSettings } from "../lib/notifications.js";
 import { COMPANY_DEVICES, COMPANY_SHIPMENT_ROUTES, COMPANY_DEVICE_CONTEXT } from "../data/companyFleets.js";
-import { SB_URL, sbHeaders } from "../lib/supabase.js";
+import { SB_URL, sbHeaders, authHeaders } from "../lib/supabase.js";
 import { MAPBOX_TOKEN, geocode } from "../lib/mapbox.js";
 import { sendSignal, pollSignal } from "../lib/webrtcSignaling.js";
 
@@ -1377,7 +1377,15 @@ function AlertRow({ device, selected, onClick, onRoute, ctx }) {
 }
 
 // ── Main Unified Command Center ───────────────────────────────────────────────
-export default function UnifiedCommandCenter({ onNav, companyInfo }) {
+export default function UnifiedCommandCenter({ onNav, companyInfo, session }) {
+  // gps_pings is read with the logged-in user's own access token (RLS: signed-in
+  // app users only — see pilot_security_migration.sql), never the public anon
+  // key. The poll effect below runs once with `[]` deps, so it must read the
+  // token through a ref: a plain closure would freeze the first token, which
+  // Supabase rotates roughly hourly, and the live map would silently go stale.
+  const accessTokenRef = useRef(session?.access_token || null);
+  useEffect(() => { accessTokenRef.current = session?.access_token || null; }, [session]);
+
   const company = companyInfo.id;
   // No fallback to Owlet's data here — a company with no fleet configured yet
   // (e.g. freshly onboarded, no hardware deployed) should show genuinely empty,
@@ -1423,7 +1431,9 @@ export default function UnifiedCommandCenter({ onNav, companyInfo }) {
   useEffect(() => {
     const poll = async () => {
       try {
-        const res = await fetch(SB_URL + "/rest/v1/gps_pings?select=*&order=created_at.desc&limit=50", { headers: sbHeaders() });
+        const token = accessTokenRef.current;
+        if (!token) throw new Error("No signed-in session");
+        const res = await fetch(SB_URL + "/rest/v1/gps_pings?select=*&order=created_at.desc&limit=50", { headers: authHeaders(token) });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const pings = await res.json();
         setGpsStale(false);
