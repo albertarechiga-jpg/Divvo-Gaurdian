@@ -1587,7 +1587,7 @@ export default function UnifiedCommandCenter({ onNav, companyInfo, session }) {
       if (ev.event_type === "no_signal") {
         return { ...common, severity: "Warning", type: "Phone GPS Signal Lost" };
       }
-      return { ...common, severity: "Warning", type: "Photo Captured From Phone — Review" };
+      return { ...common, severity: "Warning", type: ev.event_type === "video" ? "Video Clip Captured From Phone — Review" : "Photo Captured From Phone — Review" };
     });
   }, [phoneEvents, devices, liveGPS]);
 
