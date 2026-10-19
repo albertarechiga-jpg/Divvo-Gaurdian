@@ -1,12 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
 import DeviceCard from "../components/DeviceCard.jsx";
 import { fetchDevices, subscribeToDevices } from "../lib/devices.js";
+import { SB_URL, authHeaders } from "../lib/supabase.js";
 
 export default function DevicesPage({ session }) {
   const accessToken = session?.access_token;
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [seen, setSeen] = useState([]);
 
   const load = useCallback(() => {
     if (!accessToken) return;
@@ -22,6 +24,18 @@ export default function DevicesPage({ session }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Phones that have sent GPS in the last 7 days. Read-only: no device token, so no Capture or status.
+  useEffect(() => {
+    if (!accessToken) return;
+    const poll = () => fetch(SB_URL + "/rest/v1/gps_latest?select=device_id,device_name,lat,lon,created_at&order=created_at.desc", { headers: authHeaders(accessToken) })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((rows) => setSeen(rows.filter((r) => Date.now() - new Date(r.created_at).getTime() < 7 * 24 * 3600 * 1000)))
+      .catch(() => {});
+    poll();
+    const iv = setInterval(poll, 15000);
+    return () => clearInterval(iv);
+  }, [accessToken]);
 
   // Realtime keeps status/battery/signal/GPS (written by the `status` Edge
   // Function) and newly-provisioned devices live without polling.
@@ -64,6 +78,22 @@ export default function DevicesPage({ session }) {
             {devices.map((device) => (
               <DeviceCard key={device.imei} device={device} accessToken={accessToken} />
             ))}
+          </div>
+        )}
+
+        {seen.filter((s) => !devices.some((d) => d.imei === s.device_id)).length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-sm font-semibold text-gray-700">Seen via GPS (not provisioned)</h2>
+            <p className="text-xs text-gray-400 mt-0.5 mb-3">These phones have sent GPS but have no device token, so Capture and status are unavailable until they are provisioned.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {seen.filter((s) => !devices.some((d) => d.imei === s.device_id)).map((s) => (
+                <div key={s.device_id} className="bg-white border border-gray-200 rounded-xl p-4">
+                  <p className="font-mono text-sm font-bold text-gray-900">{s.device_id}</p>
+                  <p className="text-xs text-gray-500 mt-1">Last GPS {new Date(s.created_at).toLocaleString()}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{Number(s.lat).toFixed(4)}, {Number(s.lon).toFixed(4)}</p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
