@@ -430,8 +430,8 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
       try {
         const smsRes = await fetch("/api/send-sms", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ companyId: company,
             to: settings.phones,
             message: "FREIGHTLOCK GUARDIAN ALERT: This is a test notification from Freightlock Guardian. All systems operational. divvo-guardian.vercel.app",
           }),
@@ -448,8 +448,8 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
       try {
         const emailRes = await fetch("/api/send-email", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ companyId: company,
             to: settings.emails,
             subject: "[TEST] Freightlock Guardian — Alert Notification Test",
             alertType: "Test Notification",
