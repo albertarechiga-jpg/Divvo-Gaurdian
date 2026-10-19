@@ -1378,8 +1378,6 @@ function AlertRow({ device, selected, onClick, onRoute, ctx }) {
 
 // ── Main Unified Command Center ───────────────────────────────────────────────
 export default function UnifiedCommandCenter({ onNav, companyInfo, session }) {
-  const company = companyInfo.id;
-
   // gps_pings is read with the logged-in user's own access token (RLS: signed-in
   // app users only — see pilot_security_migration.sql), never the public anon
   // key. The poll effect below runs once with `[]` deps, so it must read the
@@ -1387,6 +1385,9 @@ export default function UnifiedCommandCenter({ onNav, companyInfo, session }) {
   // Supabase rotates roughly hourly, and the live map would silently go stale.
   const accessTokenRef = useRef(session?.access_token || null);
   useEffect(() => { accessTokenRef.current = session?.access_token || null; }, [session]);
+
+  const company = companyInfo.id;
+
   // No fallback to Owlet's data here — a company with no fleet configured yet
   // (e.g. freshly onboarded, no hardware deployed) should show genuinely empty,
   // not silently borrow another company's devices.
