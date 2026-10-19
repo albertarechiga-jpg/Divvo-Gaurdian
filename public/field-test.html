@@ -236,6 +236,7 @@
 
     // ---------- GPS ----------
     let watchId = null;
+    let lastCoords = null;
     let pingCount = 0;
     const SPEED_ALERT_COOLDOWN = 30000;
     let lastSpeedAlert = 0;
@@ -297,6 +298,7 @@
     async function onSuccess(pos) {
       pingCount++;
       const c = pos.coords;
+      lastCoords = c;
       const now = new Date().toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
       const mph = ((c.speed ?? 0) * 2.237);
 
@@ -589,6 +591,41 @@
       }
     }
 
+    // Reports battery, a rough network-quality bar count (0-5) and the last GPS fix to the
+    // `status` function so the dashboard Devices card shows them. Browsers expose no temperature or SD card.
+    let statusTimer = null;
+
+    async function getBatteryPct() {
+      try {
+        if (!navigator.getBattery) return null;
+        const b = await navigator.getBattery();
+        return Math.round(b.level * 100);
+      } catch { return null; }
+    }
+
+    function getSignalBars() {
+      const c = navigator.connection;
+      if (!c) return null;
+      const t = c.effectiveType;
+      if (t === 'slow-2g' || t === '2g') return 1;
+      if (t === '3g') return 2;
+      if (typeof c.downlink === 'number') return c.downlink < 2 ? 3 : c.downlink < 5 ? 4 : 5;
+      return 4;
+    }
+
+    async function sendStatus() {
+      if (!deviceToken) return;
+      const body = { imei: getSharedDeviceId() };
+      const battery = await getBatteryPct();
+      if (battery != null) body.battery = battery;
+      const signal = getSignalBars();
+      if (signal != null) body.signal = signal;
+      if (lastCoords) { body.lat = lastCoords.latitude; body.lng = lastCoords.longitude; }
+      try {
+        await fetch(FN_URL + '/status', { method: 'POST', headers: fnHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(body) });
+      } catch {}
+    }
+
     function startCapturePolling() {
       deviceToken = (document.getElementById('token-input').value || '').trim();
       if (!deviceToken) {
@@ -599,6 +636,8 @@
       setStatus('cap', 'amber', 'Connecting…');
       pollCommands();
       cmdTimer = setInterval(pollCommands, CMD_POLL_MS);
+      sendStatus();
+      statusTimer = setInterval(sendStatus, 15000);
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -670,6 +709,7 @@
       if (pc) pc.close();
       if (pollInterval) clearInterval(pollInterval);
       if (cmdTimer) clearInterval(cmdTimer);
+      if (statusTimer) clearInterval(statusTimer);
     });
   </script>
 </body>
