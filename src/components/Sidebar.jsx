@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { id: "recovery",  label: "Recovery" },
   { id: "camera",    label: "Cameras" },
   { id: "devices",   label: "Devices" },
+  { id: "photo-evidence", label: "Photo Evidence" },
   { id: "reports",   label: "Reports" },
   { id: "settings",  label: "Settings" },
 ];
@@ -44,6 +45,12 @@ const NAV_ICONS = {
   devices: (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
       <rect x="4" y="2" width="16" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
+    </svg>
+  ),
+  "photo-evidence": (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+      <circle cx="12" cy="13" r="4"/>
     </svg>
   ),
   reports: (
