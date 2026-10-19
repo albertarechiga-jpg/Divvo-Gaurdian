@@ -313,7 +313,7 @@ export default function CasePacketModal({ onClose, shipment, incident, recoveryD
         )}
 
         <div className="border-t border-gray-300 pt-4 mt-6 text-xs text-gray-400 flex items-center justify-between">
-          <span>Prepared by Nihlus Vision — Freightlock Global LLC</span>
+          <span>Prepared by Nihlus Vision</span>
           <span>This document is auto-generated from live shipment telemetry and case records.</span>
         </div>
       </div>
