@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { COMPANY_DEVICES } from "../data/companyFleets.js";
 import { sendSignal, pollSignal as pollSignals } from "../lib/webrtcSignaling.js";
+import { logPhoneEvent } from "../lib/phoneEvents.js";
 
 const ICE_SERVERS = {
   iceServers: [
@@ -26,6 +27,37 @@ function CameraFeed({ camera, onStatusChange }) {
   const [irMode, setIrMode]       = useState(false);
   const [brightness, setBrightness] = useState(100);
   const [contrast, setContrast]   = useState(100);
+  const [capturing, setCapturing] = useState(false);
+  const [captureMsg, setCaptureMsg] = useState("");
+
+  // Grabs the current frame straight off the live <video> element — the
+  // dashboard already has the decoded stream from the WebRTC connection, so
+  // "Take Photo" needs no round trip back to the phone. Downscaled + JPEG-
+  // compressed before upload since phone_events stores it inline as a data
+  // URL rather than in object storage (see migration 20261018100000).
+  const capturePhoto = async () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return;
+    setCapturing(true);
+    setCaptureMsg("");
+    try {
+      const canvas = document.createElement("canvas");
+      const maxWidth = 640;
+      const scale = Math.min(1, maxWidth / video.videoWidth);
+      canvas.width = Math.round(video.videoWidth * scale);
+      canvas.height = Math.round(video.videoHeight * scale);
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const photoDataUrl = canvas.toDataURL("image/jpeg", 0.6);
+      await logPhoneEvent({ deviceId: camera.id, eventType: "photo", photoDataUrl, note: "Captured from dashboard" });
+      setCaptureMsg("Photo captured ✓");
+    } catch (err) {
+      setCaptureMsg(err.message || "Capture failed");
+    } finally {
+      setCapturing(false);
+      setTimeout(() => setCaptureMsg(""), 3000);
+    }
+  };
 
   const applyFilter = (ir, bright, cont) => {
     if (!videoRef.current) return;
@@ -240,6 +272,18 @@ function CameraFeed({ camera, onStatusChange }) {
       {/* Zoom + IR — only when live */}
       {status === "live" && (
         <div className="px-3 py-2.5 bg-gray-900 border-t border-gray-800 space-y-2">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={capturePhoto}
+              disabled={capturing}
+              className="flex-1 text-xs font-bold py-1.5 rounded-lg transition-colors border bg-blue-900/40 border-blue-700 text-blue-300 disabled:opacity-60"
+            >
+              {capturing ? "Capturing..." : "📸 Take Photo"}
+            </button>
+            {captureMsg && (
+              <span className={`text-xs font-semibold ${captureMsg.includes("✓") ? "text-emerald-400" : "text-red-400"}`}>{captureMsg}</span>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-500 w-8">Zoom</span>
             <input
