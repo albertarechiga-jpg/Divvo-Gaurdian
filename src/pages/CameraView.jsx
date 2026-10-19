@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { COMPANY_DEVICES } from "../data/companyFleets.js";
 import { sendSignal, pollSignal as pollSignals } from "../lib/webrtcSignaling.js";
 import { logPhoneEvent } from "../lib/phoneEvents.js";
+import { SB_URL, authHeaders } from "../lib/supabase.js";
 
 const ICE_SERVERS = {
   iceServers: [
@@ -12,9 +13,23 @@ const ICE_SERVERS = {
 
 const SEVERITY_COLOR = { Critical: "#ef4444", Warning: "#f59e0b", Secure: "#22c55e" };
 
+// Latest GPS ping for a device (5 minutes old or newer) so dashboard photos carry a location.
+async function latestFix(deviceId, token) {
+  if (!token) return null;
+  try {
+    const res = await fetch(SB_URL + "/rest/v1/gps_pings?select=lat,lon,created_at&device_id=eq." + encodeURIComponent(deviceId) + "&order=created_at.desc&limit=1", { headers: authHeaders(token) });
+    if (!res.ok) return null;
+    const p = (await res.json())[0];
+    if (!p || Date.now() - new Date(p.created_at).getTime() > 300000) return null;
+    return { lat: p.lat, lon: p.lon };
+  } catch {
+    return null;
+  }
+}
+
 // ── Single Camera Feed ────────────────────────────────────────────────────────
 
-function CameraFeed({ camera, onStatusChange }) {
+function CameraFeed({ camera, onStatusChange, session }) {
   const videoRef    = useRef(null);
   const pcRef       = useRef(null);
   const intervalRef = useRef(null);
@@ -49,7 +64,8 @@ function CameraFeed({ camera, onStatusChange }) {
       const ctx = canvas.getContext("2d");
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const photoDataUrl = canvas.toDataURL("image/jpeg", 0.6);
-      await logPhoneEvent({ deviceId: camera.id, eventType: "photo", photoDataUrl, note: "Captured from dashboard" });
+      const fix = await latestFix(camera.id, session?.access_token);
+      await logPhoneEvent({ deviceId: camera.id, eventType: "photo", photoDataUrl, lat: fix?.lat, lng: fix?.lon, note: fix ? "Captured from dashboard (GPS from latest ping)" : "Captured from dashboard (no recent GPS)" });
       setCaptureMsg("Photo captured ✓");
     } catch (err) {
       setCaptureMsg(err.message || "Capture failed");
@@ -348,7 +364,7 @@ function CameraFeed({ camera, onStatusChange }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-export default function CameraView({ companyInfo }) {
+export default function CameraView({ companyInfo, session }) {
   const company = companyInfo.id;
   const CAMERAS = (COMPANY_DEVICES[company] || []).slice(0, 3).map((d) => ({
     id: d.id,
@@ -414,7 +430,7 @@ export default function CameraView({ companyInfo }) {
       {CAMERAS.length > 0 ? (
         <div className="grid grid-cols-3 gap-4 mb-6">
           {CAMERAS.map((cam) => (
-            <CameraFeed key={cam.id} camera={cam} onStatusChange={handleStatusChange} />
+            <CameraFeed key={cam.id} camera={cam} onStatusChange={handleStatusChange} session={session} />
           ))}
         </div>
       ) : (
