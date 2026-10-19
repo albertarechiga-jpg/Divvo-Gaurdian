@@ -1,11 +1,17 @@
 import { useState, useEffect } from "react";
-import { SB_URL, sbHeaders, authHeaders } from "../lib/supabase.js";
+import { SB_URL, authHeaders } from "../lib/supabase.js";
 
-async function loadSettings(companyId) {
-  const res = await fetch(SB_URL + `/rest/v1/alert_settings?select=*&company_id=eq.${companyId}&limit=1`, {
-    headers: sbHeaders(),
+// alert_settings (phones, emails, law-enforcement contacts) is RLS-protected:
+// every call below carries the signed-in user's access token, never the anon
+// key (see pilot_alert_settings_lockdown.sql). A denied READ comes back as an
+// empty list and a denied WRITE as an empty result with return=representation,
+// so both are checked explicitly rather than assumed to have worked.
+async function loadSettings(accessToken, companyId) {
+  const res = await fetch(SB_URL + `/rest/v1/alert_settings?select=*&company_id=eq.${encodeURIComponent(companyId)}&limit=1`, {
+    headers: authHeaders(accessToken),
   });
   const rows = await res.json();
+  if (!res.ok) throw new Error(rows?.message || "Failed to load settings");
   return rows?.[0] ?? null;
 }
 
@@ -233,24 +239,28 @@ function TeamSection({ session }) {
   );
 }
 
-async function saveSettings(id, data) {
-  await fetch(SB_URL + "/rest/v1/alert_settings?id=eq." + id, {
+async function saveSettings(accessToken, id, data) {
+  const res = await fetch(SB_URL + "/rest/v1/alert_settings?id=eq." + encodeURIComponent(id), {
     method: "PATCH",
-    headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=minimal" }),
+    headers: authHeaders(accessToken, { "Content-Type": "application/json", Prefer: "return=representation" }),
     body: JSON.stringify({ ...data, updated_at: new Date().toISOString() }),
   });
+  const rows = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(rows?.message || "Failed to save settings");
+  // RLS filters a write the caller isn't allowed to make down to zero rows
+  // instead of erroring — treat that as a failure, not a silent no-op.
+  if (!Array.isArray(rows) || rows.length === 0) {
+    throw new Error("Not saved — your role can't change alert settings.");
+  }
 }
 
-// alert_settings has no RLS (v1 table, same as the existing PATCH above) —
-// a direct anon-key insert is consistent with how api/add-company.js already
-// creates this row for companies added through that flow. This covers the
-// gap for any company that doesn't have one yet (e.g. the alert_settings
-// insert failed during add-company and wasn't rolled back, or a company was
-// seeded directly in the DB).
-async function createSettings(companyId, companyName) {
+// Creates the row for any company that doesn't have one yet (e.g. the
+// alert_settings insert failed during add-company and wasn't rolled back, or a
+// company was seeded directly in the DB). Needs the admin or dispatcher role.
+async function createSettings(accessToken, companyId, companyName) {
   const res = await fetch(SB_URL + "/rest/v1/alert_settings", {
     method: "POST",
-    headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=representation" }),
+    headers: authHeaders(accessToken, { "Content-Type": "application/json", Prefer: "return=representation" }),
     body: JSON.stringify({
       company_id: companyId,
       client_name: companyName,
@@ -332,7 +342,7 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
     setLoading(true);
     setLoadError("");
     setSettings(null);
-    loadSettings(company).then((s) => {
+    loadSettings(session?.access_token, company).then((s) => {
       if (s) {
         setSettingsId(s.id);
         setSettings(normalizeSettings(s, companyInfo.name));
@@ -355,7 +365,7 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
     setCreatingSettings(true);
     setLoadError("");
     try {
-      const row = await createSettings(company, companyInfo.name);
+      const row = await createSettings(session?.access_token, company, companyInfo.name);
       setSettingsId(row.id);
       setSettings(normalizeSettings(row, companyInfo.name));
     } catch (err) {
@@ -367,9 +377,13 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
   const handleSave = async () => {
     if (!settingsId) return;
     setSaving(true);
-    await saveSettings(settingsId, settings);
+    try {
+      await saveSettings(session?.access_token, settingsId, settings);
+      showToast("Settings saved successfully");
+    } catch (err) {
+      showToast(err.message || "Failed to save settings", "#ef4444");
+    }
     setSaving(false);
-    showToast("Settings saved successfully");
   };
 
   const addEmail = () => {
@@ -499,7 +513,7 @@ export default function SettingsPage({ companyInfo, session, currentUser }) {
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 12, padding: 32, textAlign: "center" }}>
       <p style={{ color: "#ef4444", fontSize: 13 }}>{loadError}</p>
       <button
-        onClick={() => { setLoadError(""); setLoading(true); loadSettings(company).then((s) => {
+        onClick={() => { setLoadError(""); setLoading(true); loadSettings(session?.access_token, company).then((s) => {
           if (s) { setSettingsId(s.id); setSettings(normalizeSettings(s, companyInfo.name)); }
           setLoading(false);
         }).catch((err) => { setLoadError(err.message || "Failed to load settings"); setLoading(false); }); }}

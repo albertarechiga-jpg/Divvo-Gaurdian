@@ -1,12 +1,21 @@
-import { SB_URL, sbHeaders } from "./supabase.js";
+import { SB_URL, authHeaders } from "./supabase.js";
+import { supabase } from "./supabaseClient.js";
 
 // ── Fetch alert settings from Supabase ────────────────────────────────────────
+// alert_settings holds phone numbers / emails / law-enforcement contacts, so it
+// is only readable with a signed-in user's token (RLS scopes it to that user's
+// company — see pilot_alert_settings_lockdown.sql). No session, or a row RLS
+// won't show us, means no settings and therefore no alert fan-out.
 export async function fetchAlertSettings(companyId = "owlet") {
   try {
+    const { data } = await supabase.auth.getSession();
+    const accessToken = data?.session?.access_token;
+    if (!accessToken) return null;
     const res = await fetch(
-      SB_URL + `/rest/v1/alert_settings?select=*&company_id=eq.${companyId}&limit=1`,
-      { headers: sbHeaders() }
+      SB_URL + `/rest/v1/alert_settings?select=*&company_id=eq.${encodeURIComponent(companyId)}&limit=1`,
+      { headers: authHeaders(accessToken) }
     );
+    if (!res.ok) return null;
     const rows = await res.json();
     return rows?.[0] ?? null;
   } catch { return null; }
