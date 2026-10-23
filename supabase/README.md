@@ -94,3 +94,21 @@ supabase functions deploy device-check file-upload params file-download command 
 project (see that file's header for the required env vars) and prints the
 take-photo tap-to-done time. The dashboard's **Devices** page should update
 live while it runs.
+
+## Explicit Data API grants (October 30 compatibility)
+
+`migrations/20261023000000_explicit_data_api_grants.sql` follows the device and
+phone table migrations and opts those exact tables/operations into the Data
+API. RLS and the separate pilot lockdown order remain in effect.
+
+See [the permission audit](../docs/supabase-data-api-grants-audit.md) for the
+complete caller/privilege matrix, manual Mission Engine and legacy supplements,
+missing schema sources and development verification limits. The supplements
+are not deployment instructions or authorization to change production.
+
+Run the credential-free PostgreSQL regression suite with:
+
+```bash
+npm ci
+npm run test:db-grants
+```
